@@ -62,6 +62,8 @@ POST   /applications/{id}/decision         ✅ {outcome, reason}
 GET    /audit?entity_type=&entity_id=
 POST   /webhooks                           ✅ {url, events[]} → returns secret once
 GET    /webhooks  /  DELETE /webhooks/{id} ✅
+GET    /notification-deliveries?status=    ✅ delivery log (pending/delivered/dead)
+POST   /notification-deliveries/{id}/retry ✅ revive a dead letter
 GET    /settings  /  PATCH /settings       ✅ ownership scope/window, feedback policy,
                                               branding, notification channels
 ```

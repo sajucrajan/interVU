@@ -1,6 +1,6 @@
-import { createHmac } from "node:crypto";
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { DeliveryWorkerService } from "./delivery-worker.service";
 
 /**
  * Org-facing notification fan-out. Channels are configured PER ORGANIZATION
@@ -9,8 +9,10 @@ import { PrismaService } from "../prisma/prisma.service";
  *   teams_webhook_url  → Microsoft Teams incoming webhook
  *   registered webhook_endpoints → HMAC-signed JSON to anything else
  *   email_enabled      → gates outbound SMTP (vendor-facing mail)
- * Fire-and-forget with logging; per-endpoint retry/delivery log is a later
- * M4 increment tracked in docs/06 §4.
+ *
+ * Dispatch is DURABLE: each channel send is persisted as a
+ * notification_delivery row and drained by DeliveryWorkerService with
+ * exponential backoff — a down channel delays a message, never loses it.
  */
 export interface OrgEvent {
   organizationId: string;
@@ -30,7 +32,10 @@ export interface NotificationSettings {
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly worker: DeliveryWorkerService,
+  ) {}
 
   async orgNotificationSettings(organizationId: string): Promise<NotificationSettings> {
     const org = await this.prisma.organization.findUnique({
@@ -45,71 +50,84 @@ export class NotificationsService {
     return (await this.orgNotificationSettings(organizationId)).email_enabled !== false;
   }
 
-  /** Fan an event out to every configured org channel. Never throws. */
+  /** Enqueue a durable email delivery (drained with retry by the worker). */
+  async enqueueEmail(
+    organizationId: string,
+    to: string[],
+    subject: string,
+    text: string,
+    event: string,
+  ): Promise<void> {
+    if (to.length === 0) return;
+    await this.prisma.notificationDelivery.create({
+      data: {
+        organizationId,
+        channel: "email",
+        target: `smtp (${to.length} recipient${to.length > 1 ? "s" : ""})`,
+        event,
+        body: { to, subject, text },
+      },
+    });
+    void this.worker.drain();
+  }
+
+  /** Enqueue an event for every configured org channel. Never throws. */
   async dispatch(event: OrgEvent): Promise<void> {
     try {
       const settings = await this.orgNotificationSettings(event.organizationId);
+      const rows: {
+        channel: "slack" | "teams" | "webhook";
+        target: string;
+        endpointId?: string;
+        body: object;
+      }[] = [];
 
-      const jobs: Promise<void>[] = [];
       if (settings.slack_webhook_url) {
-        jobs.push(
-          this.post(settings.slack_webhook_url, {
-            text: `*${event.title}*\n${event.text}`,
-          }, "slack"),
-        );
+        rows.push({
+          channel: "slack",
+          target: settings.slack_webhook_url,
+          body: { text: `*${event.title}*\n${event.text}` },
+        });
       }
       if (settings.teams_webhook_url) {
-        jobs.push(
-          this.post(settings.teams_webhook_url, {
-            text: `**${event.title}**\n\n${event.text}`,
-          }, "teams"),
-        );
+        rows.push({
+          channel: "teams",
+          target: settings.teams_webhook_url,
+          body: { text: `**${event.title}**\n\n${event.text}` },
+        });
       }
-
       const endpoints = await this.prisma.webhookEndpoint.findMany({
         where: { organizationId: event.organizationId, active: true },
       });
       for (const ep of endpoints) {
         if (ep.events.length > 0 && !ep.events.includes(event.type)) continue;
-        const body = JSON.stringify({
-          event: event.type,
-          title: event.title,
-          text: event.text,
-          payload: event.payload ?? {},
-          sent_at: new Date().toISOString(),
+        rows.push({
+          channel: "webhook",
+          target: ep.url,
+          endpointId: ep.id,
+          body: {
+            event: event.type,
+            title: event.title,
+            text: event.text,
+            payload: event.payload ?? {},
+          },
         });
-        const signature = createHmac("sha256", ep.secret).update(body).digest("hex");
-        jobs.push(
-          this.postRaw(ep.url, body, { "X-InterVU-Signature": `sha256=${signature}` }, "webhook"),
-        );
       }
+      if (rows.length === 0) return;
 
-      await Promise.allSettled(jobs);
+      await this.prisma.notificationDelivery.createMany({
+        data: rows.map((r) => ({
+          organizationId: event.organizationId,
+          channel: r.channel,
+          endpointId: r.endpointId,
+          target: r.target,
+          event: event.type,
+          body: r.body as object,
+        })),
+      });
+      void this.worker.drain();
     } catch (err) {
       this.logger.error(`dispatch failed: ${(err as Error).message}`);
-    }
-  }
-
-  private post(url: string, json: object, kind: string): Promise<void> {
-    return this.postRaw(url, JSON.stringify(json), {}, kind);
-  }
-
-  private async postRaw(
-    url: string,
-    body: string,
-    headers: Record<string, string>,
-    kind: string,
-  ): Promise<void> {
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json", ...headers },
-        body,
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!res.ok) this.logger.warn(`${kind} channel responded ${res.status} (${url})`);
-    } catch (err) {
-      this.logger.warn(`${kind} channel unreachable (${url}): ${(err as Error).message}`);
     }
   }
 }

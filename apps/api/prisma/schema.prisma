@@ -797,6 +797,47 @@ model WebhookEndpoint {
   @@map("webhook_endpoint")
 }
 
+enum DeliveryChannel {
+  email
+  slack
+  teams
+  webhook
+
+  @@map("delivery_channel")
+}
+
+enum DeliveryStatus {
+  pending
+  delivered
+  dead
+
+  @@map("delivery_status")
+}
+
+/// Durable outbound notifications (docs/05 §5): every send is a row, a
+/// worker attempts it with exponential backoff, failures stay visible, and
+/// dead letters can be retried. A temporarily-down channel delays a message,
+/// never loses it.
+model NotificationDelivery {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  channel        DeliveryChannel
+  endpointId     String?         @map("endpoint_id") @db.Uuid
+  target         String
+  event          String
+  body           Json
+  status         DeliveryStatus  @default(pending)
+  attempts       Int             @default(0)
+  nextAttemptAt  DateTime        @default(now()) @map("next_attempt_at")
+  lastError      String?         @map("last_error")
+  deliveredAt    DateTime?       @map("delivered_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  @@index([status, nextAttemptAt])
+  @@index([organizationId, createdAt])
+  @@map("notification_delivery")
+}
+
 // ---------- Audit ----------
 
 model AuditLog {

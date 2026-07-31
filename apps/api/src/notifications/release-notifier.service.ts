@@ -5,7 +5,6 @@ import {
   OnModuleInit,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { MailService } from "./mail.service";
 import { NotificationsService } from "./notifications.service";
 
 const SWEEP_INTERVAL_MS = 60_000;
@@ -26,7 +25,6 @@ export class ReleaseNotifierService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mail: MailService,
     private readonly notifications: NotificationsService,
   ) {}
 
@@ -80,10 +78,11 @@ export class ReleaseNotifierService implements OnModuleInit, OnModuleDestroy {
             : "";
         // Vendor-facing email is org-toggleable (settings.notifications.
         // email_enabled); the portal always shows the release regardless.
+        // Enqueued durably — the delivery worker retries SMTP blips.
         const emailOn = await this.notifications.emailEnabled(p.organizationId);
-        const sent =
-          emailOn &&
-          (await this.mail.send(
+        if (emailOn) {
+          await this.notifications.enqueueEmail(
+            p.organizationId,
             recipients.map((r) => r.email),
           `New position released to you: ${p.title} — ${p.organization.name}`,
           `Hello ${release.vendorOrg.vendor.name},
@@ -98,7 +97,9 @@ Review the full posting and submit candidates in your portal:
   ${process.env.WEB_ORIGIN ?? "http://localhost:3000"}/vendor
 
 — InterVU`,
-          ));
+            "position.released_to_vendor",
+          );
+        }
         await this.prisma.auditLog.create({
           data: {
             organizationId: p.organizationId,
@@ -109,8 +110,8 @@ Review the full posting and submit candidates in your portal:
             payload: {
               vendorOrgId: release.vendorOrgId,
               recipients: recipients.length,
-              delivered: sent,
               email_enabled: emailOn,
+              delivery: emailOn ? "queued" : "skipped",
             },
           },
         });
