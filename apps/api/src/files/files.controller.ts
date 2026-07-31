@@ -32,7 +32,14 @@ export class VendorResumeController {
     @UploadedFile() file: UploadedResume,
   ) {
     const submission = await this.prisma.submission.findFirst({
-      where: { id, vendorOrg: { vendorId: tenant.vendor!.vendor.id } },
+      where: {
+        id,
+        organizationId: tenant.vendor!.organizationId,
+        vendorOrg: {
+          vendorId: tenant.vendor!.vendor.id,
+          organizationId: tenant.vendor!.organizationId,
+        },
+      },
     });
     if (!submission) throw new NotFoundException("Submission not found");
     return this.files.storeResume(submission.organizationId, submission.id, file);

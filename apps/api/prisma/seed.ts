@@ -401,7 +401,8 @@ async function main() {
   console.log(`
 All demo accounts use password: ${DEMO_PASSWORD}
   Org login:    POST /api/v1/auth/org/login    {"org_slug":"acme","email":…,"password":…}
-  Vendor login: POST /api/v1/auth/vendor/login {"email":…,"password":…}
+  Vendor login: POST /api/v1/auth/vendor/login {"org_slug":"acme","email":…,"password":…}
+                (vendors sign in per client organization)
 Dev header auth also works outside production (see src/tenancy/auth.guard.ts):
   Org (headers: x-intervu-org: acme, x-intervu-user: <email>)
     admin@acme.test        org_admin (org-wide)

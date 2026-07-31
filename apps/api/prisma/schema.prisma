@@ -195,6 +195,11 @@ model Session {
   tokenHash    String   @unique @map("token_hash")
   orgUserId    String?  @map("org_user_id") @db.Uuid
   vendorUserId String?  @map("vendor_user_id") @db.Uuid
+  /// Which organization this session is scoped to. Vendor sessions are
+  /// ALWAYS org-scoped: a vendor serving several orgs logs in per org and
+  /// never sees two orgs' data in one session. Org sessions derive it from
+  /// the user, and store it here for symmetry.
+  organizationId String? @map("organization_id") @db.Uuid
   expiresAt    DateTime @map("expires_at")
   createdAt    DateTime @default(now()) @map("created_at")
 

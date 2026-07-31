@@ -27,9 +27,10 @@ export default function LoginPage() {
         });
         router.push("/dashboard");
       } else {
+        // Vendors sign in per client organization — see docs/05 §1.
         await api("/auth/vendor/login", {
           method: "POST",
-          body: { email, password },
+          body: { org_slug: orgSlug, email, password },
         });
         router.push("/vendor");
       }
@@ -60,17 +61,20 @@ export default function LoginPage() {
         </button>
       </div>
       <form className="card" onSubmit={submit}>
-        {kind === "org" && (
-          <>
-            <label htmlFor="org">Organization</label>
-            <input
-              id="org"
-              value={orgSlug}
-              onChange={(e) => setOrgSlug(e.target.value)}
-              placeholder="acme"
-              required
-            />
-          </>
+        <label htmlFor="org">
+          {kind === "org" ? "Organization" : "Client organization"}
+        </label>
+        <input
+          id="org"
+          value={orgSlug}
+          onChange={(e) => setOrgSlug(e.target.value)}
+          placeholder="acme"
+          required
+        />
+        {kind === "vendor" && (
+          <p className="muted" style={{ fontSize: "0.8rem", margin: "0.3rem 0 0" }}>
+            Sign in separately for each client you supply candidates to.
+          </p>
         )}
         <label htmlFor="email">Email</label>
         <input

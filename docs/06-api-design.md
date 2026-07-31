@@ -5,7 +5,9 @@ API-first: the org workspace and vendor portal consume the same documented REST 
 > **Status:** endpoints below marked ✅ are implemented; unmarked ones are the
 > designed surface still to come. Auth: `POST /auth/org/login`,
 > `POST /auth/vendor/login`, `POST /auth/logout`, `GET /auth/me` ✅ (cookie
-> sessions). Also implemented beyond the original sketch: `GET /org-units` +
+> sessions). **Both logins take `org_slug`** — vendors authenticate per client
+> organization and a session is bound to exactly one organization
+> (docs/05 §1). Also implemented beyond the original sketch: `GET /org-units` +
 > `POST /org-units` ✅, `GET /org-users` ✅, `GET|POST /panels` +
 > `GET /applications/{id}/panel-suggestions` ✅ (skill-matched panelists),
 > `GET /skills` ✅, `GET /analytics/overview` ✅, `GET|PATCH /settings` ✅

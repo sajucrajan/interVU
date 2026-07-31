@@ -15,6 +15,9 @@ export class VendorPortalController {
 
   @Get("positions")
   positions(@Tenant() tenant: TenantContext) {
-    return this.portal.visiblePositions(tenant.vendor!.vendor.id);
+    return this.portal.visiblePositions(
+      tenant.vendor!.vendor.id,
+      tenant.vendor!.organizationId,
+    );
   }
 }

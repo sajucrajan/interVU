@@ -42,6 +42,8 @@ function coarseStatus(status: string): string {
 interface VendorIdentity {
   vendorId: string;
   vendorUserId: string;
+  /** The session's organization — vendor access is always org-scoped. */
+  organizationId: string;
 }
 
 @Injectable()
@@ -64,11 +66,17 @@ export class SubmissionsService {
     const position = await this.prisma.position.findFirst({
       where: {
         id: positionId,
+        // Bound to the session's organization, not merely to the vendor.
+        organizationId: vendor.organizationId,
         status: "open",
         releases: {
           some: {
             visibleFrom: { lte: now },
-            vendorOrg: { vendorId: vendor.vendorId, status: "active" },
+            vendorOrg: {
+              vendorId: vendor.vendorId,
+              organizationId: vendor.organizationId,
+              status: "active",
+            },
           },
         },
       },
@@ -333,10 +341,10 @@ export class SubmissionsService {
     return { submission: this.toVendorDto(result, position.title), idempotent: false };
   }
 
-  /** Vendor's own submissions, coarse statuses only. */
-  async listForVendor(vendorId: string) {
+  /** Vendor's own submissions for the session's organization, coarse only. */
+  async listForVendor(vendorId: string, organizationId: string) {
     const submissions = await this.prisma.submission.findMany({
-      where: { vendorOrg: { vendorId } },
+      where: { organizationId, vendorOrg: { vendorId, organizationId } },
       include: { position: { select: { title: true } } },
       orderBy: { receivedAt: "desc" },
     });

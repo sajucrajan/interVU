@@ -103,10 +103,33 @@ intervu/
 
 ## 4. Multi-tenancy & authorization model
 
+### Deployment model: one deployment = one organization (ADR)
+
+**Decision:** the supported deployment model is **a single organization per
+deployment**. `organization_id` stays on every row, so a deployment *can*
+technically hold several organizations, but hosting **mutually distrusting**
+organizations together is explicitly **not supported** today.
+
+Why not full SaaS multi-tenancy:
+
+- The product's value — candidate history, vendor ownership disputes, panel
+  matching — is entirely *within* one organization. Co-mingling companies buys
+  nothing functionally.
+- It would raise the security bar sharply: Postgres **RLS becomes mandatory**
+  rather than a planned backstop, and per-tenant backup/restore, rate limits,
+  data residency and blast-radius controls all become table stakes.
+- Self-hosting one org per deployment is cheap (one compose stack) and gives
+  each organization its own database, backups and upgrade cadence.
+
+What multi-org *is* good for today: a single operator running several
+organizations they themselves control (e.g. subsidiaries), where the trust
+boundary between them is soft. Anyone wanting true hostile-tenant isolation
+should run one deployment per organization until RLS lands.
+
 Two nested tenancy dimensions:
 
-1. **Organization** — every row carries `organization_id`. A deployment can host multiple orgs; most self-hosts have one.
-2. **Vendor** — vendor-side users additionally carry `vendor_id`; vendor-scoped queries are *always* filtered by both `organization_id` **and** `vendor_id`.
+1. **Organization** — every row carries `organization_id`; sessions are bound to exactly one organization.
+2. **Vendor** — vendor-side users additionally carry `vendor_id`; vendor-scoped queries are *always* filtered by both `organization_id` **and** `vendor_id`, and vendors authenticate **per organization** (docs/05 §1).
 
 Enforcement is layered — defense in depth:
 

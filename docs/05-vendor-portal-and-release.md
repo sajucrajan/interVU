@@ -4,7 +4,24 @@
 
 - `vendor` is a global identity; `vendor_org` is the contract between one org and one vendor. Everything vendor-facing hangs off `vendor_org` (tier, status, contract window).
 - **Tier** (`1..n`, 1 = most preferred) is set by the org per vendor and drives tiered release. Tiers are invisible to vendors.
-- Vendor users authenticate into a **portal** (`/vendor` route tree) that never renders org-internal data. Vendor sessions carry `vendor_id` and can only ever resolve `vendor_org` rows for orgs that invited them; a vendor serving multiple orgs sees an org-switcher.
+- Vendor users authenticate into a **portal** (`/vendor` route tree) that never renders org-internal data.
+
+### Vendor login is organization-scoped
+
+A vendor signs in with **client organization + email + password** — the same
+shape as org login. This is deliberate:
+
+- **The credential namespace is (organization, email), not email.** A global
+  email lookup is ambiguous the moment two agencies employ the same address,
+  and it makes the sign-in page a cross-tenant enumeration surface.
+- **Sessions never span organizations.** `session.organization_id` is set at
+  login and every vendor query filters on `vendor_id` **and**
+  `organization_id`. An agency supplying three clients signs into each
+  separately; there is no switcher that could leak one client's roles,
+  submissions, or resumes into another's view. (Enforced by the cross-org
+  isolation tests: a session for org A gets `404` on org B's positions.)
+- Login requires an existing `vendor_org` contract, so an agency cannot
+  discover which organizations exist by probing slugs.
 
 ### Vendor lifecycle
 `invited → active → suspended → terminated`. Suspension/termination immediately removes portal visibility of open positions; **historical submissions remain** (read-only) because ownership and audit outlive contracts.

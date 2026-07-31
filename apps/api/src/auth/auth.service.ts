@@ -23,17 +23,35 @@ export class AuthService {
         })
       : null;
     this.checkCredentials(user?.passwordHash, password, user?.status);
-    return this.createSession({ orgUserId: user!.id });
+    return this.createSession({ orgUserId: user!.id, organizationId: org!.id });
   }
 
-  async loginVendor(email: string, password: string) {
-    // Vendor emails are unique per vendor, not globally; a person recruiting
-    // for two vendors needs distinct emails until account linking (M2).
-    const user = await this.prisma.vendorUser.findFirst({
-      where: { email, passwordHash: { not: null } },
+  /**
+   * Vendor login is ALWAYS organization-scoped (docs/05 §1). A vendor is a
+   * global identity that may serve several organizations; the credential
+   * namespace is (organization, email), so an agency recruiter working with
+   * two client orgs signs into each separately and a session can never span
+   * organizations. Without the org, `email` alone is ambiguous across vendors.
+   */
+  async loginVendor(orgSlug: string, email: string, password: string) {
+    const org = await this.prisma.organization.findUnique({
+      where: { slug: orgSlug },
     });
+    const user = org
+      ? await this.prisma.vendorUser.findFirst({
+          where: {
+            email,
+            passwordHash: { not: null },
+            vendor: {
+              vendorOrgs: {
+                some: { organizationId: org.id, status: { in: ["active", "invited"] } },
+              },
+            },
+          },
+        })
+      : null;
     this.checkCredentials(user?.passwordHash, password, user?.status);
-    return this.createSession({ vendorUserId: user!.id });
+    return this.createSession({ vendorUserId: user!.id, organizationId: org!.id });
   }
 
   private checkCredentials(
@@ -52,6 +70,7 @@ export class AuthService {
   private async createSession(owner: {
     orgUserId?: string;
     vendorUserId?: string;
+    organizationId: string;
   }) {
     const token = randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
@@ -85,8 +104,15 @@ export class AuthService {
       };
     }
     if (session.vendorUser && session.vendorUser.status === "active") {
+      // A vendor session without an org is from before org-scoping — reject
+      // it rather than guess which organization it meant.
+      if (!session.organizationId) return null;
       return {
-        vendor: { vendor: session.vendorUser.vendor, user: session.vendorUser },
+        vendor: {
+          vendor: session.vendorUser.vendor,
+          user: session.vendorUser,
+          organizationId: session.organizationId,
+        },
       };
     }
     return null;

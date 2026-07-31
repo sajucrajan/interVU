@@ -78,14 +78,36 @@ export class AuthGuard implements CanActivate {
       };
     }
 
+    // Vendor dev auth is org-scoped like the real login: pair
+    // x-intervu-vendor-user with x-intervu-org (defaults to the vendor's only
+    // org when unambiguous, so existing scripts keep working).
     const vendorEmail = req.headers["x-intervu-vendor-user"];
     if (typeof vendorEmail === "string") {
       const user = await this.prisma.vendorUser.findFirst({
         where: { email: vendorEmail },
-        include: { vendor: true },
+        include: { vendor: { include: { vendorOrgs: true } } },
       });
       if (!user || user.status === "disabled") return null;
-      return { vendor: { vendor: user.vendor, user } };
+
+      const headerSlug = req.headers["x-intervu-org"];
+      let organizationId: string | undefined;
+      if (typeof headerSlug === "string") {
+        const org = await this.prisma.organization.findUnique({
+          where: { slug: headerSlug },
+        });
+        if (!org || !user.vendor.vendorOrgs.some((vo) => vo.organizationId === org.id)) {
+          return null;
+        }
+        organizationId = org.id;
+      } else if (user.vendor.vendorOrgs.length === 1) {
+        organizationId = user.vendor.vendorOrgs[0]!.organizationId;
+      } else {
+        return null; // ambiguous — the caller must name the organization
+      }
+
+      return {
+        vendor: { vendor: user.vendor, user, organizationId },
+      };
     }
 
     return null;

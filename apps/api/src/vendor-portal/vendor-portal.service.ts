@@ -29,14 +29,19 @@ export class VendorPortalService {
    * The visibility predicate (docs/05 §2), evaluated at query time —
    * DB is truth, no scheduler involved:
    *   position open AND now() >= visible_from AND vendor_org active
+   * Scoped to the session's organization: a vendor serving several orgs
+   * never sees two orgs' positions in one session.
    */
-  async visiblePositions(vendorId: string): Promise<VendorPositionDto[]> {
+  async visiblePositions(
+    vendorId: string,
+    organizationId: string,
+  ): Promise<VendorPositionDto[]> {
     const now = new Date();
     const releases = await this.prisma.positionVendorRelease.findMany({
       where: {
         visibleFrom: { lte: now },
-        vendorOrg: { vendorId, status: "active" },
-        position: { status: "open" },
+        vendorOrg: { vendorId, organizationId, status: "active" },
+        position: { status: "open", organizationId },
       },
       include: {
         position: {

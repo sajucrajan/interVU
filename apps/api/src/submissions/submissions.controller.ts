@@ -20,7 +20,11 @@ export class VendorSubmissionsController {
   ) {
     const input = parseBody(VendorSubmissionCreate, body);
     return this.submissions.submit(
-      { vendorId: tenant.vendor!.vendor.id, vendorUserId: tenant.vendor!.user.id },
+      {
+        vendorId: tenant.vendor!.vendor.id,
+        vendorUserId: tenant.vendor!.user.id,
+        organizationId: tenant.vendor!.organizationId,
+      },
       positionId,
       input,
     );
@@ -28,7 +32,10 @@ export class VendorSubmissionsController {
 
   @Get("submissions")
   list(@Tenant() tenant: TenantContext) {
-    return this.submissions.listForVendor(tenant.vendor!.vendor.id);
+    return this.submissions.listForVendor(
+      tenant.vendor!.vendor.id,
+      tenant.vendor!.organizationId,
+    );
   }
 }
 

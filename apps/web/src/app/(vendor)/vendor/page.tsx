@@ -8,6 +8,7 @@ interface Me {
   kind: string;
   name: string;
   vendor: string;
+  organization?: { name: string; slug: string } | null;
 }
 interface VendorPosition {
   id: string;
@@ -73,6 +74,9 @@ export default function VendorHome() {
       <div className="row spread">
         <h1>Vendor portal</h1>
         <div className="row">
+          {me.organization && (
+            <span className="badge">client: {me.organization.name}</span>
+          )}
           <span className="muted">
             {me.name} · {me.vendor}
           </span>

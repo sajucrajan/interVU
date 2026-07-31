@@ -12,6 +12,8 @@ const OrgLogin = z.object({
   password: z.string().min(1),
 });
 const VendorLogin = z.object({
+  // Vendors sign in per organization — see AuthService.loginVendor.
+  org_slug: z.string().min(1),
   email: z.string().email(),
   password: z.string().min(1),
 });
@@ -34,7 +36,11 @@ export class AuthController {
   @Post("vendor/login")
   async vendorLogin(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
     const input = parseBody(VendorLogin, body);
-    const session = await this.auth.loginVendor(input.email, input.password);
+    const session = await this.auth.loginVendor(
+      input.org_slug,
+      input.email,
+      input.password,
+    );
     this.setCookie(res, session);
     return { ok: true, expires_at: session.expiresAt.toISOString() };
   }
@@ -73,12 +79,25 @@ export class AuthController {
         })),
       };
     }
+    const vendorOrg = await this.prisma.organization.findUnique({
+      where: { id: ctx.vendor!.organizationId },
+      select: { name: true, slug: true, settings: true },
+    });
     return {
       kind: "vendor",
       email: ctx.vendor!.user.email,
       name: ctx.vendor!.user.name,
       vendor: ctx.vendor!.vendor.name,
       role: ctx.vendor!.user.role,
+      // Which client organization this session is scoped to.
+      organization: vendorOrg
+        ? {
+            name: vendorOrg.name,
+            slug: vendorOrg.slug,
+            branding:
+              ((vendorOrg.settings as { branding?: Record<string, string> })?.branding) ?? {},
+          }
+        : null,
     };
   }
 

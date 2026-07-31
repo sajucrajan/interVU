@@ -12,9 +12,15 @@ export interface TenantContext {
     user: OrgUser;
     memberships: { role: OrgRole; orgUnitId: string | null }[];
   };
+  /**
+   * Vendor sessions are org-scoped: a vendor serving several organizations
+   * signs in per organization, and every vendor query filters on BOTH ids
+   * so one session can never span organizations (docs/05 §1).
+   */
   vendor?: {
     vendor: Vendor;
     user: VendorUser;
+    organizationId: string;
   };
 }
 
