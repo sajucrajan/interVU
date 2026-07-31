@@ -30,9 +30,24 @@ InterVU is built for organizations that run high volumes of interviews across ma
 - Interviews with skill-matched panel suggestions, scorecards with hide-until-submitted feedback policy, decisions, do-not-hire flags, full cross-position candidate timelines
 - Analytics dashboard (D3 sunburst of hierarchy → positions, funnel, vendor performance), white-label branding per org
 
-**Not yet built:** background workers/queues (release notifications, re-match sweep), resume upload + parsing, webhooks, OIDC SSO, retention/erasure, app container images, Postgres RLS backstop. See the [roadmap](docs/07-roadmap.md).
+- Pluggable notifications: per-org channels (any SMTP, Slack, Teams, HMAC-signed webhooks) with durable delivery — retry/backoff, dead letters, delivery log
+- Resume upload to any S3-compatible store, GDPR erasure with matching-safe tombstones, daily re-match sweep, containerized deployment
 
-## Quickstart (dev)
+**Not yet built:** OIDC SSO, in-app notification centre, Postgres RLS backstop, published container images, Helm chart. See the [roadmap](docs/07-roadmap.md).
+
+## Quickstart
+
+**Just want to try it?** Everything in containers, no Node toolchain needed:
+
+```bash
+docker compose -f infra/docker-compose.yml --profile app up -d --build
+```
+
+The API migrates the database on boot. Seed the demo data once with
+`docker compose -f infra/docker-compose.yml exec api ./node_modules/.bin/tsx prisma/seed.ts`,
+then open http://localhost:3000.
+
+**Developing?** Run infra in Docker and the apps on the host for hot reload:
 
 ```bash
 pnpm install
@@ -42,7 +57,8 @@ pnpm --filter @intervu/api db:seed                 # prints demo accounts; passw
 pnpm dev                                           # api :4000, web :3000
 ```
 
-Then open http://localhost:3000 — sign in as `recruiter@acme.test` (org `acme`) or vendor `recruiter@talentbridge.test`.
+Sign in as `recruiter@acme.test` (org `acme`) or vendor `recruiter@talentbridge.test`.
+Optional services: `--profile mail` (Mailpit inbox at :8025), `--profile files` (MinIO for resumes).
 
 ## Design docs
 

@@ -5,6 +5,7 @@ import { AuthzService } from "../entitlements/authz.service";
 import { OrgScope, Tenant } from "../tenancy/scope.decorator";
 import type { TenantContext } from "../tenancy/tenant-context";
 import { MatchReviewsService } from "./match-reviews.service";
+import { RematchSweepService } from "./rematch-sweep.service";
 
 @Controller("match-reviews")
 @OrgScope()
@@ -12,7 +13,16 @@ export class MatchReviewsController {
   constructor(
     private readonly reviews: MatchReviewsService,
     private readonly authz: AuthzService,
+    private readonly sweep: RematchSweepService,
   ) {}
+
+  /** Run the re-match sweep on demand (it also runs daily). */
+  @Post("sweep")
+  async runSweep(@Tenant() tenant: TenantContext) {
+    const access = await this.authz.access(tenant);
+    this.authz.require(access, "candidates.merge");
+    return this.sweep.sweep(tenant.org!.organizationId);
+  }
 
   @Get()
   async list(@Tenant() tenant: TenantContext) {

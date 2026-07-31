@@ -14,6 +14,7 @@ import {
   type MatchFeatureBreakdown,
 } from "@intervu/matching-core";
 import type { VendorSubmissionCreate } from "@intervu/contracts";
+import { ErasureService } from "../candidates/erasure.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -48,6 +49,7 @@ export class SubmissionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly erasure: ErasureService,
   ) {}
 
   /**
@@ -105,13 +107,24 @@ export class SubmissionsService {
     if (phone.e164) identityKeys.push({ kind: "phone", valueNorm: phone.e164, valueRaw: input.phone });
     if (phone.last10) identityKeys.push({ kind: "phone_last10", valueNorm: phone.last10, valueRaw: input.phone });
 
-    // --- Stage 2: deterministic identity match (docs/04 §2.2)
+    // --- Stage 2: deterministic identity match (docs/04 §2.2).
+    // Erased candidates are excluded: a tombstoned record must never be
+    // resurrected by a new submission (docs/04 §7).
     const hits = await this.prisma.candidateIdentity.findMany({
       where: {
         organizationId: position.organizationId,
+        candidate: { erasedAt: null },
         OR: identityKeys.map((k) => ({ kind: k.kind, valueNorm: k.valueNorm })),
       },
     });
+
+    // Tombstone probe: was a record with this identifier previously erased?
+    // Recorded for admins (ownership-window disputes) — never surfaced to
+    // vendors, never used to link.
+    const tombstoneHit = await this.erasure.tombstoneExists(
+      position.organizationId,
+      emailNorm,
+    );
     // Email hit wins if identifiers disagree; the disagreement is recorded for
     // the review queue (docs/04 §2.2 collision guard).
     const candidateIds = [...new Set(hits.map((h) => h.candidateId))];
@@ -125,6 +138,7 @@ export class SubmissionsService {
       phone_hit: hits.some((h) => h.kind === "phone" || h.kind === "phone_last10"),
       identity_conflict: identityConflict,
       distinct_candidates_hit: candidateIds.length,
+      ...(tombstoneHit ? { erased_record_existed: true } : {}),
     };
 
     // --- Stage 2b: probabilistic match on deterministic miss (docs/04 §2.3–2.4)
@@ -375,6 +389,7 @@ export class SubmissionsService {
       FROM candidate
       WHERE organization_id = ${organizationId}::uuid
         AND merged_into_id IS NULL
+        AND erased_at IS NULL
         AND similarity(display_name, ${input.candidate_name}) > 0.35
       ORDER BY similarity(display_name, ${input.candidate_name}) DESC
       LIMIT 25`;

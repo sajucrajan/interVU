@@ -47,7 +47,8 @@ POST   /candidates/merge-events/{id}/reverse  ✅ un-merge
 GET    /candidates?q=                      search (name/email/phone/skills)
 GET    /candidates/{id}/timeline           ✅ permission-filtered cross-position history
 POST   /candidates/{id}/flags              ✅ do-not-hire / caution / note
-DELETE /candidates/{id}                    GDPR erasure workflow (admin, two-step confirm)
+DELETE /candidates/{id}                    ✅ GDPR erasure (admin; body must echo the id)
+POST   /match-reviews/sweep                ✅ run the re-match sweep on demand
 
 # Pipeline & interviews
 GET    /applications?position_id=          ✅

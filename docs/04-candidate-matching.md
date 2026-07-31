@@ -1,8 +1,8 @@
 # 04 — Candidate Matching Engine (Identity Resolution)
 
-> **Status:** implemented through the review queue and reversible merges
-> (stages 1–5, §3, §6-style eval gates). Remaining: re-matching triggers (§4,
-> needs worker infra) and the optional plugins (§5).
+> **Status:** implemented through the review queue, reversible merges, the
+> daily re-match sweep (§4), and erasure tombstones (§7). Remaining: the
+> optional intelligence plugins (§5) and identity-edit re-evaluation.
 
 The matching engine answers one question on every submission: **is this person already known to this organization?** It must be conservative (a wrong merge leaks one person's interview history into another's packet), explainable (recruiters must see *why* two records matched), and cheap (runs synchronously enough that vendors get instant duplicate feedback).
 
@@ -99,9 +99,9 @@ SLA hint: submissions in `pending_review` block vendor-facing duplicate feedback
 
 Matching isn't only at submission time:
 
-- Candidate identity edited/added → re-evaluate open review items touching that candidate.
-- Nightly sweep: pairs that newly cross `T_low` due to accreted identities → queue (bounded batch).
-- Erasure tombstone hit (below) → annotate, never link.
+- ✅ **Daily sweep** (`RematchSweepService`, also `POST /match-reviews/sweep`): re-scores existing candidate pairs and queues those that newly cross `T_REVIEW` because details accreted since they were created. Bounded per run (25 queued max); skips merged, erased, already-queued and human "kept separate" pairs so the queue never nags; either side of a pair can act as the review subject.
+- ✅ **Erasure tombstone hit** → annotated on the match decision (`erased_record_existed`), never linked.
+- Candidate identity edited/added → re-evaluate open review items touching that candidate *(pending)*.
 
 ## 5. Optional intelligence plugins (all off by default)
 
@@ -116,6 +116,23 @@ Matching isn't only at submission time:
 - `matching-core` ships with a labeled synthetic corpus (generated: name variants, transliterations, email permutations, shared-name distinct people) and a pytest-style eval harness reporting precision/recall at thresholds. CI fails if precision@auto-link < 0.995.
 - Every real deployment accumulates labeled data from the review queue (`linked` / `kept_separate`) — an org-local eval set for threshold tuning, surfaced in an admin "matching quality" dashboard.
 
-## 7. Erasure interplay (GDPR)
+## 7. Erasure interplay (GDPR) — ✅ implemented
 
-On erasure: PII fields nulled, attachments deleted, identities replaced with **salted HMAC tombstones** (`kind, hmac(value_norm)` with an org-secret key). If a future submission's identifier matches a tombstone, the system links nothing and reveals nothing about the erased record — it simply creates the new candidate and (admin-visible only) notes "an erased record previously existed with a matching identifier," which matters for ownership-window disputes and audit.
+`DELETE /candidates/{id}` (admin-only, two-step: the body must echo the
+candidate id) performs erasure:
+
+| Step | What happens |
+|---|---|
+| Candidate PII | name → `[erased]`, title/employer/location nulled, `erased_at` stamped |
+| Identities | rewritten to `kind='tombstone'` with `hmac_sha256(ERASURE_SALT, value_norm)`; raw value replaced |
+| Vendor raw profiles | `raw_profile` redacted, vendor notes cleared (the second copy of the PII) |
+| Attachments | resume metadata + extracted text deleted |
+| Free text | scorecard notes and flag reasons → `[erased]` |
+| Kept | submissions, applications, decisions, ownership timestamps, audit skeleton — so ownership windows and audit stay provable |
+
+Matching never resurrects an erased record: both deterministic lookup and
+trigram blocking exclude `erased_at IS NOT NULL`. A later submission whose
+email hashes to a tombstone creates a **new** candidate and records
+`erased_record_existed: true` on the match decision — admin-visible only,
+which matters for ownership-window disputes. Rotating `ERASURE_SALT` makes
+existing tombstones unmatchable (a legitimate hard-delete escalation).

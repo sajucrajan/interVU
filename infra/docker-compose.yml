@@ -1,9 +1,14 @@
-# Dev infrastructure. Default `up -d` starts ONLY postgres — the one hard
-# dependency today. Redis (BullMQ job queues) and MinIO (resume storage) are
-# behind the `full` profile until the features that use them land:
-#   docker compose -f infra/docker-compose.yml --profile full up -d
-# App processes (api/web) run on the host in dev for hot reload; containerized
-# app images are an M4 deliverable (see docs/07-roadmap.md).
+# InterVU compose. Run from the repo root:
+#   docker compose -f infra/docker-compose.yml [--profile X] up -d
+#
+#   (default)          postgres only — the one hard dependency. Dev default;
+#                      api/web run on the host for hot reload.
+#   --profile mail     + Mailpit (dev inbox at :8025)
+#   --profile files    + MinIO (resume storage)
+#   --profile full     + Redis (reserved for future queues)
+#   --profile app      FULL STACK IN CONTAINERS: postgres + minio + api
+#                      (migrates on boot) + web. Evaluate InterVU with no
+#                      Node toolchain installed.
 name: intervu
 
 services:
@@ -45,7 +50,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    profiles: ["full"]
+    profiles: ["files", "full", "app"]
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: intervu
@@ -55,6 +60,39 @@ services:
       - "9001:9001"
     volumes:
       - miniodata:/data
+
+  # ---- containerized app (profile: app) ----
+  api:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://intervu:intervu@postgres:5432/intervu
+      PORT: 4000
+      WEB_ORIGIN: http://localhost:3000
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: intervu
+      S3_SECRET_KEY: intervu-dev-secret
+      S3_BUCKET: intervu-files
+      # SMTP_HOST/SMTP_PORT: set to enable outbound mail (see .env.example)
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
 
 volumes:
   pgdata:
