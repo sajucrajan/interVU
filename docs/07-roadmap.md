@@ -25,7 +25,7 @@ Interview rounds, panels, ICS invites, scorecard templates/responses, feedback-v
 `matching-core` fuzzy pipeline (blocking, scoring, thresholds), review queue UI with feature breakdown, merge/un-merge, nightly re-match sweep, matching quality dashboard, synthetic eval corpus in CI.
 
 ### M4 — Integrations & scale-out
-Webhooks + delivery log, PATs, OIDC SSO adapter, retention/erasure workflows (tombstones), reporting (vendor funnel stats, time-to-hire), Helm chart, optional plugins (pgvector embeddings, LLM review-assist, better resume parsing).
+Webhooks + delivery log, PATs, OIDC SSO adapter, retention/erasure workflows (tombstones), reporting (vendor funnel stats, time-to-hire), **analytics export to warehouses** (Snowflake/BigQuery/SQL Server — see [08-database-strategy.md](08-database-strategy.md)), Helm chart, optional plugins (pgvector embeddings, LLM review-assist, better resume parsing).
 
 ### Later / community-driven
 Candidate self-scheduling, offer management, multi-language UI, analytics warehouse export, mobile-friendly interviewer app.
