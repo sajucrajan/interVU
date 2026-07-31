@@ -172,6 +172,113 @@ async function main() {
     console.log(`Seeded positions: ${p1.title}, ${p2.title}, ${p3.title}`);
   }
 
+  // --- Demo analytics volume: extra teams/positions + a synthetic submission
+  // corpus so dashboards have shape. Deterministic; runs once (guarded).
+  const positionCount = await prisma.position.count({ where: { organizationId: org.id } });
+  if (positionCount <= 3) {
+    const marketing = await unit("Marketing", "team", gtm.id);
+    const extraPositions = [
+      { unitId: platform.id, title: "Frontend Engineer", desc: "React, design systems." },
+      { unitId: data.id, title: "ML Engineer", desc: "Feature pipelines, model serving." },
+      { unitId: marketing.id, title: "Growth Marketer", desc: "Lifecycle campaigns, attribution." },
+    ];
+    const now = new Date();
+    const vendorOrgsAll = await prisma.vendorOrg.findMany({
+      where: { organizationId: org.id },
+      include: { vendor: true },
+    });
+    for (const ep of extraPositions) {
+      const pos = await prisma.position.create({
+        data: {
+          organizationId: org.id,
+          orgUnitId: ep.unitId,
+          title: ep.title,
+          description: ep.desc,
+          status: "open",
+          publishedAt: now,
+          createdById: admin.id,
+          releasePolicy: { create: { mode: "all_at_once", config: {} } },
+        },
+      });
+      await prisma.positionVendorRelease.createMany({
+        data: vendorOrgsAll.map((vo) => ({
+          positionId: pos.id,
+          vendorOrgId: vo.id,
+          visibleFrom: now,
+          source: "policy" as const,
+        })),
+      });
+    }
+
+    const allPositions = await prisma.position.findMany({
+      where: { organizationId: org.id },
+    });
+    const firstNames = ["Aarav", "Beatriz", "Chen", "Divya", "Emeka", "Fatima", "Gustav", "Hana", "Ines", "Jorge", "Kavya", "Liam", "Mina", "Noor", "Oscar", "Padma", "Quinn", "Rohan", "Sofia", "Tariq", "Uma", "Viktor", "Wangari", "Ximena", "Yusuf", "Zara", "Anders", "Bianca", "Chidi", "Dalia", "Elias", "Freya", "Goro", "Helga", "Idris", "Jana"];
+    const lastNames = ["Sharma", "Costa", "Wei", "Iyer", "Okafor", "Hassan", "Lind", "Kato", "Moreau", "Diaz", "Rao", "Byrne", "Park", "Aziz", "Nilsen", "Menon", "Reyes", "Joshi", "Rossi", "Farouk"];
+    const vendorUsersAll = await prisma.vendorUser.findMany();
+    const userByVendor = new Map(vendorUsersAll.map((u) => [u.vendorId, u]));
+    // Deterministic spread: statuses cycle; every 6th is a duplicate; every
+    // 5th application advances; every 9th gets an offer decision.
+    for (let i = 0; i < 36; i++) {
+      const name = `${firstNames[i % firstNames.length]} ${lastNames[i % lastNames.length]}`;
+      const email = `${name.toLowerCase().replaceAll(" ", ".")}@example.com`;
+      const pos = allPositions[i % allPositions.length]!;
+      const vo = vendorOrgsAll[i % vendorOrgsAll.length]!;
+      const vu = userByVendor.get(vo.vendorId)!;
+      const receivedAt = new Date(now.getTime() - (36 - i) * 36e5 * 6);
+      const isDup = i % 6 === 5;
+      const candidate = await prisma.candidate.create({
+        data: { organizationId: org.id, displayName: name },
+      });
+      await prisma.candidateIdentity.create({
+        data: {
+          organizationId: org.id,
+          candidateId: candidate.id,
+          kind: "email",
+          valueNorm: email,
+          valueRaw: email,
+        },
+      });
+      const submission = await prisma.submission.create({
+        data: {
+          organizationId: org.id,
+          positionId: pos.id,
+          vendorOrgId: vo.id,
+          vendorUserId: vu.id,
+          candidateId: candidate.id,
+          rawProfile: { candidate_name: name, email },
+          status: isDup ? "duplicate" : "accepted",
+          ownershipStatus: isDup ? "duplicate" : "owner",
+          consentConfirmed: true,
+          receivedAt,
+        },
+      });
+      if (!isDup) {
+        const stage = i % 5 === 0 ? "interviewing" : i % 3 === 0 ? "screening" : "submitted";
+        const app = await prisma.application.create({
+          data: {
+            organizationId: org.id,
+            positionId: pos.id,
+            candidateId: candidate.id,
+            sourceSubmissionId: submission.id,
+            currentStage: i % 9 === 0 ? "offer" : stage,
+          },
+        });
+        if (i % 9 === 0) {
+          await prisma.decision.create({
+            data: {
+              organizationId: org.id,
+              applicationId: app.id,
+              outcome: "offer",
+              decidedById: admin.id,
+            },
+          });
+        }
+      }
+    }
+    console.log("Seeded demo analytics corpus: 3 extra positions, 36 submissions");
+  }
+
   console.log(`
 All demo accounts use password: ${DEMO_PASSWORD}
   Org login:    POST /api/v1/auth/org/login    {"org_slug":"acme","email":…,"password":…}

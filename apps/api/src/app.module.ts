@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AnalyticsModule } from "./analytics/analytics.module";
 import { ApplicationsModule } from "./applications/applications.module";
 import { AuthModule } from "./auth/auth.module";
 import { CandidatesModule } from "./candidates/candidates.module";
@@ -25,6 +26,7 @@ import { VendorPortalModule } from "./vendor-portal/vendor-portal.module";
     PositionsModule,
     SubmissionsModule,
     ApplicationsModule,
+    AnalyticsModule,
     InterviewsModule,
     CandidatesModule,
     VendorPortalModule,
