@@ -16,11 +16,13 @@ export type Permission =
   | "candidates.flag"
   | "applications.transition"
   | "interviews.schedule"
+  | "panels.manage"
   | "scorecards.submit"
   | "decisions.record"
   | "vendors.manage"
   | "org.manage_structure"
-  | "org.manage_users";
+  | "org.manage_users"
+  | "org.settings";
 
 export const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   org_admin: [
@@ -35,10 +37,12 @@ export const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "candidates.flag",
     "applications.transition",
     "interviews.schedule",
+    "panels.manage",
     "decisions.record",
     "vendors.manage",
     "org.manage_structure",
     "org.manage_users",
+    "org.settings",
   ],
   recruiter: [
     "positions.view",
@@ -52,6 +56,7 @@ export const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "candidates.flag",
     "applications.transition",
     "interviews.schedule",
+    "panels.manage",
   ],
   hiring_manager: [
     "positions.view",
@@ -59,6 +64,7 @@ export const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "candidates.view_history",
     "applications.transition",
     "interviews.schedule",
+    "panels.manage",
     "decisions.record",
   ],
   project_manager: ["positions.view", "submissions.view"],

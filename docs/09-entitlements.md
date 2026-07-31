@@ -41,6 +41,8 @@ Roles are **bundles of permissions**; enforcement is always on permissions, neve
 | `candidates.flag` | ✓ | ✓ | — | — | — |
 | `applications.transition` | ✓ | ✓ | ✓ | — | — |
 | `interviews.schedule` | ✓ | ✓ | ✓ | — | — |
+| `panels.manage` (skill-tagged panelist pools) | ✓ | ✓ | ✓ (own scope) | — | — |
+| `org.settings` (incl. white-label branding) | ✓ | — | — | — | — |
 | `scorecards.submit` | — | — | — | — | ✓ (own interviews) |
 | `decisions.record` | ✓ | — | ✓ | — | — |
 | `vendors.manage` | ✓ | — | — | — | — |

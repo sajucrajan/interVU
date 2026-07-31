@@ -6,13 +6,17 @@ import {
 } from "@nestjs/common";
 import type { Position } from "@prisma/client";
 import type { PositionCreate, ReleasePolicy } from "@intervu/contracts";
+import { PanelsService } from "../panels/panels.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const HOUR_MS = 3_600_000;
 
 @Injectable()
 export class PositionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly panels: PanelsService,
+  ) {}
 
   async create(
     organizationId: string,
@@ -29,6 +33,11 @@ export class PositionsService {
         detail: "Positions attach to team nodes, not units/verticals",
       });
     }
+    const skills = await this.panels.upsertSkills(
+      organizationId,
+      input.skills.map((s) => s.name),
+    );
+    const levelByNorm = new Map(input.skills.map((s) => [s.name.trim().toLowerCase(), s.level]));
     return this.prisma.position.create({
       data: {
         organizationId,
@@ -37,6 +46,12 @@ export class PositionsService {
         description: input.description ?? "",
         openings: input.openings ?? 1,
         createdById,
+        skills: {
+          create: skills.map((s) => ({
+            skillId: s.id,
+            level: levelByNorm.get(s.nameNorm) ?? "good_to_have",
+          })),
+        },
       },
     });
   }
@@ -52,6 +67,7 @@ export class PositionsService {
       },
       include: {
         orgUnit: { select: { id: true, name: true, kind: true } },
+        skills: { include: { skill: { select: { name: true } } } },
         releasePolicy: true,
         releases: {
           include: {

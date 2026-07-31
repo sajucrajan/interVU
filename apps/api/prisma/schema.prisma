@@ -56,6 +56,7 @@ model OrgUnit {
   children     OrgUnit[]       @relation("OrgUnitTree")
   positions    Position[]
   memberships  OrgMembership[]
+  panels       Panel[]
 
   @@unique([organizationId, parentId, name])
   @@index([organizationId, parentId])
@@ -97,6 +98,7 @@ model OrgUser {
   sessions     Session[]
   panelistOn   InterviewPanelist[]
   scorecards   Scorecard[]
+  panelMemberships PanelMember[]
 
   @@unique([organizationId, email])
   @@map("org_user")
@@ -248,6 +250,7 @@ model Position {
   releases      PositionVendorRelease[]
   submissions   Submission[]
   applications  Application[]
+  skills        PositionSkill[]
 
   @@index([organizationId, status])
   @@map("position")
@@ -578,6 +581,87 @@ model CandidateFlag {
 
   @@index([candidateId])
   @@map("candidate_flag")
+}
+
+// ---------- Skills & interview panels (docs/01, docs/03) ----------
+
+enum RequirementLevel {
+  must_have
+  good_to_have
+
+  @@map("requirement_level")
+}
+
+/// Org-scoped skill taxonomy (Kubernetes, Spark, System Design, …).
+model Skill {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  nameNorm       String   @map("name_norm")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  positionSkills PositionSkill[]
+  panelSkills    PanelSkill[]
+
+  @@unique([organizationId, nameNorm])
+  @@map("skill")
+}
+
+model PositionSkill {
+  id         String           @id @default(uuid()) @db.Uuid
+  positionId String           @map("position_id") @db.Uuid
+  skillId    String           @map("skill_id") @db.Uuid
+  level      RequirementLevel
+
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  skill    Skill    @relation(fields: [skillId], references: [id])
+
+  @@unique([positionId, skillId])
+  @@map("position_skill")
+}
+
+/// A named pool of panelists for a technology/knowledge area. Scope follows
+/// the org-unit pattern: null = org-wide; a unit/vertical or team node covers
+/// that node and all descendants (same semantics as memberships, docs/09 §3).
+model Panel {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  orgUnitId      String?  @map("org_unit_id") @db.Uuid
+  name           String
+  description    String   @default("")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  orgUnit OrgUnit?      @relation(fields: [orgUnitId], references: [id])
+  skills  PanelSkill[]
+  members PanelMember[]
+
+  @@unique([organizationId, name])
+  @@map("panel")
+}
+
+model PanelSkill {
+  id      String @id @default(uuid()) @db.Uuid
+  panelId String @map("panel_id") @db.Uuid
+  skillId String @map("skill_id") @db.Uuid
+
+  panel Panel @relation(fields: [panelId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id])
+
+  @@unique([panelId, skillId])
+  @@map("panel_skill")
+}
+
+model PanelMember {
+  id        String @id @default(uuid()) @db.Uuid
+  panelId   String @map("panel_id") @db.Uuid
+  orgUserId String @map("org_user_id") @db.Uuid
+
+  panel   Panel   @relation(fields: [panelId], references: [id], onDelete: Cascade)
+  orgUser OrgUser @relation(fields: [orgUserId], references: [id])
+
+  @@unique([panelId, orgUserId])
+  @@map("panel_member")
 }
 
 // ---------- Audit ----------

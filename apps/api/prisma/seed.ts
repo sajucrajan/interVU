@@ -279,6 +279,87 @@ async function main() {
     console.log("Seeded demo analytics corpus: 3 extra positions, 36 submissions");
   }
 
+  // --- Skills & interview panels (guarded; docs/03 skills/panels section)
+  const skillCount = await prisma.skill.count({ where: { organizationId: org.id } });
+  if (skillCount === 0) {
+    const skillCache = new Map<string, string>();
+    const skillId = async (name: string) => {
+      const norm = name.toLowerCase();
+      if (!skillCache.has(norm)) {
+        const s = await prisma.skill.create({
+          data: { organizationId: org.id, name, nameNorm: norm },
+        });
+        skillCache.set(norm, s.id);
+      }
+      return skillCache.get(norm)!;
+    };
+
+    const bySpec: Record<string, { must: string[]; good: string[] }> = {
+      "Senior Platform Engineer": { must: ["Kubernetes", "Go"], good: ["Terraform", "System Design"] },
+      "Data Engineer": { must: ["Spark", "Airflow"], good: ["Python"] },
+      "Frontend Engineer": { must: ["React", "TypeScript"], good: ["Design Systems"] },
+      "ML Engineer": { must: ["Python", "MLOps"], good: ["Spark"] },
+      "Growth Marketer": { must: ["Lifecycle Marketing"], good: ["SQL"] },
+      "Sales Operations Analyst": { must: ["SQL", "CRM"], good: ["Python"] },
+    };
+    const allPos = await prisma.position.findMany({ where: { organizationId: org.id } });
+    for (const pos of allPos) {
+      const spec = bySpec[pos.title];
+      if (!spec) continue;
+      for (const name of spec.must) {
+        await prisma.positionSkill.create({
+          data: { positionId: pos.id, skillId: await skillId(name), level: "must_have" },
+        });
+      }
+      for (const name of spec.good) {
+        await prisma.positionSkill.create({
+          data: { positionId: pos.id, skillId: await skillId(name), level: "good_to_have" },
+        });
+      }
+    }
+
+    const userId = async (email: string) =>
+      (await prisma.orgUser.findFirstOrThrow({ where: { organizationId: org.id, email } })).id;
+    const mkPanel = async (
+      name: string,
+      orgUnitId: string | null,
+      skills: string[],
+      memberEmails: string[],
+    ) => {
+      const skillIds = await Promise.all(skills.map(skillId));
+      const memberIds = await Promise.all(memberEmails.map(userId));
+      await prisma.panel.create({
+        data: {
+          organizationId: org.id,
+          orgUnitId,
+          name,
+          skills: { create: skillIds.map((id) => ({ skillId: id })) },
+          members: { create: memberIds.map((id) => ({ orgUserId: id })) },
+        },
+      });
+    };
+    // Scope demo covers all three levels: vertical, vertical, org-wide.
+    await mkPanel(
+      "Platform Panel",
+      engineering.id,
+      ["Kubernetes", "Go", "Terraform", "System Design"],
+      ["interviewer1@acme.test", "hm.eng@acme.test"],
+    );
+    await mkPanel(
+      "Data & ML Panel",
+      engineering.id,
+      ["Spark", "Airflow", "Python", "MLOps"],
+      ["interviewer2@acme.test", "hm.eng@acme.test"],
+    );
+    await mkPanel(
+      "Analytics Guild",
+      null, // org-wide: SQL screeners serve every team
+      ["SQL", "CRM", "Lifecycle Marketing"],
+      ["interviewer1@acme.test", "interviewer2@acme.test"],
+    );
+    console.log("Seeded skills + 3 panels (2 vertical-scoped, 1 org-wide)");
+  }
+
   console.log(`
 All demo accounts use password: ${DEMO_PASSWORD}
   Org login:    POST /api/v1/auth/org/login    {"org_slug":"acme","email":…,"password":…}

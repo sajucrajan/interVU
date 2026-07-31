@@ -32,11 +32,29 @@ export const ReleasePolicy = z.discriminatedUnion("mode", [
 
 export const PositionStatus = z.enum(["draft", "open", "paused", "closed"]);
 
+export const RequirementLevel = z.enum(["must_have", "good_to_have"]);
+
+export const PositionSkillInput = z.object({
+  name: z.string().min(1).max(80),
+  level: RequirementLevel,
+});
+
 export const PositionCreate = z.object({
   org_unit_id: z.string().uuid(),
   title: z.string().min(1).max(200),
   description: z.string().max(20_000).default(""),
   openings: z.number().int().min(1).default(1),
+  skills: z.array(PositionSkillInput).max(30).default([]),
+});
+
+// --- Interview panels (skill-tagged panelist pools; scope = org-unit pattern)
+
+export const PanelCreate = z.object({
+  name: z.string().min(1).max(120),
+  description: z.string().max(2000).default(""),
+  org_unit_id: z.string().uuid().nullish(), // null = org-wide
+  skills: z.array(z.string().min(1).max(80)).min(1).max(30),
+  member_ids: z.array(z.string().uuid()).min(1).max(100),
 });
 
 // --- Vendor submissions (docs/05-vendor-portal-and-release.md §3)
@@ -103,6 +121,8 @@ export type ReleasePolicy = z.infer<typeof ReleasePolicy>;
 export type PositionCreate = z.infer<typeof PositionCreate>;
 export type VendorSubmissionCreate = z.infer<typeof VendorSubmissionCreate>;
 export type VendorFacingStatus = z.infer<typeof VendorFacingStatus>;
+export type PositionSkillInput = z.infer<typeof PositionSkillInput>;
+export type PanelCreate = z.infer<typeof PanelCreate>;
 export type StageTransitionCreate = z.infer<typeof StageTransitionCreate>;
 export type DecisionCreate = z.infer<typeof DecisionCreate>;
 export type InterviewCreate = z.infer<typeof InterviewCreate>;

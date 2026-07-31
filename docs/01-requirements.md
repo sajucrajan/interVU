@@ -73,6 +73,14 @@ Roles attach at a **scope** — the whole org or any node of the unit hierarchy 
 - As a **recruiter**, I see a *duplicate flag* when a submission matches a candidate already active on this position (or within the ownership window), with the competing vendor and dates, and I arbitrate.
 - As an **org admin**, I review uncertain matches side-by-side and merge / keep-separate; I can un-merge with full history restoration.
 
+### Skills & interview panels
+- As a **recruiter**, I tag a position with **must-have** and **good-to-have** skills.
+- As a **team/vertical/org admin**, I define **interview panels** — named pools of panelists tagged with the technologies they can assess. Panels attach at any level of the unit hierarchy (org-wide, vertical, or team) and cover that scope's positions, following the same inheritance as entitlements.
+- As a **recruiter scheduling an interview**, I get **ranked panelist suggestions**: members of in-scope panels whose skills overlap the position's (must-haves weigh double).
+
+### White-labeling
+- The product is always *InterVU*, but each organization's workspace wears the **organization's name** and optional branding (accent color, display label) configured by org admins.
+
 ### Interviews & history
 - As a **hiring manager**, before any interview I open the candidate's timeline: every past submission (which vendor, which position, when), every interview round, scorecards, outcomes, and flags.
 - As an **interviewer**, I get my assignment, see the candidate packet (resume + history per policy), and submit a structured scorecard.

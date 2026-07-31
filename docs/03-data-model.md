@@ -124,6 +124,20 @@ match_review_item(id, submission_id, candidate_id_suggested,
                   resolved_by?, resolved_at?)
 ```
 
+### Skills & panels
+
+```sql
+skill(id, name, name_norm)                             -- org-scoped taxonomy
+position_skill(position_id, skill_id, level)           -- level: must_have|good_to_have
+panel(id, org_unit_id?, name, description)             -- panelist pool for a technology area;
+                                                       -- scope: null=org-wide, else unit/team node
+                                                       -- + descendants (same pattern as memberships)
+panel_skill(panel_id, skill_id)
+panel_member(panel_id, org_user_id)
+-- Suggestion ranking: panels whose scope is ancestor-or-self of the position's
+-- team; member score = Σ matched skills (must_have=2, good_to_have=1)
+```
+
 ### Pipeline, interviews, feedback
 
 ```sql

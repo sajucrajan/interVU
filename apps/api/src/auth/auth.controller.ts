@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { parseBody } from "../common/zod";
 import { readCookie } from "../common/cookies";
+import { PrismaService } from "../prisma/prisma.service";
 import { AuthService, SESSION_COOKIE } from "./auth.service";
 
 const OrgLogin = z.object({
@@ -17,7 +18,10 @@ const VendorLogin = z.object({
 
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Post("org/login")
   async orgLogin(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
@@ -49,11 +53,20 @@ export class AuthController {
     const ctx = token ? await this.auth.resolveSession(token) : null;
     if (!ctx) throw new UnauthorizedException({ code: "not_authenticated" });
     if (ctx.org) {
+      // White-label: the product is InterVU, but the workspace wears the
+      // organization's name and optional branding (accent color, label).
+      const org = await this.prisma.organization.findUniqueOrThrow({
+        where: { id: ctx.org.organizationId },
+        select: { name: true, settings: true },
+      });
+      const branding =
+        ((org.settings as { branding?: Record<string, string> })?.branding) ?? {};
       return {
         kind: "org",
         email: ctx.org.user.email,
         name: ctx.org.user.name,
         organization_id: ctx.org.organizationId,
+        organization: { name: org.name, branding },
         memberships: ctx.org.memberships.map((m) => ({
           role: m.role,
           org_unit_id: m.orgUnitId,

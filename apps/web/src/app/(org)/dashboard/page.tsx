@@ -16,6 +16,7 @@ interface Position {
   status: string;
   openings: number;
   orgUnit: { name: string };
+  skills: { level: string; skill: { name: string } }[];
   releasePolicy?: { mode: string } | null;
   releases: { visibleFrom: string; vendorOrg: { vendor: { name: string } } }[];
 }
@@ -126,6 +127,18 @@ export default function OrgDashboard() {
             <tr key={p.id}>
               <td>
                 <strong>{p.title}</strong>
+                {p.skills.length > 0 && (
+                  <div style={{ marginTop: "0.2rem" }}>
+                    {p.skills.map((s) => (
+                      <span
+                        key={s.skill.name}
+                        className={`skill-chip ${s.level === "must_have" ? "must" : ""}`}
+                      >
+                        {s.skill.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </td>
               <td>{p.orgUnit.name}</td>
               <td>
@@ -322,6 +335,16 @@ function ApplicationCard({
   );
 }
 
+interface PanelSuggestions {
+  position_skills: { name: string; level: string }[];
+  suggestions: {
+    org_user: { id: string; name: string };
+    panels: string[];
+    matched_skills: { name: string; level: string }[];
+    score: number;
+  }[];
+}
+
 function InterviewForm({
   applicationId,
   users,
@@ -336,6 +359,16 @@ function InterviewForm({
   const [panel, setPanel] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [suggested, setSuggested] = useState<PanelSuggestions | null>(null);
+
+  useEffect(() => {
+    api<PanelSuggestions>(`/applications/${applicationId}/panel-suggestions`)
+      .then(setSuggested)
+      .catch(() => setSuggested(null));
+  }, [applicationId]);
+
+  const toggle = (id: string) =>
+    setPanel((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -361,6 +394,47 @@ function InterviewForm({
 
   return (
     <form onSubmit={submit} style={{ marginTop: "0.75rem" }}>
+      {suggested && suggested.position_skills.length > 0 && (
+        <div style={{ margin: "0.4rem 0 0.6rem" }}>
+          <span className="muted" style={{ fontSize: "0.8rem", marginRight: "0.5rem" }}>
+            Position skills:
+          </span>
+          {suggested.position_skills.map((s) => (
+            <span key={s.name} className={`skill-chip ${s.level === "must_have" ? "must" : ""}`}>
+              {s.name}
+            </span>
+          ))}
+        </div>
+      )}
+      {suggested && suggested.suggestions.length > 0 && (
+        <div style={{ marginBottom: "0.6rem" }}>
+          <label style={{ marginTop: 0 }}>
+            Suggested panelists (skill-matched — click to add)
+          </label>
+          {suggested.suggestions.map((s) => (
+            <div
+              key={s.org_user.id}
+              className={`suggestion-row ${panel.includes(s.org_user.id) ? "selected" : ""}`}
+              onClick={() => toggle(s.org_user.id)}
+            >
+              <strong>{s.org_user.name}</strong>
+              <span className="muted" style={{ fontSize: "0.78rem" }}>
+                {s.panels.join(" · ")}
+              </span>
+              <span style={{ marginLeft: "auto" }}>
+                {s.matched_skills.map((sk) => (
+                  <span
+                    key={sk.name}
+                    className={`skill-chip ${sk.level === "must_have" ? "must" : ""}`}
+                  >
+                    {sk.name}
+                  </span>
+                ))}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="row">
         <div style={{ flex: 1, minWidth: 200 }}>
           <label>Round</label>
@@ -376,14 +450,13 @@ function InterviewForm({
           />
         </div>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <label>Panel (cmd/ctrl-click for multiple)</label>
+          <label>All panelists (cmd/ctrl-click for multiple)</label>
           <select
             multiple
             value={panel}
             onChange={(e) =>
               setPanel(Array.from(e.target.selectedOptions).map((o) => o.value))
             }
-            required
           >
             {users.map((u) => (
               <option key={u.id} value={u.id}>
