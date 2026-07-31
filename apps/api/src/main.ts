@@ -1,6 +1,21 @@
 import "reflect-metadata";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
+
+// Prisma CLI loads .env but Prisma Client at runtime does not; load it
+// ourselves (native Node, no dotenv dep). Checks cwd first, then the app dir
+// so `node dist/main.js` works from anywhere. Real env vars take precedence.
+for (const candidate of [
+  join(process.cwd(), ".env"),
+  join(__dirname, "..", ".env"),
+]) {
+  if (existsSync(candidate)) {
+    process.loadEnvFile(candidate);
+    break;
+  }
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

@@ -1,0 +1,54 @@
+/* Theme-aware base styles: readable in light and dark from day one. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1a1d21;
+  --muted: #5c636e;
+  --link: #0b62d6;
+  --surface: #f4f6f8;
+  --border: #d9dee4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171a;
+    --fg: #e8eaed;
+    --muted: #9aa3ad;
+    --link: #6cb1ff;
+    --surface: #1e2226;
+    --border: #343a41;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.55;
+}
+
+a {
+  color: var(--link);
+}
+
+main {
+  max-width: 640px;
+  margin: 10vh auto 0;
+  padding: 0 1rem;
+}
+
+h1 {
+  letter-spacing: -0.02em;
+}
+
+p.muted {
+  color: var(--muted);
+}

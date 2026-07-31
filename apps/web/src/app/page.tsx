@@ -2,9 +2,9 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <main style={{ maxWidth: 640, margin: "10vh auto", padding: "0 1rem" }}>
+    <main>
       <h1>InterVU</h1>
-      <p>
+      <p className="muted">
         Open-source interview &amp; vendor-sourced hiring management platform.
       </p>
       <ul>

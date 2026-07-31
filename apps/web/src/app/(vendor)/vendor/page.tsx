@@ -1,8 +1,10 @@
 export default function VendorHome() {
   return (
-    <main style={{ maxWidth: 640, margin: "10vh auto", padding: "0 1rem" }}>
+    <main>
       <h1>Vendor portal</h1>
-      <p>Released positions and your submissions — lands in M1.</p>
+      <p className="muted">
+        Released positions and your submissions — lands in M1.
+      </p>
     </main>
   );
 }
