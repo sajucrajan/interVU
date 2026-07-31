@@ -42,7 +42,7 @@ InterVU is built for organizations that run high volumes of interviews across ma
 - **Database:** PostgreSQL — bring any provider: Azure Database for PostgreSQL / Cosmos DB for PostgreSQL, AWS RDS/Aurora, GCP Cloud SQL, self-hosted/on-prem, or the bundled container ([why Postgres-only](docs/08-database-strategy.md))
 - **Jobs/queues:** BullMQ + Redis (release scheduling, matching pipeline, notifications)
 - **Files:** S3-compatible storage (MinIO for self-hosting)
-- **Deploy:** Docker Compose for self-host; Helm chart later
+- **Deploy:** Docker Compose for self-host; Helm chart later. No Docker? `pnpm db:embedded` runs Postgres from npm binaries.
 
 ## Contributing
 

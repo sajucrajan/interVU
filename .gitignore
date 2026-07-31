@@ -11,6 +11,9 @@ coverage/
 .env.*
 !.env.example
 
+# local embedded database (pnpm db:embedded)
+.pgdata/
+
 # misc
 .DS_Store
 *.log

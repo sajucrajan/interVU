@@ -26,6 +26,7 @@ model Organization {
   orgUsers   OrgUser[]
   vendorOrgs VendorOrg[]
   positions  Position[]
+  candidates Candidate[]
   auditLogs  AuditLog[]
 
   @@map("organization")
@@ -86,12 +87,14 @@ model OrgUser {
   organizationId String     @map("organization_id") @db.Uuid
   email          String
   name           String
+  passwordHash   String?    @map("password_hash")
   status         UserStatus @default(invited)
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
 
   organization Organization    @relation(fields: [organizationId], references: [id])
   memberships  OrgMembership[]
+  sessions     Session[]
 
   @@unique([organizationId, email])
   @@map("org_user")
@@ -157,24 +160,45 @@ model VendorOrg {
   vendor       Vendor                  @relation(fields: [vendorId], references: [id])
   organization Organization            @relation(fields: [organizationId], references: [id])
   releases     PositionVendorRelease[]
+  submissions  Submission[]
 
   @@unique([vendorId, organizationId])
   @@map("vendor_org")
 }
 
 model VendorUser {
-  id        String     @id @default(uuid()) @db.Uuid
-  vendorId  String     @map("vendor_id") @db.Uuid
-  email     String
-  name      String
-  role      VendorRole @default(vendor_recruiter)
-  status    UserStatus @default(invited)
-  createdAt DateTime   @default(now()) @map("created_at")
+  id           String     @id @default(uuid()) @db.Uuid
+  vendorId     String     @map("vendor_id") @db.Uuid
+  email        String
+  name         String
+  passwordHash String?    @map("password_hash")
+  role         VendorRole @default(vendor_recruiter)
+  status       UserStatus @default(invited)
+  createdAt    DateTime   @default(now()) @map("created_at")
 
-  vendor Vendor @relation(fields: [vendorId], references: [id])
+  vendor      Vendor       @relation(fields: [vendorId], references: [id])
+  sessions    Session[]
+  submissions Submission[]
 
   @@unique([vendorId, email])
   @@map("vendor_user")
+}
+
+/// Server-side sessions. Only the SHA-256 hash of the bearer token is stored;
+/// exactly one of orgUserId/vendorUserId is set.
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  tokenHash    String   @unique @map("token_hash")
+  orgUserId    String?  @map("org_user_id") @db.Uuid
+  vendorUserId String?  @map("vendor_user_id") @db.Uuid
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  orgUser    OrgUser?    @relation(fields: [orgUserId], references: [id], onDelete: Cascade)
+  vendorUser VendorUser? @relation(fields: [vendorUserId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("session")
 }
 
 // ---------- Positions & release ----------
@@ -220,6 +244,8 @@ model Position {
   orgUnit       OrgUnit                 @relation(fields: [orgUnitId], references: [id])
   releasePolicy ReleasePolicy?
   releases      PositionVendorRelease[]
+  submissions   Submission[]
+  applications  Application[]
 
   @@index([organizationId, status])
   @@map("position")
@@ -257,6 +283,159 @@ model PositionVendorRelease {
   @@unique([positionId, vendorOrgId])
   @@index([vendorOrgId, visibleFrom])
   @@map("position_vendor_release")
+}
+
+// ---------- Candidates, submissions, matching (docs/03, docs/04) ----------
+
+enum IdentityKind {
+  email
+  phone
+  phone_last10
+  linkedin
+
+  @@map("identity_kind")
+}
+
+enum SubmissionStatus {
+  received
+  accepted
+  pending_review
+  duplicate
+  rejected
+  withdrawn
+
+  @@map("submission_status")
+}
+
+enum OwnershipStatus {
+  owner
+  duplicate
+  arbitrated_owner
+  not_applicable
+
+  @@map("ownership_status")
+}
+
+enum ApplicationStatus {
+  active
+  hired
+  rejected
+  withdrawn
+
+  @@map("application_status")
+}
+
+enum MatchOutcome {
+  auto_linked
+  auto_new
+  reviewed_linked
+  reviewed_new
+
+  @@map("match_outcome")
+}
+
+/// The golden record: a candidate is NOT a submission (docs/03 §1).
+model Candidate {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  displayName     String   @map("display_name")
+  currentTitle    String?  @map("current_title")
+  currentEmployer String?  @map("current_employer")
+  location        String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization Organization        @relation(fields: [organizationId], references: [id])
+  identities   CandidateIdentity[]
+  submissions  Submission[]
+  applications Application[]
+
+  @@index([organizationId])
+  @@map("candidate")
+}
+
+/// Known identifiers; identities accrete over time so the same person via a
+/// second vendor/email eventually matches deterministically (docs/04 §2.2).
+model CandidateIdentity {
+  id                 String       @id @default(uuid()) @db.Uuid
+  organizationId     String       @map("organization_id") @db.Uuid
+  candidateId        String       @map("candidate_id") @db.Uuid
+  kind               IdentityKind
+  valueNorm          String       @map("value_norm")
+  valueRaw           String       @map("value_raw")
+  sourceSubmissionId String?      @map("source_submission_id") @db.Uuid
+  createdAt          DateTime     @default(now()) @map("created_at")
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, kind, valueNorm])
+  @@map("candidate_identity")
+}
+
+/// One vendor putting one candidate forward for one position at one time.
+/// received_at (server clock) is the ownership tie-breaker (docs/05 §3).
+model Submission {
+  id               String           @id @default(uuid()) @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  positionId       String           @map("position_id") @db.Uuid
+  vendorOrgId      String           @map("vendor_org_id") @db.Uuid
+  vendorUserId     String           @map("vendor_user_id") @db.Uuid
+  candidateId      String?          @map("candidate_id") @db.Uuid
+  rawProfile       Json             @map("raw_profile")
+  status           SubmissionStatus @default(received)
+  ownershipStatus  OwnershipStatus  @default(not_applicable) @map("ownership_status")
+  consentConfirmed Boolean          @default(false) @map("consent_confirmed")
+  expectedRate     String?          @map("expected_rate")
+  vendorNotes      String?          @map("vendor_notes")
+  receivedAt       DateTime         @default(now()) @map("received_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  position      Position       @relation(fields: [positionId], references: [id])
+  vendorOrg     VendorOrg      @relation(fields: [vendorOrgId], references: [id])
+  vendorUser    VendorUser     @relation(fields: [vendorUserId], references: [id])
+  candidate     Candidate?     @relation(fields: [candidateId], references: [id])
+  matchDecision MatchDecision?
+
+  @@index([organizationId, positionId])
+  @@index([organizationId, candidateId, receivedAt])
+  @@map("submission")
+}
+
+/// The org's pipeline instance — one per (position, candidate) regardless of
+/// how many submissions arrive (docs/03 §1).
+model Application {
+  id                 String            @id @default(uuid()) @db.Uuid
+  organizationId     String            @map("organization_id") @db.Uuid
+  positionId         String            @map("position_id") @db.Uuid
+  candidateId        String            @map("candidate_id") @db.Uuid
+  sourceSubmissionId String            @map("source_submission_id") @db.Uuid
+  currentStage       String            @default("submitted") @map("current_stage")
+  status             ApplicationStatus @default(active)
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  position  Position  @relation(fields: [positionId], references: [id])
+  candidate Candidate @relation(fields: [candidateId], references: [id])
+
+  @@unique([positionId, candidateId])
+  @@index([organizationId, status])
+  @@map("application")
+}
+
+/// Why a submission linked (or didn't) — explainability (docs/04 §1.2).
+model MatchDecision {
+  id               String       @id @default(uuid()) @db.Uuid
+  submissionId     String       @unique @map("submission_id") @db.Uuid
+  candidateId      String?      @map("candidate_id") @db.Uuid
+  outcome          MatchOutcome
+  score            Float
+  featureBreakdown Json         @map("feature_breakdown")
+  decidedById      String?      @map("decided_by_id") @db.Uuid
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@map("match_decision")
 }
 
 // ---------- Audit ----------

@@ -10,9 +10,11 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "dev": "turbo run dev"
+    "dev": "turbo run dev",
+    "db:embedded": "node tools/db-embedded.mjs"
   },
   "devDependencies": {
+    "embedded-postgres": "^18.4.0-beta.17",
     "turbo": "^2.3.0",
     "typescript": "^5.7.0"
   }

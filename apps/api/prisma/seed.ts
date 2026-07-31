@@ -4,9 +4,12 @@
 // Run: pnpm db:seed  (idempotent — safe to re-run)
 
 import { PrismaClient } from "@prisma/client";
+import { hashPassword } from "../src/auth/password";
 
 const prisma = new PrismaClient();
 const HOUR_MS = 3_600_000;
+const DEMO_PASSWORD = "intervu-demo";
+const demoHash = hashPassword(DEMO_PASSWORD);
 
 async function main() {
   const org = await prisma.organization.upsert({
@@ -42,8 +45,8 @@ async function main() {
   async function orgUser(email: string, name: string, role: "org_admin" | "recruiter" | "hiring_manager", orgUnitId: string | null) {
     const user = await prisma.orgUser.upsert({
       where: { organizationId_email: { organizationId: org.id, email } },
-      update: { status: "active" },
-      create: { organizationId: org.id, email, name, status: "active" },
+      update: { status: "active", passwordHash: demoHash },
+      create: { organizationId: org.id, email, name, status: "active", passwordHash: demoHash },
     });
     // find-or-create: the composite unique includes a nullable column,
     // which Prisma upsert can't target
@@ -74,8 +77,8 @@ async function main() {
     });
     await prisma.vendorUser.upsert({
       where: { vendorId_email: { vendorId: v.id, email: userEmail } },
-      update: { status: "active" },
-      create: { vendorId: v.id, email: userEmail, name: `${name} Recruiter`, role: "vendor_admin", status: "active" },
+      update: { status: "active", passwordHash: demoHash },
+      create: { vendorId: v.id, email: userEmail, name: `${name} Recruiter`, role: "vendor_admin", status: "active", passwordHash: demoHash },
     });
     return vo;
   }
@@ -168,7 +171,10 @@ async function main() {
   }
 
   console.log(`
-Demo accounts (dev header auth — see src/tenancy/dev-auth.guard.ts):
+All demo accounts use password: ${DEMO_PASSWORD}
+  Org login:    POST /api/v1/auth/org/login    {"org_slug":"acme","email":…,"password":…}
+  Vendor login: POST /api/v1/auth/vendor/login {"email":…,"password":…}
+Dev header auth also works outside production (see src/tenancy/auth.guard.ts):
   Org (headers: x-intervu-org: acme, x-intervu-user: <email>)
     admin@acme.test        org_admin (org-wide)
     recruiter@acme.test    recruiter (org-wide)

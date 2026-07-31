@@ -18,6 +18,17 @@ pnpm --filter @intervu/api db:seed                  # demo org, hierarchy, vendo
 pnpm dev                                            # api (:4000) + web (:3000)
 ```
 
+**No Docker?** Run a real Postgres from npm-downloaded binaries instead:
+
+```bash
+pnpm db:embedded                                    # terminal 1: postgres on :5432, data in .pgdata/
+```
+
+then run the migrate/seed/dev commands above as usual. The API reads
+`DATABASE_URL` from the environment or `apps/api/.env`
+(default `postgresql://intervu:intervu@localhost:5432/intervu` works for both
+docker-compose and embedded).
+
 `db:seed` prints demo accounts. Until real session auth lands, requests authenticate
 with dev headers (see `apps/api/src/tenancy/dev-auth.guard.ts`):
 
