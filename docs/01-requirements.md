@@ -41,8 +41,11 @@ Organizations are internally hierarchical: **verticals/units contain other units
 |---|---|
 | **Org Admin** | Org settings, vendor management, user management, release policies, merge review, audit access |
 | **Recruiter / Coordinator** | Create positions, manage releases, manage pipelines, schedule interviews, communicate with vendors, resolve duplicate flags |
-| **Hiring Manager** | Owns positions for their team; sees full candidate history; makes decisions |
+| **Hiring Manager** | Owns positions for their team/vertical scope; sees full candidate history; makes decisions |
+| **Project Manager** | Read-only funnel visibility (positions, submission statuses) for the verticals/units/teams they are scoped to |
 | **Interviewer** | Sees assigned interviews + candidate history (per visibility policy); submits scorecards |
+
+Roles attach at a **scope** — the whole org or any node of the unit hierarchy — and apply to all descendants; a user can hold several scoped roles at once. Full model: [09-entitlements.md](09-entitlements.md).
 
 ### Vendor side
 | Role | Capabilities |

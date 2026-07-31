@@ -64,7 +64,10 @@ export class DevAuthGuard implements CanActivate {
       tenant.org = {
         organizationId: org.id,
         user,
-        roles: [...new Set(user.memberships.map((m) => m.role))],
+        memberships: user.memberships.map((m) => ({
+          role: m.role,
+          orgUnitId: m.orgUnitId,
+        })),
       };
     } else {
       const email = req.headers["x-intervu-vendor-user"];

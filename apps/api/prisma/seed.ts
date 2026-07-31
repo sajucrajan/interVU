@@ -60,6 +60,8 @@ async function main() {
   const admin = await orgUser("admin@acme.test", "Avery Admin", "org_admin", null);
   await orgUser("recruiter@acme.test", "Riley Recruiter", "recruiter", null);
   await orgUser("hm.eng@acme.test", "Harper Manager", "hiring_manager", engineering.id); // vertical-scoped
+  await orgUser("pm.gtm@acme.test", "Parker PM", "project_manager", gtm.id); // vertical-scoped, read-only
+  await orgUser("pm.platform@acme.test", "Peyton PM", "project_manager", platform.id); // single-team scope
 
   // --- Vendors: TalentBridge (tier 1), HireWorks (tier 2), StaffPro (tier 2)
   async function vendor(name: string, tier: number, userEmail: string) {
@@ -170,7 +172,9 @@ Demo accounts (dev header auth — see src/tenancy/dev-auth.guard.ts):
   Org (headers: x-intervu-org: acme, x-intervu-user: <email>)
     admin@acme.test        org_admin (org-wide)
     recruiter@acme.test    recruiter (org-wide)
-    hm.eng@acme.test       hiring_manager (Engineering vertical)
+    hm.eng@acme.test       hiring_manager (Engineering vertical → Platform + Data)
+    pm.gtm@acme.test       project_manager (GTM vertical, read-only)
+    pm.platform@acme.test  project_manager (Platform team only, read-only)
   Vendors (header: x-intervu-vendor-user: <email>)
     recruiter@talentbridge.test   TalentBridge (tier 1)
     recruiter@hireworks.test      HireWorks (tier 2)

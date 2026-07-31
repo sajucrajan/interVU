@@ -1,15 +1,16 @@
-import type { OrgUser, Vendor, VendorUser } from "@prisma/client";
+import type { OrgRole, OrgUser, Vendor, VendorUser } from "@prisma/client";
 
 /**
  * Resolved per-request identity + tenancy scope. Exactly one side is set:
  * org routes require `org`, vendor routes require `vendor`.
- * (docs/02-architecture.md §4)
+ * Tenancy answers WHO (docs/02 §4); entitlements answer WHAT
+ * (docs/09-entitlements.md) via AuthzService over `memberships`.
  */
 export interface TenantContext {
   org?: {
     organizationId: string;
     user: OrgUser;
-    roles: string[];
+    memberships: { role: OrgRole; orgUnitId: string | null }[];
   };
   vendor?: {
     vendor: Vendor;

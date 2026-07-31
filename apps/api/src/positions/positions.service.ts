@@ -41,9 +41,15 @@ export class PositionsService {
     });
   }
 
-  list(organizationId: string) {
+  /** Scoped listing: users only receive positions in units they can view. */
+  list(organizationId: string, viewableUnitIds: "org" | string[]) {
     return this.prisma.position.findMany({
-      where: { organizationId },
+      where: {
+        organizationId,
+        ...(viewableUnitIds === "org"
+          ? {}
+          : { orgUnitId: { in: viewableUnitIds } }),
+      },
       include: {
         orgUnit: { select: { id: true, name: true, kind: true } },
         releasePolicy: true,

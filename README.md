@@ -32,6 +32,7 @@ InterVU is built for organizations that run high volumes of interviews across ma
 | [06-api-design.md](docs/06-api-design.md) | REST API surface, auth, webhooks |
 | [07-roadmap.md](docs/07-roadmap.md) | Milestones, MVP cut, governance |
 | [08-database-strategy.md](docs/08-database-strategy.md) | ADR: Postgres core, any cloud/on-prem provider, warehouse export |
+| [09-entitlements.md](docs/09-entitlements.md) | Authorization: role@scope grants, hierarchy inheritance, contextual access |
 
 ## Planned stack (see [architecture doc](docs/02-architecture.md) for rationale)
 

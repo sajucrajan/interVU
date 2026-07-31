@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { EntitlementsModule } from "./entitlements/entitlements.module";
 import { HealthModule } from "./health/health.module";
 import { OrgUnitsModule } from "./org-units/org-units.module";
 import { PositionsModule } from "./positions/positions.module";
@@ -10,6 +11,7 @@ import { VendorPortalModule } from "./vendor-portal/vendor-portal.module";
   imports: [
     PrismaModule,
     TenancyModule,
+    EntitlementsModule,
     HealthModule,
     OrgUnitsModule,
     PositionsModule,
