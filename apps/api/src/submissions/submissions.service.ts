@@ -356,6 +356,7 @@ export class SubmissionsService {
       SELECT id, display_name, current_title, current_employer, location
       FROM candidate
       WHERE organization_id = ${organizationId}::uuid
+        AND merged_into_id IS NULL
         AND similarity(display_name, ${input.candidate_name}) > 0.35
       ORDER BY similarity(display_name, ${input.candidate_name}) DESC
       LIMIT 25`;

@@ -12,11 +12,15 @@ Thanks for your interest! InterVU is in the design/bootstrap phase, so **design 
 
 ```bash
 pnpm install
-docker compose -f infra/docker-compose.yml up -d    # postgres, redis, minio
+docker compose -f infra/docker-compose.yml up -d    # postgres only (the one hard dep)
 pnpm --filter @intervu/api db:migrate               # apply prisma migrations
 pnpm --filter @intervu/api db:seed                  # demo org, hierarchy, vendors, positions
-pnpm dev                                            # api (:4000) + web (:3000)
+pnpm dev                                            # api (:4000) + web (:3000) on the host
 ```
+
+App processes run on the host in dev (hot reload); only infra runs in Docker.
+Redis and MinIO aren't needed yet — when working on queues or file uploads,
+start them with `--profile full`.
 
 **No Docker?** Run a real Postgres from npm-downloaded binaries instead:
 

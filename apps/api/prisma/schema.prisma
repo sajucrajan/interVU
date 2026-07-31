@@ -388,6 +388,8 @@ enum MatchOutcome {
 }
 
 /// The golden record: a candidate is NOT a submission (docs/03 §1).
+/// merged_into_id set = this record was merged into another master; it is
+/// kept (empty) so merges are reversible, and excluded from matching/lists.
 model Candidate {
   id              String   @id @default(uuid()) @db.Uuid
   organizationId  String   @map("organization_id") @db.Uuid
@@ -395,6 +397,7 @@ model Candidate {
   currentTitle    String?  @map("current_title")
   currentEmployer String?  @map("current_employer")
   location        String?
+  mergedIntoId    String?  @map("merged_into_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -478,6 +481,23 @@ model Application {
   @@unique([positionId, candidateId])
   @@index([organizationId, status])
   @@map("application")
+}
+
+/// Admin-only master merges — always human, always reversible (docs/04 §3).
+/// snapshot records exactly which child rows moved so reverse() restores them.
+model MergeEvent {
+  id                   String    @id @default(uuid()) @db.Uuid
+  organizationId       String    @map("organization_id") @db.Uuid
+  survivingCandidateId String    @map("surviving_candidate_id") @db.Uuid
+  mergedCandidateId    String    @map("merged_candidate_id") @db.Uuid
+  performedById        String?   @map("performed_by_id") @db.Uuid
+  snapshot             Json
+  reversedAt           DateTime? @map("reversed_at")
+  reversedById         String?   @map("reversed_by_id") @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at")
+
+  @@index([organizationId])
+  @@map("merge_event")
 }
 
 enum ReviewStatus {

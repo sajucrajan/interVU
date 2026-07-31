@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -6,6 +7,13 @@ import {
 import type { FlagCreate } from "@intervu/contracts";
 import type { Access } from "../entitlements/access";
 import { PrismaService } from "../prisma/prisma.service";
+
+interface MergeSnapshot {
+  identityIds: string[];
+  submissionIds: string[];
+  applicationIds: string[];
+  flagIds: string[];
+}
 
 export interface TimelineEvent {
   at: string;
@@ -163,6 +171,152 @@ export class CandidatesService {
       })),
       events,
     };
+  }
+
+  /**
+   * Merge `mergedId` into `survivingId` (docs/04 §3): all child rows move to
+   * the survivor; the merged row stays (empty, marked merged_into_id) so the
+   * merge is reversible. Blocked when both candidates hold an application on
+   * the same position — that contest needs human untangling first.
+   */
+  async merge(
+    organizationId: string,
+    survivingId: string,
+    mergedId: string,
+    actorId: string,
+  ) {
+    if (survivingId === mergedId) {
+      throw new ConflictException({ code: "self_merge" });
+    }
+    const [surviving, merged] = await Promise.all([
+      this.prisma.candidate.findFirst({
+        where: { id: survivingId, organizationId, mergedIntoId: null },
+      }),
+      this.prisma.candidate.findFirst({
+        where: { id: mergedId, organizationId, mergedIntoId: null },
+        include: {
+          identities: { select: { id: true } },
+          submissions: { select: { id: true } },
+          applications: { select: { id: true, positionId: true } },
+          flags: { select: { id: true } },
+        },
+      }),
+    ]);
+    if (!surviving || !merged) throw new NotFoundException("Candidate not found");
+
+    const survivorApps = await this.prisma.application.findMany({
+      where: { candidateId: survivingId },
+      select: { positionId: true },
+    });
+    const survivorPositions = new Set(survivorApps.map((a) => a.positionId));
+    const collision = merged.applications.find((a) => survivorPositions.has(a.positionId));
+    if (collision) {
+      throw new ConflictException({
+        code: "application_collision",
+        detail:
+          "Both candidates have an application on the same position; resolve that pipeline first",
+      });
+    }
+
+    const snapshot: MergeSnapshot = {
+      identityIds: merged.identities.map((i) => i.id),
+      submissionIds: merged.submissions.map((s) => s.id),
+      applicationIds: merged.applications.map((a) => a.id),
+      flagIds: merged.flags.map((f) => f.id),
+    };
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.candidateIdentity.updateMany({
+        where: { candidateId: mergedId },
+        data: { candidateId: survivingId },
+      });
+      await tx.submission.updateMany({
+        where: { candidateId: mergedId },
+        data: { candidateId: survivingId },
+      });
+      await tx.application.updateMany({
+        where: { candidateId: mergedId },
+        data: { candidateId: survivingId },
+      });
+      await tx.candidateFlag.updateMany({
+        where: { candidateId: mergedId },
+        data: { candidateId: survivingId },
+      });
+      await tx.candidate.update({
+        where: { id: mergedId },
+        data: { mergedIntoId: survivingId },
+      });
+      const event = await tx.mergeEvent.create({
+        data: {
+          organizationId,
+          survivingCandidateId: survivingId,
+          mergedCandidateId: mergedId,
+          performedById: actorId,
+          snapshot: snapshot as unknown as object,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          organizationId,
+          actorType: "org_user",
+          actorId,
+          event: "candidate.merged",
+          entityType: "candidate",
+          entityId: survivingId,
+          payload: { mergedCandidateId: mergedId, mergeEventId: event.id },
+        },
+      });
+      return event;
+    });
+  }
+
+  /** Un-merge: restore exactly the rows the snapshot says moved. */
+  async reverseMerge(organizationId: string, mergeEventId: string, actorId: string) {
+    const event = await this.prisma.mergeEvent.findFirst({
+      where: { id: mergeEventId, organizationId },
+    });
+    if (!event) throw new NotFoundException("Merge event not found");
+    if (event.reversedAt) throw new ConflictException({ code: "already_reversed" });
+
+    const snap = event.snapshot as unknown as MergeSnapshot;
+    return this.prisma.$transaction(async (tx) => {
+      await tx.candidateIdentity.updateMany({
+        where: { id: { in: snap.identityIds } },
+        data: { candidateId: event.mergedCandidateId },
+      });
+      await tx.submission.updateMany({
+        where: { id: { in: snap.submissionIds } },
+        data: { candidateId: event.mergedCandidateId },
+      });
+      await tx.application.updateMany({
+        where: { id: { in: snap.applicationIds } },
+        data: { candidateId: event.mergedCandidateId },
+      });
+      await tx.candidateFlag.updateMany({
+        where: { id: { in: snap.flagIds } },
+        data: { candidateId: event.mergedCandidateId },
+      });
+      await tx.candidate.update({
+        where: { id: event.mergedCandidateId },
+        data: { mergedIntoId: null },
+      });
+      const updated = await tx.mergeEvent.update({
+        where: { id: event.id },
+        data: { reversedAt: new Date(), reversedById: actorId },
+      });
+      await tx.auditLog.create({
+        data: {
+          organizationId,
+          actorType: "org_user",
+          actorId,
+          event: "candidate.merge_reversed",
+          entityType: "candidate",
+          entityId: event.mergedCandidateId,
+          payload: { mergeEventId: event.id },
+        },
+      });
+      return updated;
+    });
   }
 
   async addFlag(
