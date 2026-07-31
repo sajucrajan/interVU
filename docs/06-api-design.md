@@ -1,6 +1,15 @@
 # 06 — API Design
 
-API-first: the org workspace and vendor portal consume the same documented REST API. OpenAPI spec generated from NestJS decorators + zod contracts in `packages/contracts`; published at `/api/docs`.
+API-first: the org workspace and vendor portal consume the same documented REST API. Zod contracts live in `packages/contracts`; OpenAPI publication is pending (M4).
+
+> **Status:** endpoints below marked ✅ are implemented; unmarked ones are the
+> designed surface still to come. Auth: `POST /auth/org/login`,
+> `POST /auth/vendor/login`, `POST /auth/logout`, `GET /auth/me` ✅ (cookie
+> sessions). Also implemented beyond the original sketch: `GET /org-units` +
+> `POST /org-units` ✅, `GET /org-users` ✅, `GET|POST /panels` +
+> `GET /applications/{id}/panel-suggestions` ✅ (skill-matched panelists),
+> `GET /skills` ✅, `GET /analytics/overview` ✅, `GET|PATCH /settings` ✅
+> (incl. white-label branding).
 
 ## 1. Conventions
 
@@ -14,12 +23,12 @@ API-first: the org workspace and vendor portal consume the same documented REST 
 
 ```
 # Positions & release
-POST   /positions                          create (draft)
-POST   /positions/{id}/publish             body: release_policy
+POST   /positions                          ✅ create (draft; role identity + skill matrix)
+POST   /positions/{id}/publish             ✅ body: release_policy
+GET    /positions/{id}                     ✅ full JD + release state
 PATCH  /positions/{id}                     edit / pause / close
-GET    /positions?status=&team_id=
-GET    /positions/{id}/releases            release panel (who sees it, when)
-POST   /positions/{id}/releases            manual/early release {vendor_org_id, visible_from?}
+GET    /positions                          ✅ (entitlement-scoped)
+POST   /positions/{id}/releases            ✅ manual/early release {vendor_org_id}
 
 # Vendors
 POST   /vendors                            invite vendor (creates vendor_org + admin invite)
@@ -27,28 +36,27 @@ PATCH  /vendors/{vendor_org_id}            tier, status, contract window
 GET    /vendors/{vendor_org_id}/stats      funnel stats
 
 # Submissions & matching
-GET    /submissions?position_id=&status=&ownership_status=
-GET    /submissions/{id}                   incl. match_decision + feature breakdown
+GET    /submissions?position_id=           ✅ (entitlement-scoped, vendor names + decisions)
 POST   /submissions/{id}/arbitrate         {ownership_status, reason}
-GET    /match-reviews?status=open          review queue
-POST   /match-reviews/{id}/resolve         {action: link|keep_separate}
-POST   /candidates/{id}/merge              {merge_candidate_id}  (admin)
-POST   /merge-events/{id}/reverse          un-merge              (admin)
+GET    /match-reviews                      ✅ review queue (open items, side-by-side)
+POST   /match-reviews/{id}/resolve         ✅ {action: link|keep_separate}
+POST   /candidates/{id}/merge              ✅ {merge_candidate_id}  (candidates.merge)
+POST   /candidates/merge-events/{id}/reverse  ✅ un-merge
 
 # Candidates & history
 GET    /candidates?q=                      search (name/email/phone/skills)
-GET    /candidates/{id}                    master record
-GET    /candidates/{id}/timeline           permission-filtered history
-POST   /candidates/{id}/flags              do-not-hire / caution
+GET    /candidates/{id}/timeline           ✅ permission-filtered cross-position history
+POST   /candidates/{id}/flags              ✅ do-not-hire / caution / note
 DELETE /candidates/{id}                    GDPR erasure workflow (admin, two-step confirm)
 
 # Pipeline & interviews
-POST   /applications/{id}/transition       {to_stage, note}
-POST   /applications/{id}/interviews       schedule round {round, panel[], at, link}
-GET    /interviews?mine=true               interviewer's assignments
-POST   /interviews/{id}/scorecards         submit scorecard
-GET    /applications/{id}/scorecards       visibility-policy filtered
-POST   /applications/{id}/decision         {outcome, reason}
+GET    /applications?position_id=          ✅
+POST   /applications/{id}/transition       ✅ {to_stage, note}
+POST   /applications/{id}/interviews       ✅ schedule round {round, panel[], at}
+GET    /interviews/mine                    ✅ interviewer's assignments
+POST   /interviews/{id}/scorecards         ✅ submit scorecard (panelist-only)
+GET    /applications/{id}/scorecards       ✅ feedback-visibility-policy filtered
+POST   /applications/{id}/decision         ✅ {outcome, reason}
 
 # Admin
 GET    /audit?entity_type=&entity_id=
@@ -59,16 +67,15 @@ GET    /settings  /  PATCH /settings       ownership scope/window, feedback poli
 ## 3. Vendor API surface (separate route tree, vendor session required)
 
 ```
-GET    /vendor/positions                   only released + open, per visibility predicate
-GET    /vendor/positions/{id}              sanitized position view
-POST   /vendor/positions/{id}/submissions  submit profile (multipart or presigned-upload flow)
-       → 201 {status: received}
-       → 409 problem+json {code: duplicate_submission}   ← pre-flight probe, no details
-GET    /vendor/submissions?position_id=    own submissions only, coarse status
-GET    /vendor/submissions/{id}
+GET    /vendor/positions                   ✅ released+open only, full sourcing view (JD, skills, rate band)
+POST   /vendor/positions/{id}/submissions  ✅ submit profile
+       → 201 {submission, idempotent, pending_review?}
+       → 409 {code: duplicate_submission}   ← probe, no source details
+GET    /vendor/submissions                 ✅ own submissions only, coarse status
 POST   /vendor/submissions/{id}/withdraw
 POST   /vendor/users                       vendor_admin invites recruiters
 ```
+Resume upload (multipart/presigned) joins the submission flow in M4.
 
 Vendor DTO example — note what's *absent* (no candidate_id, no internal status, no history):
 

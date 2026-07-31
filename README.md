@@ -20,7 +20,33 @@ InterVU is built for organizations that run high volumes of interviews across ma
 
 ## Status
 
-🚧 **Design phase.** The full design lives in [`docs/`](docs/):
+✅ **Working implementation — milestones M0–M3 complete** (see [progress](docs/07-roadmap.md#progress)). What runs today:
+
+- Session auth (org + vendor portals), org-unit hierarchy (verticals/units/teams), scoped entitlements incl. project-manager role
+- Rich role postings: seniority, employment type, location policy, vendor-facing rate bands, skill matrix (must/good × proficiency × years), non-skill must-haves, rendered JD pages, posting form
+- Tiered/manual/all-at-once vendor release with query-time visibility
+- Vendor submissions with deterministic **and** probabilistic candidate matching: gmail-alias-proof identity resolution, trigram blocking, explainable scoring, human review queue, reversible master merges, CI-gated eval corpus
+- First-valid-submission ownership with cross-vendor duplicate flagging and arbitration data
+- Interviews with skill-matched panel suggestions, scorecards with hide-until-submitted feedback policy, decisions, do-not-hire flags, full cross-position candidate timelines
+- Analytics dashboard (D3 sunburst of hierarchy → positions, funnel, vendor performance), white-label branding per org
+
+**Not yet built:** background workers/queues (release notifications, re-match sweep), resume upload + parsing, webhooks, OIDC SSO, retention/erasure, app container images, Postgres RLS backstop. See the [roadmap](docs/07-roadmap.md).
+
+## Quickstart (dev)
+
+```bash
+pnpm install
+docker compose -f infra/docker-compose.yml up -d   # postgres (no Docker? pnpm db:embedded)
+pnpm --filter @intervu/api db:migrate
+pnpm --filter @intervu/api db:seed                 # prints demo accounts; password: intervu-demo
+pnpm dev                                           # api :4000, web :3000
+```
+
+Then open http://localhost:3000 — sign in as `recruiter@acme.test` (org `acme`) or vendor `recruiter@talentbridge.test`.
+
+## Design docs
+
+The full design lives in [`docs/`](docs/):
 
 | Doc | Contents |
 |---|---|
@@ -34,15 +60,15 @@ InterVU is built for organizations that run high volumes of interviews across ma
 | [08-database-strategy.md](docs/08-database-strategy.md) | ADR: Postgres core, any cloud/on-prem provider, warehouse export |
 | [09-entitlements.md](docs/09-entitlements.md) | Authorization: role@scope grants, hierarchy inheritance, contextual access |
 
-## Planned stack (see [architecture doc](docs/02-architecture.md) for rationale)
+## Stack (see [architecture doc](docs/02-architecture.md) for rationale)
 
 - **Monorepo:** pnpm workspaces + Turborepo
 - **API:** NestJS (TypeScript) + Prisma
-- **Web:** Next.js + shadcn/ui (one app, two experiences: org workspace & vendor portal)
-- **Database:** PostgreSQL — bring any provider: Azure Database for PostgreSQL / Cosmos DB for PostgreSQL, AWS RDS/Aurora, GCP Cloud SQL, self-hosted/on-prem, or the bundled container ([why Postgres-only](docs/08-database-strategy.md))
-- **Jobs/queues:** BullMQ + Redis (release scheduling, matching pipeline, notifications)
-- **Files:** S3-compatible storage (MinIO for self-hosting)
-- **Deploy:** Docker Compose for self-host; Helm chart later. No Docker? `pnpm db:embedded` runs Postgres from npm binaries.
+- **Web:** Next.js (one app, two experiences: org workspace & vendor portal) + D3 for analytics
+- **Database:** PostgreSQL (`pg_trgm` powers fuzzy matching) — bring any provider: Azure Database for PostgreSQL / Cosmos DB for PostgreSQL, AWS RDS/Aurora, GCP Cloud SQL, self-hosted/on-prem, or the bundled container ([why Postgres-only](docs/08-database-strategy.md))
+- **Jobs/queues (planned, M4):** BullMQ + Redis — behind `--profile full` in compose until wired
+- **Files (planned, M4):** S3-compatible storage (MinIO for self-hosting) — behind `--profile full`
+- **Deploy:** dev infra via Docker Compose (`pnpm db:embedded` runs Postgres from npm binaries if you have no Docker); containerized app images + Helm are M4
 
 ## Contributing
 

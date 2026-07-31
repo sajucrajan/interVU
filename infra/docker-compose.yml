@@ -23,6 +23,15 @@ services:
       timeout: 3s
       retries: 10
 
+  # Dev mail catcher: SMTP :1025, web inbox http://localhost:8025.
+  # Start with:  docker compose -f infra/docker-compose.yml up -d mailpit
+  mailpit:
+    image: axllent/mailpit:latest
+    profiles: ["mail", "full"]
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   redis:
     image: redis:7
     profiles: ["full"]

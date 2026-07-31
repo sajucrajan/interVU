@@ -328,6 +328,9 @@ model PositionVendorRelease {
   visibleFrom  DateTime      @map("visible_from")
   source       ReleaseSource @default(policy)
   releasedById String?       @map("released_by_id") @db.Uuid
+  /// Set when the vendor was emailed about this release — the idempotency
+  /// marker for the notifier sweep (docs/05 §5). DB is truth; no queue needed.
+  notifiedAt   DateTime?     @map("notified_at")
   createdAt    DateTime      @default(now()) @map("created_at")
 
   position  Position  @relation(fields: [positionId], references: [id])

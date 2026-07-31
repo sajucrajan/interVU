@@ -1,5 +1,13 @@
 # 02 — System Architecture
 
+> **Implementation status (2026-07-31):** the monolith, tenancy guards,
+> entitlements, session auth, matching engine, and web app are built. Not yet
+> built from this doc: BullMQ workers (Redis is behind a compose profile until
+> then — release **email notification** uses a DB-is-truth in-process sweeper
+> meanwhile), S3/MinIO file storage, webhooks, OIDC SSO, OpenAPI publication,
+> and the Postgres **row-level-security backstop** (currently enforcement is
+> guard + query layer; RLS remains a planned defense-in-depth layer).
+
 ## 1. Shape: modular monolith, API-first
 
 For an open-source project that wants contributors, a **modular monolith** beats microservices: one repo, one deploy, one database, fast local setup — while keeping module boundaries strict enough to split later if ever needed.

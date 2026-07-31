@@ -56,7 +56,7 @@ Vendors never see stage names, interviewer identities, scorecards, or internal n
 
 | Event | Notification |
 |---|---|
-| Position released to vendor | Email + portal badge, with position summary and close date |
+| Position released to vendor | ✅ **Implemented**: email to the vendor's active users the moment `visible_from` arrives (immediate for publish/manual release; tier unlocks caught by a DB-is-truth sweeper — `notified_at` on the release row makes it idempotent). SMTP via env; Mailpit in dev |
 | Submission status change (coarse) | Email digest (immediate for `Offered`/`Not eligible`) |
 | Position paused/closed with vendor's active candidates | Immediate email |
 | Interview scheduled requiring candidate availability | Email with slots (vendor coordinates candidate in v1; candidate self-scheduling is out of scope) |

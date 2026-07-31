@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import type { Position } from "@prisma/client";
 import type { PositionCreate, ReleasePolicy } from "@intervu/contracts";
+import { ReleaseNotifierService } from "../notifications/release-notifier.service";
 import { PanelsService } from "../panels/panels.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -16,6 +17,7 @@ export class PositionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly panels: PanelsService,
+    private readonly notifier: ReleaseNotifierService,
   ) {}
 
   async create(
@@ -167,7 +169,7 @@ export class PositionsService {
     }
     // manual: no rows at publish time
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.position.update({
         where: { id: position.id },
         data: { status: "open", publishedAt },
@@ -203,6 +205,10 @@ export class PositionsService {
       });
       return updated;
     });
+    // Announce immediately-visible releases now; future tier unlocks are
+    // caught by the notifier's interval sweep (docs/05 §5).
+    void this.notifier.sweep();
+    return result;
   }
 
   /**
@@ -231,7 +237,7 @@ export class PositionsService {
     if (!vendorOrg) throw new NotFoundException("Active vendor not found");
 
     const now = new Date();
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.positionVendorRelease.findUnique({
         where: {
           positionId_vendorOrgId: { positionId, vendorOrgId },
@@ -266,5 +272,7 @@ export class PositionsService {
       });
       return release;
     });
+    void this.notifier.sweep();
+    return result;
   }
 }

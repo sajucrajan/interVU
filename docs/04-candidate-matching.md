@@ -1,5 +1,9 @@
 # 04 — Candidate Matching Engine (Identity Resolution)
 
+> **Status:** implemented through the review queue and reversible merges
+> (stages 1–5, §3, §6-style eval gates). Remaining: re-matching triggers (§4,
+> needs worker infra) and the optional plugins (§5).
+
 The matching engine answers one question on every submission: **is this person already known to this organization?** It must be conservative (a wrong merge leaks one person's interview history into another's packet), explainable (recruiters must see *why* two records matched), and cheap (runs synchronously enough that vendors get instant duplicate feedback).
 
 ## 1. Design principles
@@ -56,20 +60,26 @@ Cap block size (default 50) with a metric on overflow.
 
 ### Stage 4 — Pairwise scoring
 
-Weighted feature model (weights configurable per org, defaults below), producing `score ∈ [0,1]`:
+Weighted feature model producing `score ∈ [0,1]`. **Implemented weights**
+(`packages/matching-core/src/score.ts`; phone match is already deterministic
+via the `phone`/`phone_last10` identity kinds, and resume/DOB features arrive
+with resume parsing in M4):
 
-| Feature | Similarity | Default weight |
+| Feature | Similarity | Weight (implemented) |
 |---|---|---|
-| Name | Jaro-Winkler on token-sorted norm; phonetic-equal bonus | 0.30 |
+| Name | Jaro-Winkler on token-sorted, honorific-stripped norm | 0.45 |
 | Email local-part | Jaro-Winkler (cross-domain) | 0.15 |
-| Phone | exact-last-10 binary | 0.15 |
-| Employer history overlap | Jaccard on normalized employers | 0.12 |
-| Title similarity | trigram | 0.05 |
-| Location | same city / region / country tiers | 0.05 |
-| Resume text | MinHash/shingle Jaccard (default) or embedding cosine (optional) | 0.15 |
-| DOB / gov-id hash (if collected) | exact binary — near-deterministic boost | 0.03→overrides |
+| Employer | exact-normalized, else token overlap | 0.20 |
+| Title | Jaro-Winkler | 0.10 |
+| Location | normalized equality | 0.10 |
+| Resume text (M4) | MinHash/shingle or embedding cosine | planned |
+| DOB / gov-id hash (if collected, M4) | exact binary | planned |
 
-Thresholds (org-tunable): `T_high = 0.92` auto-link, `T_low = 0.70` review-queue floor. **Guard rule:** score composed *only* of name+location features can never reach `T_high` regardless of weights — common-name protection is structural, not tuned.
+Missing features contribute **0** (conservative), never neutral. Thresholds:
+`T_AUTO = 0.92` auto-link, `T_REVIEW = 0.70` queue floor. **Guard rule
+(implemented + unit-tested):** name+location alone max out at 0.55 — a common
+name in the same city can never auto-link; the protection is structural, not
+tuned.
 
 ### Stage 5 — Ownership evaluation
 
@@ -81,7 +91,7 @@ Recruiters/admins get a queue of `match_review_item`s with a side-by-side diff: 
 
 - **Link** → submission joins existing candidate; new identifiers accrete; decision recorded with reviewer id.
 - **Keep separate** → new candidate created; the *pair* is remembered as a negative example (`kept_separate`) so the engine stops re-asking (and negatives become future training data).
-- **Merge masters** (admin-only) → for when two existing candidates are discovered to be one person. Snapshot stored in `merge_event` → **un-merge** restores the pre-merge state and re-links children.
+- **Merge masters** (admin-only) → for when two existing candidates are discovered to be one person. Snapshot stored in `merge_event` → **un-merge** restores the pre-merge state and re-links children. The merged record is kept (empty, `merged_into_id` set, excluded from blocking) so reversal is exact. Merging is refused with `application_collision` when both candidates hold an application on the same position — that pipeline contest must be resolved by a human first.
 
 SLA hint: submissions in `pending_review` block vendor-facing duplicate feedback, so the queue surfaces age prominently and notifies on breach (default 24h).
 
