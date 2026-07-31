@@ -12,12 +12,21 @@ Thanks for your interest! InterVU is in the design/bootstrap phase, so **design 
 
 ```bash
 pnpm install
-docker compose -f infra/docker-compose.yml up -d   # postgres, redis, minio
-pnpm db:migrate && pnpm db:seed                     # demo org, vendors, planted duplicates
-pnpm dev                                            # api + web + worker
+docker compose -f infra/docker-compose.yml up -d    # postgres, redis, minio
+pnpm --filter @intervu/api db:migrate               # apply prisma migrations
+pnpm --filter @intervu/api db:seed                  # demo org, hierarchy, vendors, positions
+pnpm dev                                            # api (:4000) + web (:3000)
 ```
 
-Log in with the seeded accounts printed by `db:seed` (one org admin, one recruiter, two vendor recruiters).
+`db:seed` prints demo accounts. Until real session auth lands, requests authenticate
+with dev headers (see `apps/api/src/tenancy/dev-auth.guard.ts`):
+
+```bash
+curl http://localhost:4000/api/v1/positions \
+  -H "x-intervu-org: acme" -H "x-intervu-user: recruiter@acme.test"
+curl http://localhost:4000/api/v1/vendor/positions \
+  -H "x-intervu-vendor-user: recruiter@talentbridge.test"
+```
 
 ## Ground rules
 

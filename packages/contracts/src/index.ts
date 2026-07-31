@@ -1,5 +1,20 @@
 import { z } from "zod";
 
+// --- Org structure (docs/03-data-model.md §2)
+// Organizations are a tree: units/verticals contain units or teams;
+// positions attach to team nodes only.
+
+export const OrgUnitKind = z.enum(["unit", "team"]);
+
+export const OrgUnitCreate = z.object({
+  parent_id: z.string().uuid().nullish(),
+  name: z.string().min(1).max(200),
+  kind: OrgUnitKind,
+});
+
+export type OrgUnitKind = z.infer<typeof OrgUnitKind>;
+export type OrgUnitCreate = z.infer<typeof OrgUnitCreate>;
+
 // --- Positions & release (docs/03-data-model.md, docs/05-vendor-portal-and-release.md)
 
 export const ReleaseMode = z.enum(["all_at_once", "tiered", "manual"]);
@@ -18,7 +33,7 @@ export const ReleasePolicy = z.discriminatedUnion("mode", [
 export const PositionStatus = z.enum(["draft", "open", "paused", "closed"]);
 
 export const PositionCreate = z.object({
-  team_id: z.string().uuid(),
+  org_unit_id: z.string().uuid(),
   title: z.string().min(1).max(200),
   description: z.string().max(20_000).default(""),
   openings: z.number().int().min(1).default(1),

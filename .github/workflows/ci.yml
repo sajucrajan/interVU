@@ -32,3 +32,43 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  db-verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: intervu
+          POSTGRES_PASSWORD: intervu
+          POSTGRES_DB: intervu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U intervu"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://intervu:intervu@localhost:5432/intervu
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm via corepack
+        run: corepack enable pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Migrate
+        run: pnpm --filter @intervu/api db:migrate
+
+      - name: Seed
+        run: pnpm --filter @intervu/api db:seed
+
+      - name: Seed is idempotent
+        run: pnpm --filter @intervu/api db:seed

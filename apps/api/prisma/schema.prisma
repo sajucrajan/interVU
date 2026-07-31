@@ -1,0 +1,279 @@
+// InterVU — M0 core schema.
+// Naming: camelCase in Prisma, snake_case in Postgres via @map/@@map.
+// Design authority: docs/03-data-model.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Tenancy: organization & hierarchy ----------
+
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  // ownership_window_days, ownership_scope, feedback policy, coarse status map…
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orgUnits   OrgUnit[]
+  orgUsers   OrgUser[]
+  vendorOrgs VendorOrg[]
+  positions  Position[]
+  auditLogs  AuditLog[]
+
+  @@map("organization")
+}
+
+enum OrgUnitKind {
+  unit
+  team
+
+  @@map("org_unit_kind")
+}
+
+/// Self-referential tree: verticals/units contain units or teams, any depth.
+/// Positions attach to `team` nodes only; parent must belong to the same
+/// organization (application-enforced, see OrgUnitsService).
+model OrgUnit {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  parentId       String?     @map("parent_id") @db.Uuid
+  name           String
+  kind           OrgUnitKind
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  parent       OrgUnit?        @relation("OrgUnitTree", fields: [parentId], references: [id])
+  children     OrgUnit[]       @relation("OrgUnitTree")
+  positions    Position[]
+  memberships  OrgMembership[]
+
+  @@unique([organizationId, parentId, name])
+  @@index([organizationId, parentId])
+  @@map("org_unit")
+}
+
+// ---------- Org users & memberships ----------
+
+enum OrgRole {
+  org_admin
+  recruiter
+  hiring_manager
+  interviewer
+
+  @@map("org_role")
+}
+
+enum UserStatus {
+  invited
+  active
+  disabled
+
+  @@map("user_status")
+}
+
+model OrgUser {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  email          String
+  name           String
+  status         UserStatus @default(invited)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  memberships  OrgMembership[]
+
+  @@unique([organizationId, email])
+  @@map("org_user")
+}
+
+/// orgUnitId null = org-wide. A unit-scoped membership applies to the node
+/// and all descendants (vertical-level hiring_manager covers child teams).
+model OrgMembership {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgUserId String   @map("org_user_id") @db.Uuid
+  orgUnitId String?  @map("org_unit_id") @db.Uuid
+  role      OrgRole
+  createdAt DateTime @default(now()) @map("created_at")
+
+  orgUser OrgUser  @relation(fields: [orgUserId], references: [id])
+  orgUnit OrgUnit? @relation(fields: [orgUnitId], references: [id])
+
+  @@unique([orgUserId, orgUnitId, role])
+  @@map("org_membership")
+}
+
+// ---------- Vendors ----------
+
+enum VendorStatus {
+  invited
+  active
+  suspended
+  terminated
+
+  @@map("vendor_status")
+}
+
+enum VendorRole {
+  vendor_admin
+  vendor_recruiter
+
+  @@map("vendor_role")
+}
+
+model Vendor {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  vendorOrgs  VendorOrg[]
+  vendorUsers VendorUser[]
+
+  @@map("vendor")
+}
+
+/// The org↔vendor contract. Tier drives tiered release (1 = most preferred).
+model VendorOrg {
+  id             String       @id @default(uuid()) @db.Uuid
+  vendorId       String       @map("vendor_id") @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  tier           Int          @default(1)
+  status         VendorStatus @default(invited)
+  contractStart  DateTime?    @map("contract_start")
+  contractEnd    DateTime?    @map("contract_end")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  vendor       Vendor                  @relation(fields: [vendorId], references: [id])
+  organization Organization            @relation(fields: [organizationId], references: [id])
+  releases     PositionVendorRelease[]
+
+  @@unique([vendorId, organizationId])
+  @@map("vendor_org")
+}
+
+model VendorUser {
+  id        String     @id @default(uuid()) @db.Uuid
+  vendorId  String     @map("vendor_id") @db.Uuid
+  email     String
+  name      String
+  role      VendorRole @default(vendor_recruiter)
+  status    UserStatus @default(invited)
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  vendor Vendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([vendorId, email])
+  @@map("vendor_user")
+}
+
+// ---------- Positions & release ----------
+
+enum PositionStatus {
+  draft
+  open
+  paused
+  closed
+
+  @@map("position_status")
+}
+
+enum ReleaseMode {
+  all_at_once
+  tiered
+  manual
+
+  @@map("release_mode")
+}
+
+enum ReleaseSource {
+  policy
+  manual
+
+  @@map("release_source")
+}
+
+model Position {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  orgUnitId      String         @map("org_unit_id") @db.Uuid
+  title          String
+  description    String         @default("")
+  openings       Int            @default(1)
+  status         PositionStatus @default(draft)
+  publishedAt    DateTime?      @map("published_at")
+  createdById    String?        @map("created_by_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  organization  Organization            @relation(fields: [organizationId], references: [id])
+  orgUnit       OrgUnit                 @relation(fields: [orgUnitId], references: [id])
+  releasePolicy ReleasePolicy?
+  releases      PositionVendorRelease[]
+
+  @@index([organizationId, status])
+  @@map("position")
+}
+
+model ReleasePolicy {
+  id         String      @id @default(uuid()) @db.Uuid
+  positionId String      @unique @map("position_id") @db.Uuid
+  mode       ReleaseMode
+  // tiered: {"steps": [{"tier": 1, "delay_hours": 0}, ...]}
+  config     Json        @default("{}")
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  position Position @relation(fields: [positionId], references: [id])
+
+  @@map("release_policy")
+}
+
+/// The visibility gate. A vendor sees a position iff:
+///   position.status = 'open' AND now() >= visible_from
+///   AND vendor_org.status = 'active'
+/// DB is truth; workers only notify (docs/05 §2).
+model PositionVendorRelease {
+  id           String        @id @default(uuid()) @db.Uuid
+  positionId   String        @map("position_id") @db.Uuid
+  vendorOrgId  String        @map("vendor_org_id") @db.Uuid
+  visibleFrom  DateTime      @map("visible_from")
+  source       ReleaseSource @default(policy)
+  releasedById String?       @map("released_by_id") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  position  Position  @relation(fields: [positionId], references: [id])
+  vendorOrg VendorOrg @relation(fields: [vendorOrgId], references: [id])
+
+  @@unique([positionId, vendorOrgId])
+  @@index([vendorOrgId, visibleFrom])
+  @@map("position_vendor_release")
+}
+
+// ---------- Audit ----------
+
+model AuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  actorType      String   @map("actor_type") // org_user | vendor_user | system
+  actorId        String?  @map("actor_id") @db.Uuid
+  event          String
+  entityType     String   @map("entity_type")
+  entityId       String   @map("entity_id") @db.Uuid
+  payload        Json     @default("{}")
+  requestId      String?  @map("request_id")
+  at             DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, entityType, entityId])
+  @@map("audit_log")
+}

@@ -34,6 +34,9 @@ These fall out of the stated requirements the moment real usage begins:
 ## 3. Actors & roles
 
 ### Organization side
+
+Organizations are internally hierarchical: **verticals/units contain other units or teams** (e.g., *Org → Engineering vertical → Platform team*), to any depth. Positions belong to teams; role scopes can attach at any level of the tree and apply to all descendants (a vertical-level hiring manager covers every team beneath it).
+
 | Role | Capabilities |
 |---|---|
 | **Org Admin** | Org settings, vendor management, user management, release policies, merge review, audit access |

@@ -6,13 +6,14 @@ The pivotal modeling decision: **a candidate is not a submission.** A `candidate
 
 ```mermaid
 erDiagram
-    ORGANIZATION ||--o{ TEAM : has
+    ORGANIZATION ||--o{ ORG_UNIT : has
+    ORG_UNIT ||--o{ ORG_UNIT : "contains (verticals/units/teams)"
     ORGANIZATION ||--o{ ORG_USER : has
     ORGANIZATION ||--o{ VENDOR_ORG : contracts
     VENDOR ||--o{ VENDOR_ORG : "serves orgs"
     VENDOR ||--o{ VENDOR_USER : has
 
-    TEAM ||--o{ POSITION : opens
+    ORG_UNIT ||--o{ POSITION : "opens (team nodes)"
     POSITION ||--o{ POSITION_VENDOR_RELEASE : "released to"
     VENDOR_ORG ||--o{ POSITION_VENDOR_RELEASE : receives
 
@@ -47,9 +48,17 @@ organization(id, name, slug, settings jsonb)
   -- settings: feedback_visibility_policy, ownership_window_days,
   --           ownership_scope ('position'|'organization'), coarse_status_map, retention
 
-team(id, name)
+org_unit(id, parent_id?, name, kind)                  -- kind: unit|team; self-referential tree
+  -- Organizations structure themselves as a hierarchy: verticals/units contain
+  -- other units or teams, to any depth (e.g. Org → Engineering → Platform).
+  -- Positions attach only to kind='team' nodes. parent must be same-org (app-enforced).
+  -- unique (organization_id, parent_id, name)
+
 org_user(id, email, name, auth_provider, status)
-org_membership(org_user_id, team_id?, role)           -- role: org_admin|recruiter|hiring_manager|interviewer
+org_membership(org_user_id, org_unit_id?, role)       -- role: org_admin|recruiter|hiring_manager|interviewer
+  -- org_unit_id null = org-wide membership. A membership scoped to a unit
+  -- applies to that node and all descendants (a vertical-level hiring_manager
+  -- sees every team under the vertical).
 
 vendor(id, name)                                      -- global vendor identity
 vendor_org(id, vendor_id, tier smallint, status,      -- the org↔vendor relationship
@@ -60,8 +69,8 @@ vendor_user(id, vendor_id, email, name, role, status) -- role: vendor_admin|vend
 ### Positions & release
 
 ```sql
-position(id, team_id, title, description, openings, status,        -- draft|open|paused|closed
-         pipeline_template jsonb, created_by)
+position(id, org_unit_id, title, description, openings, status,    -- draft|open|paused|closed
+         pipeline_template jsonb, created_by)                      -- org_unit must be kind='team'
 
 release_policy(id, position_id, mode,                              -- all_at_once|tiered|manual
                config jsonb)
