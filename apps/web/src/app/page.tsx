@@ -9,10 +9,13 @@ export default function Home() {
       </p>
       <ul>
         <li>
-          <Link href="/dashboard">Organization workspace</Link> (M1)
+          <Link href="/dashboard">Organization workspace</Link>
         </li>
         <li>
-          <Link href="/vendor">Vendor portal</Link> (M1)
+          <Link href="/vendor">Vendor portal</Link>
+        </li>
+        <li>
+          <Link href="/login">Sign in</Link>
         </li>
       </ul>
     </main>

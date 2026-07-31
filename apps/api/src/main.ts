@@ -20,6 +20,12 @@ for (const candidate of [
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix("api/v1", { exclude: ["healthz"] });
+  // Cookie-credentialed CORS for the web app. Configure WEB_ORIGIN in
+  // production; localhost default covers dev.
+  app.enableCors({
+    origin: process.env.WEB_ORIGIN ?? /^https?:\/\/localhost(:\d+)?$/,
+    credentials: true,
+  });
   const port = Number(process.env.PORT ?? 4000);
   await app.listen(port);
   // eslint-disable-next-line no-console
