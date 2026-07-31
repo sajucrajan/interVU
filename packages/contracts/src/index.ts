@@ -67,7 +67,44 @@ export const VendorFacingStatus = z.enum([
   "withdrawn",
 ]);
 
+// --- Pipeline, interviews, feedback (M2 — docs/03 §2)
+
+export const StageTransitionCreate = z.object({
+  to_stage: z.string().min(1).max(60),
+  note: z.string().max(2000).optional(),
+});
+
+export const DecisionCreate = z.object({
+  outcome: z.enum(["offer", "reject", "hold"]),
+  reason: z.string().max(2000).default(""),
+});
+
+export const InterviewCreate = z.object({
+  round_name: z.string().min(1).max(120),
+  scheduled_at: z.string().datetime(),
+  duration_min: z.number().int().min(15).max(480).default(60),
+  location_or_link: z.string().max(500).optional(),
+  panelist_ids: z.array(z.string().uuid()).min(1),
+});
+
+export const ScorecardCreate = z.object({
+  overall_rating: z.number().int().min(1).max(5),
+  recommendation: z.enum(["strong_yes", "yes", "no", "strong_no"]),
+  notes: z.string().max(10_000).default(""),
+});
+
+export const FlagCreate = z.object({
+  kind: z.enum(["do_not_hire", "caution", "note"]),
+  reason: z.string().min(1).max(2000),
+  expires_at: z.string().datetime().optional(),
+});
+
 export type ReleasePolicy = z.infer<typeof ReleasePolicy>;
 export type PositionCreate = z.infer<typeof PositionCreate>;
 export type VendorSubmissionCreate = z.infer<typeof VendorSubmissionCreate>;
 export type VendorFacingStatus = z.infer<typeof VendorFacingStatus>;
+export type StageTransitionCreate = z.infer<typeof StageTransitionCreate>;
+export type DecisionCreate = z.infer<typeof DecisionCreate>;
+export type InterviewCreate = z.infer<typeof InterviewCreate>;
+export type ScorecardCreate = z.infer<typeof ScorecardCreate>;
+export type FlagCreate = z.infer<typeof FlagCreate>;

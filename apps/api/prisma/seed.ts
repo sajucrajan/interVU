@@ -3,7 +3,7 @@
 // and positions demonstrating all three release policies.
 // Run: pnpm db:seed  (idempotent — safe to re-run)
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type OrgRole } from "@prisma/client";
 import { hashPassword } from "../src/auth/password";
 
 const prisma = new PrismaClient();
@@ -42,7 +42,7 @@ async function main() {
   const salesOps = await unit("Sales Ops", "team", gtm.id);
 
   // --- Org users
-  async function orgUser(email: string, name: string, role: "org_admin" | "recruiter" | "hiring_manager", orgUnitId: string | null) {
+  async function orgUser(email: string, name: string, role: OrgRole, orgUnitId: string | null) {
     const user = await prisma.orgUser.upsert({
       where: { organizationId_email: { organizationId: org.id, email } },
       update: { status: "active", passwordHash: demoHash },
@@ -65,6 +65,8 @@ async function main() {
   await orgUser("hm.eng@acme.test", "Harper Manager", "hiring_manager", engineering.id); // vertical-scoped
   await orgUser("pm.gtm@acme.test", "Parker PM", "project_manager", gtm.id); // vertical-scoped, read-only
   await orgUser("pm.platform@acme.test", "Peyton PM", "project_manager", platform.id); // single-team scope
+  await orgUser("interviewer1@acme.test", "Indira Interviewer", "interviewer", null);
+  await orgUser("interviewer2@acme.test", "Ivan Interviewer", "interviewer", null);
 
   // --- Vendors: TalentBridge (tier 1), HireWorks (tier 2), StaffPro (tier 2)
   async function vendor(name: string, tier: number, userEmail: string) {

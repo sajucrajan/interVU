@@ -38,6 +38,8 @@ Roles are **bundles of permissions**; enforcement is always on permissions, neve
 | `submissions.arbitrate` | ✓ | ✓ | — | — | — |
 | `candidates.view_history` | ✓ | ✓ | ✓ | — | contextual (§4) |
 | `candidates.merge` / match review | ✓ | ✓ | — | — | — |
+| `candidates.flag` | ✓ | ✓ | — | — | — |
+| `applications.transition` | ✓ | ✓ | ✓ | — | — |
 | `interviews.schedule` | ✓ | ✓ | ✓ | — | — |
 | `scorecards.submit` | — | — | — | — | ✓ (own interviews) |
 | `decisions.record` | ✓ | — | ✓ | — | — |

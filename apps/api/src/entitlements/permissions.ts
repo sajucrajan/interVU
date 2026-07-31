@@ -13,6 +13,8 @@ export type Permission =
   | "submissions.arbitrate"
   | "candidates.view_history"
   | "candidates.merge"
+  | "candidates.flag"
+  | "applications.transition"
   | "interviews.schedule"
   | "scorecards.submit"
   | "decisions.record"
@@ -30,6 +32,8 @@ export const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "submissions.arbitrate",
     "candidates.view_history",
     "candidates.merge",
+    "candidates.flag",
+    "applications.transition",
     "interviews.schedule",
     "decisions.record",
     "vendors.manage",
@@ -45,12 +49,15 @@ export const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "submissions.arbitrate",
     "candidates.view_history",
     "candidates.merge",
+    "candidates.flag",
+    "applications.transition",
     "interviews.schedule",
   ],
   hiring_manager: [
     "positions.view",
     "submissions.view",
     "candidates.view_history",
+    "applications.transition",
     "interviews.schedule",
     "decisions.record",
   ],

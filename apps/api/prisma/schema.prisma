@@ -92,9 +92,11 @@ model OrgUser {
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
 
-  organization Organization    @relation(fields: [organizationId], references: [id])
+  organization Organization        @relation(fields: [organizationId], references: [id])
   memberships  OrgMembership[]
   sessions     Session[]
+  panelistOn   InterviewPanelist[]
+  scorecards   Scorecard[]
 
   @@unique([organizationId, email])
   @@map("org_user")
@@ -349,6 +351,7 @@ model Candidate {
   identities   CandidateIdentity[]
   submissions  Submission[]
   applications Application[]
+  flags        CandidateFlag[]
 
   @@index([organizationId])
   @@map("candidate")
@@ -414,8 +417,11 @@ model Application {
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
 
-  position  Position  @relation(fields: [positionId], references: [id])
-  candidate Candidate @relation(fields: [candidateId], references: [id])
+  position         Position          @relation(fields: [positionId], references: [id])
+  candidate        Candidate         @relation(fields: [candidateId], references: [id])
+  interviews       Interview[]
+  stageTransitions StageTransition[]
+  decision         Decision?
 
   @@unique([positionId, candidateId])
   @@index([organizationId, status])
@@ -436,6 +442,142 @@ model MatchDecision {
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   @@map("match_decision")
+}
+
+// ---------- Interviews, feedback, decisions, flags (docs/03 §2, M2) ----------
+
+enum InterviewStatus {
+  scheduled
+  completed
+  canceled
+  no_show
+
+  @@map("interview_status")
+}
+
+enum Recommendation {
+  strong_yes
+  yes
+  no
+  strong_no
+
+  @@map("recommendation")
+}
+
+enum DecisionOutcome {
+  offer
+  reject
+  hold
+
+  @@map("decision_outcome")
+}
+
+enum FlagKind {
+  do_not_hire
+  caution
+  note
+
+  @@map("flag_kind")
+}
+
+model Interview {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  applicationId  String          @map("application_id") @db.Uuid
+  roundName      String          @map("round_name")
+  scheduledAt    DateTime        @map("scheduled_at")
+  durationMin    Int             @default(60) @map("duration_min")
+  locationOrLink String?         @map("location_or_link")
+  status         InterviewStatus @default(scheduled)
+  createdById    String?         @map("created_by_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  application Application          @relation(fields: [applicationId], references: [id])
+  panelists   InterviewPanelist[]
+  scorecards  Scorecard[]
+
+  @@index([organizationId, scheduledAt])
+  @@map("interview")
+}
+
+model InterviewPanelist {
+  id          String @id @default(uuid()) @db.Uuid
+  interviewId String @map("interview_id") @db.Uuid
+  orgUserId   String @map("org_user_id") @db.Uuid
+  role        String @default("interviewer")
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  orgUser   OrgUser   @relation(fields: [orgUserId], references: [id])
+
+  @@unique([interviewId, orgUserId])
+  @@map("interview_panelist")
+}
+
+/// One panelist's structured feedback. Visibility of others' scorecards is
+/// governed by the org feedback policy (docs/01 §2.3) in the service layer.
+model Scorecard {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  interviewId    String         @map("interview_id") @db.Uuid
+  orgUserId      String         @map("org_user_id") @db.Uuid
+  overallRating  Int            @map("overall_rating") // 1..5
+  recommendation Recommendation
+  notes          String         @default("")
+  submittedAt    DateTime       @default(now()) @map("submitted_at")
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  orgUser   OrgUser   @relation(fields: [orgUserId], references: [id])
+
+  @@unique([interviewId, orgUserId])
+  @@map("scorecard")
+}
+
+model StageTransition {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  applicationId  String   @map("application_id") @db.Uuid
+  fromStage      String   @map("from_stage")
+  toStage        String   @map("to_stage")
+  byId           String?  @map("by_id") @db.Uuid
+  note           String?
+  at             DateTime @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@index([applicationId, at])
+  @@map("stage_transition")
+}
+
+model Decision {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  applicationId  String          @unique @map("application_id") @db.Uuid
+  outcome        DecisionOutcome
+  reason         String          @default("")
+  decidedById    String?         @map("decided_by_id") @db.Uuid
+  decidedAt      DateTime        @default(now()) @map("decided_at")
+
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@map("decision")
+}
+
+/// History exists largely so teams don't re-interview someone rejected for
+/// cause (docs/01 §2.4). Flags surface as warnings everywhere (docs/09 §4.3).
+model CandidateFlag {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  candidateId    String    @map("candidate_id") @db.Uuid
+  kind           FlagKind
+  reason         String
+  createdById    String?   @map("created_by_id") @db.Uuid
+  expiresAt      DateTime? @map("expires_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+  @@map("candidate_flag")
 }
 
 // ---------- Audit ----------
