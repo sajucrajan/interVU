@@ -6,6 +6,7 @@ import {
 import type { DecisionCreate, StageTransitionCreate } from "@intervu/contracts";
 import type { Access } from "../entitlements/access";
 import { AuthzService } from "../entitlements/authz.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
@@ -13,7 +14,50 @@ export class ApplicationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authz: AuthzService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  /**
+   * Tell the OWNING vendor their candidate moved (docs/05 §5): coarse status
+   * only, durable email, org email toggle respected. Noise-controlled — only
+   * interviewing / offered / not selected are announced.
+   */
+  private async notifyOwningVendor(
+    organizationId: string,
+    applicationId: string,
+    coarse: "Interviewing" | "Offered" | "Not selected",
+  ) {
+    const application = await this.prisma.application.findUnique({
+      where: { id: applicationId },
+      include: {
+        candidate: { select: { displayName: true } },
+        position: { select: { title: true } },
+      },
+    });
+    if (!application) return;
+    const owning = await this.prisma.submission.findUnique({
+      where: { id: application.sourceSubmissionId },
+      include: { vendorOrg: true },
+    });
+    if (!owning) return;
+    if (!(await this.notifications.emailEnabled(organizationId))) return;
+    const recipients = await this.prisma.vendorUser.findMany({
+      where: { vendorId: owning.vendorOrg.vendorId, status: "active" },
+      select: { email: true },
+    });
+    await this.notifications.enqueueEmail(
+      organizationId,
+      recipients.map((r) => r.email),
+      `Candidate update: ${application.candidate.displayName} — ${coarse}`,
+      `Your candidate ${application.candidate.displayName} (${application.position.title}) is now: ${coarse}.
+
+Track your submissions in the portal:
+  ${process.env.WEB_ORIGIN ?? "http://localhost:3000"}/vendor
+
+— InterVU`,
+      "submission.status_changed",
+    );
+  }
 
   list(organizationId: string, viewableUnitIds: "org" | string[], positionId?: string) {
     return this.prisma.application.findMany({
@@ -68,7 +112,7 @@ export class ApplicationsService {
         detail: `Application is ${application.status}`,
       });
     }
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.application.update({
         where: { id: application.id },
         data: { currentStage: input.to_stage },
@@ -96,6 +140,10 @@ export class ApplicationsService {
       });
       return updated;
     });
+    if (input.to_stage === "interviewing" && application.currentStage !== "interviewing") {
+      void this.notifyOwningVendor(organizationId, applicationId, "Interviewing");
+    }
+    return result;
   }
 
   async decide(
@@ -117,7 +165,7 @@ export class ApplicationsService {
     if (existing) {
       throw new ConflictException({ code: "decision_exists" });
     }
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const decision = await tx.decision.create({
         data: {
           organizationId,
@@ -149,5 +197,11 @@ export class ApplicationsService {
       });
       return decision;
     });
+    if (input.outcome === "offer") {
+      void this.notifyOwningVendor(organizationId, applicationId, "Offered");
+    } else if (input.outcome === "reject") {
+      void this.notifyOwningVendor(organizationId, applicationId, "Not selected");
+    }
+    return result;
   }
 }

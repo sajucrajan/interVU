@@ -76,10 +76,13 @@ POST   /vendor/positions/{id}/submissions  ✅ submit profile
        → 201 {submission, idempotent, pending_review?}
        → 409 {code: duplicate_submission}   ← probe, no source details
 GET    /vendor/submissions                 ✅ own submissions only, coarse status
+POST   /vendor/submissions/{id}/resume     ✅ multipart upload (PDF/TXT/DOCX, 10MB;
+                                              text extracted for the matcher)
 POST   /vendor/submissions/{id}/withdraw
 POST   /vendor/users                       vendor_admin invites recruiters
 ```
-Resume upload (multipart/presigned) joins the submission flow in M4.
+Org side: `GET /submissions/{id}/resume` ✅ returns a short-lived presigned
+download URL (any S3-compatible store — AWS S3, MinIO, R2 — via env).
 
 Vendor DTO example — note what's *absent* (no candidate_id, no internal status, no history):
 

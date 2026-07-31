@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, ApiError, apiErrorMessage } from "@/lib/api";
+import { api, API_BASE, ApiError, apiErrorMessage } from "@/lib/api";
 
 interface Me {
   kind: string;
@@ -195,6 +195,7 @@ function SubmitForm({
     vendor_notes: "",
   });
   const [consent, setConsent] = useState(false);
+  const [resume, setResume] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -206,18 +207,30 @@ function SubmitForm({
     setError(null);
     setBusy(true);
     try {
-      await api(`/vendor/positions/${position.id}/submissions`, {
-        method: "POST",
-        body: {
-          candidate_name: form.candidate_name,
-          email: form.email,
-          phone: form.phone,
-          current_title: form.current_title || undefined,
-          current_employer: form.current_employer || undefined,
-          vendor_notes: form.vendor_notes || undefined,
-          candidate_consent_confirmed: consent,
+      const created = await api<{ submission: { id: string } }>(
+        `/vendor/positions/${position.id}/submissions`,
+        {
+          method: "POST",
+          body: {
+            candidate_name: form.candidate_name,
+            email: form.email,
+            phone: form.phone,
+            current_title: form.current_title || undefined,
+            current_employer: form.current_employer || undefined,
+            vendor_notes: form.vendor_notes || undefined,
+            candidate_consent_confirmed: consent,
+          },
         },
-      });
+      );
+      if (resume && created.submission?.id) {
+        const fd = new FormData();
+        fd.append("file", resume);
+        await fetch(`${API_BASE}/vendor/submissions/${created.submission.id}/resume`, {
+          method: "POST",
+          credentials: "include",
+          body: fd,
+        });
+      }
       onDone();
     } catch (err) {
       // The duplicate probe answers here: "not eligible, already in process
@@ -260,6 +273,12 @@ function SubmitForm({
       </div>
       <label>Notes</label>
       <input value={form.vendor_notes} onChange={set("vendor_notes")} />
+      <label>Resume (PDF, TXT, or DOCX — max 10&nbsp;MB)</label>
+      <input
+        type="file"
+        accept=".pdf,.txt,.docx"
+        onChange={(e) => setResume(e.target.files?.[0] ?? null)}
+      />
       <label className="row" style={{ marginTop: "0.75rem" }}>
         <input
           type="checkbox"

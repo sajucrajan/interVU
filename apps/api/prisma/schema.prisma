@@ -778,6 +778,27 @@ model PanelMember {
   @@map("panel_member")
 }
 
+// ---------- Files (docs/03 §2: attachments) ----------
+
+/// Resume/document storage metadata; bytes live in S3-compatible storage.
+/// parsed_text feeds the matching engine's resume features (docs/04, M4).
+model Attachment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  kind           String   @default("resume")
+  ownerType      String   @map("owner_type") // submission | candidate
+  ownerId        String   @map("owner_id") @db.Uuid
+  s3Key          String   @map("s3_key")
+  filename       String
+  contentType    String   @map("content_type")
+  size           Int
+  parsedText     String?  @map("parsed_text")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([ownerType, ownerId])
+  @@map("attachment")
+}
+
 // ---------- Notifications: generic org webhooks (docs/06 §4) ----------
 
 /// Org-registered endpoint receiving HMAC-signed JSON for selected events.

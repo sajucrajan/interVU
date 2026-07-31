@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, ApiError, apiErrorMessage } from "@/lib/api";
 
 interface Me {
   kind: string;
@@ -180,6 +180,7 @@ export default function OrgDashboard() {
               <th>Status</th>
               <th>Ownership</th>
               <th>Match</th>
+              <th>CV</th>
               <th>Received</th>
             </tr>
           </thead>
@@ -211,6 +212,26 @@ export default function OrgDashboard() {
                   </span>
                 </td>
                 <td className="muted">{s.matchDecision?.outcome.replaceAll("_", " ") ?? "—"}</td>
+                <td>
+                  <a
+                    href="#"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      try {
+                        const r = await api<{ url: string }>(`/submissions/${s.id}/resume`);
+                        window.open(r.url, "_blank");
+                      } catch (err) {
+                        alert(
+                          err instanceof ApiError && err.status === 404
+                            ? "No resume attached to this submission."
+                            : apiErrorMessage(err),
+                        );
+                      }
+                    }}
+                  >
+                    📄
+                  </a>
+                </td>
                 <td className="muted">{new Date(s.receivedAt).toLocaleString()}</td>
               </tr>
             ))}

@@ -4,6 +4,7 @@ import { ApplicationsModule } from "./applications/applications.module";
 import { AuthModule } from "./auth/auth.module";
 import { CandidatesModule } from "./candidates/candidates.module";
 import { EntitlementsModule } from "./entitlements/entitlements.module";
+import { FilesModule } from "./files/files.module";
 import { HealthModule } from "./health/health.module";
 import { InterviewsModule } from "./interviews/interviews.module";
 import { MatchReviewsModule } from "./match-reviews/match-reviews.module";
@@ -25,6 +26,7 @@ import { VendorPortalModule } from "./vendor-portal/vendor-portal.module";
     TenancyModule,
     EntitlementsModule,
     NotificationsModule,
+    FilesModule,
     HealthModule,
     OrgUnitsModule,
     OrgUsersModule,

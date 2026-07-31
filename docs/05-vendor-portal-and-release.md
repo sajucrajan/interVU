@@ -72,7 +72,7 @@ any SMTP server, Slack, Teams, custom endpoints, all of them, or none:
 | New submission accepted | ✅ org channels (`submission.created`) |
 | Duplicate submission contest | ✅ org channels (`submission.duplicate_flagged`) |
 | Identity match needs review | ✅ org channels (`match_review.queued`) |
-| Coarse status change digests to vendors | planned (M4) |
+| Candidate status changes to the owning vendor | ✅ durable email on Interviewing / Offered / Not selected (noise-controlled; earlier stages stay portal-only); daily digest option planned |
 | Delivery log + retry/backoff | ✅ every send (all channels incl. email) is a `notification_delivery` row drained with exponential backoff (30s → 24h, 8 attempts → dead letter); `GET /notification-deliveries` is the log, `POST /notification-deliveries/{id}/retry` revives dead letters. A down channel delays a message, never loses it |
 | Submission status change (coarse) | Email digest (immediate for `Offered`/`Not eligible`) |
 | Position paused/closed with vendor's active candidates | Immediate email |
