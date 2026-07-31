@@ -14,6 +14,7 @@ import {
   type MatchFeatureBreakdown,
 } from "@intervu/matching-core";
 import type { VendorSubmissionCreate } from "@intervu/contracts";
+import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const DAY_MS = 86_400_000;
@@ -44,7 +45,10 @@ interface VendorIdentity {
 
 @Injectable()
 export class SubmissionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /**
    * Vendor submission with the deterministic duplicate probe (docs/05 §3):
@@ -206,6 +210,13 @@ export class SubmissionsService {
             },
           });
         });
+        void this.notifications.dispatch({
+          organizationId: position.organizationId,
+          type: "submission.duplicate_flagged",
+          title: "Duplicate submission contest",
+          text: `${input.candidate_name} was submitted for ${position.title} but another source already owns this candidate. Arbitration data is on the workspace.`,
+          payload: { position_id: position.id },
+        });
         throw new ConflictException({
           code: "duplicate_submission",
           detail: "This candidate is not eligible: already in process from another source.",
@@ -298,6 +309,13 @@ export class SubmissionsService {
       return submission;
     });
 
+    void this.notifications.dispatch({
+      organizationId: position.organizationId,
+      type: "submission.created",
+      title: `New candidate: ${input.candidate_name}`,
+      text: `Submitted for ${position.title}${matchedCandidateId ? " (matched to an existing candidate — history attached)" : ""}.`,
+      payload: { position_id: position.id, submission_id: result.id },
+    });
     return { submission: this.toVendorDto(result, position.title), idempotent: false };
   }
 
@@ -457,6 +475,13 @@ export class SubmissionsService {
         },
       });
       return sub;
+    });
+    void this.notifications.dispatch({
+      organizationId: position.organizationId,
+      type: "match_review.queued",
+      title: "Identity match needs review",
+      text: `${input.candidate_name} (${position.title}) may match an existing candidate — score ${Math.round(fuzzy.score * 100)}%. Decide on the Reviews page.`,
+      payload: { submission_id: submission.id, score: fuzzy.score },
     });
     return {
       submission: this.toVendorDto(submission, position.title),

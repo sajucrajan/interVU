@@ -60,8 +60,10 @@ POST   /applications/{id}/decision         ✅ {outcome, reason}
 
 # Admin
 GET    /audit?entity_type=&entity_id=
-POST   /webhooks                           {url, events[]}
-GET    /settings  /  PATCH /settings       ownership scope/window, feedback policy, thresholds
+POST   /webhooks                           ✅ {url, events[]} → returns secret once
+GET    /webhooks  /  DELETE /webhooks/{id} ✅
+GET    /settings  /  PATCH /settings       ✅ ownership scope/window, feedback policy,
+                                              branding, notification channels
 ```
 
 ## 3. Vendor API surface (separate route tree, vendor session required)

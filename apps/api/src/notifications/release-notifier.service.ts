@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { MailService } from "./mail.service";
+import { NotificationsService } from "./notifications.service";
 
 const SWEEP_INTERVAL_MS = 60_000;
 
@@ -26,6 +27,7 @@ export class ReleaseNotifierService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   onModuleInit() {
@@ -76,8 +78,13 @@ export class ReleaseNotifierService implements OnModuleInit, OnModuleDestroy {
           p.rateMin != null && p.rateMax != null
             ? `\nRate band: ${p.rateCurrency} ${p.rateMin}–${p.rateMax}${p.ratePeriod ? ` / ${p.ratePeriod}` : ""}`
             : "";
-        const sent = await this.mail.send(
-          recipients.map((r) => r.email),
+        // Vendor-facing email is org-toggleable (settings.notifications.
+        // email_enabled); the portal always shows the release regardless.
+        const emailOn = await this.notifications.emailEnabled(p.organizationId);
+        const sent =
+          emailOn &&
+          (await this.mail.send(
+            recipients.map((r) => r.email),
           `New position released to you: ${p.title} — ${p.organization.name}`,
           `Hello ${release.vendorOrg.vendor.name},
 
@@ -91,7 +98,7 @@ Review the full posting and submit candidates in your portal:
   ${process.env.WEB_ORIGIN ?? "http://localhost:3000"}/vendor
 
 — InterVU`,
-        );
+          ));
         await this.prisma.auditLog.create({
           data: {
             organizationId: p.organizationId,
@@ -103,11 +110,20 @@ Review the full posting and submit candidates in your portal:
               vendorOrgId: release.vendorOrgId,
               recipients: recipients.length,
               delivered: sent,
+              email_enabled: emailOn,
             },
           },
         });
+        // Org-side channels (Slack/Teams/webhooks) hear about it too.
+        void this.notifications.dispatch({
+          organizationId: p.organizationId,
+          type: "position.released_to_vendor",
+          title: `Position released: ${p.title}`,
+          text: `${p.title} is now visible to ${release.vendorOrg.vendor.name} (tier ${release.vendorOrg.tier}).`,
+          payload: { position_id: p.id, vendor: release.vendorOrg.vendor.name },
+        });
         this.logger.log(
-          `release email: "${p.title}" → ${release.vendorOrg.vendor.name} (${recipients.length} recipient(s))`,
+          `release notice: "${p.title}" → ${release.vendorOrg.vendor.name} (email=${emailOn ? recipients.length : "off"})`,
         );
       }
     } catch (err) {

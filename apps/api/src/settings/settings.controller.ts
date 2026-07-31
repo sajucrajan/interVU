@@ -18,6 +18,14 @@ const SettingsPatch = z
         product_label: z.string().max(60).optional(),
       })
       .optional(),
+    /** Pluggable notification channels — per org, no provider assumed. */
+    notifications: z
+      .object({
+        email_enabled: z.boolean().optional(),
+        slack_webhook_url: z.string().url().max(500).nullable().optional(),
+        teams_webhook_url: z.string().url().max(500).nullable().optional(),
+      })
+      .optional(),
   })
   .strict();
 
@@ -55,6 +63,10 @@ export class SettingsController {
       ...current,
       ...input,
       branding: { ...(current.branding as object | undefined), ...input.branding },
+      notifications: {
+        ...(current.notifications as object | undefined),
+        ...input.notifications,
+      },
     };
     const updated = await this.prisma.organization.update({
       where: { id: orgId },

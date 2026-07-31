@@ -10,7 +10,7 @@ _Last updated 2026-07-31._ M0–M3 are **built and verified**; M4 is in progress
 | M1 MVP loop | ✅ done | positions+releases (all 3 policies), vendor portal, deterministic matching, ownership, timeline |
 | M2 interviews | ✅ done | rounds+panels, scorecards w/ feedback policy, flags, decisions, timeline UI |
 | M3 matching | ✅ done* | fuzzy scoring, trgm blocking, review queue, reversible merges, eval corpus in CI. *Nightly re-match sweep deferred to worker infra |
-| M4 integrations | 🔨 in progress | release **email notifications** landed; queues, resume upload, webhooks, SSO, retention, app images pending |
+| M4 integrations | 🔨 in progress | **pluggable notifications** landed (per-org channels: SMTP email toggle, Slack, Teams, HMAC-signed generic webhooks; release/submission/duplicate/review events); queues, resume upload, SSO, retention, app images pending |
 | Beyond-roadmap extras already landed | ✅ | skill-tagged panels with scoped matching, rich role postings (proficiency matrix, rate bands, JD pages), analytics dashboard (D3 sunburst), white-label branding, embedded-Postgres dev mode |
 
 > ⚠️ The GitHub Actions workflow is currently **disabled** by the maintainer;

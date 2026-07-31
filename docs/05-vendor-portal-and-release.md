@@ -52,11 +52,28 @@ Vendors never see stage names, interviewer identities, scorecards, or internal n
 - **Arbitration:** recruiters/admins can override to `arbitrated_owner` (e.g., first submission was a bare resume spam, second had candidate consent). Override requires a reason and is audited. This mirrors real-world dispute handling: the system's job is a defensible evidence trail, not automated adjudication.
 - **Candidate consent field:** submissions carry `candidate_consent_confirmed` (vendor attests). Orgs can configure "no consent, no ownership" — a common contractual term that kills resume-spam disputes.
 
-## 5. Notifications (vendor-facing)
+## 5. Notifications — pluggable channels, per organization
+
+InterVU never assumes a notification provider. Channels are configured per org
+(`settings.notifications` + registered webhook endpoints); a deployment can use
+any SMTP server, Slack, Teams, custom endpoints, all of them, or none:
+
+| Channel | Audience | Config | Status |
+|---|---|---|---|
+| Email (any SMTP via env; Mailpit in dev) | vendor users | `notifications.email_enabled` (default on) | ✅ |
+| Slack incoming webhook | org channel | `notifications.slack_webhook_url` | ✅ |
+| Microsoft Teams incoming webhook | org channel | `notifications.teams_webhook_url` | ✅ |
+| Generic signed webhooks (Discord/Mattermost/Zapier/your systems) | anything | `POST /webhooks` — HMAC-SHA256 `X-InterVU-Signature`, per-endpoint event filter | ✅ |
+| In-app portal visibility | vendors | always on — email off never hides a release | ✅ |
 
 | Event | Notification |
 |---|---|
-| Position released to vendor | ✅ **Implemented**: email to the vendor's active users the moment `visible_from` arrives (immediate for publish/manual release; tier unlocks caught by a DB-is-truth sweeper — `notified_at` on the release row makes it idempotent). SMTP via env; Mailpit in dev |
+| Position released to vendor | ✅ email to the vendor's active users the moment `visible_from` arrives (immediate for publish/manual release; tier unlocks caught by a DB-is-truth sweeper — `notified_at` makes it idempotent) + org channels |
+| New submission accepted | ✅ org channels (`submission.created`) |
+| Duplicate submission contest | ✅ org channels (`submission.duplicate_flagged`) |
+| Identity match needs review | ✅ org channels (`match_review.queued`) |
+| Coarse status change digests to vendors | planned (M4) |
+| Delivery log + retry/backoff per endpoint | planned (M4) |
 | Submission status change (coarse) | Email digest (immediate for `Offered`/`Not eligible`) |
 | Position paused/closed with vendor's active candidates | Immediate email |
 | Interview scheduled requiring candidate availability | Email with slots (vendor coordinates candidate in v1; candidate self-scheduling is out of scope) |
