@@ -216,6 +216,41 @@ enum PositionStatus {
   @@map("position_status")
 }
 
+enum Seniority {
+  junior
+  mid
+  senior
+  staff
+  principal
+
+  @@map("seniority")
+}
+
+enum EmploymentType {
+  full_time
+  contract
+  contract_to_hire
+
+  @@map("employment_type")
+}
+
+enum LocationPolicy {
+  onsite
+  hybrid
+  remote
+
+  @@map("location_policy")
+}
+
+enum RatePeriod {
+  hourly
+  daily
+  monthly
+  annual
+
+  @@map("rate_period")
+}
+
 enum ReleaseMode {
   all_at_once
   tiered
@@ -239,6 +274,19 @@ model Position {
   description    String         @default("")
   openings       Int            @default(1)
   status         PositionStatus @default(draft)
+  // Role identity (docs/01 — job posting design)
+  seniority      Seniority?
+  employmentType EmploymentType @default(full_time) @map("employment_type")
+  locationPolicy LocationPolicy? @map("location_policy")
+  locationText   String?        @map("location_text")
+  minTotalYears  Int?           @map("min_total_years")
+  // Vendor-facing rate band
+  rateMin        Int?           @map("rate_min")
+  rateMax        Int?           @map("rate_max")
+  rateCurrency   String         @default("USD") @map("rate_currency")
+  ratePeriod     RatePeriod?    @map("rate_period")
+  // Non-skill screening requirements (certs, visa, languages, …)
+  mustHaves      Json           @default("[]") @map("must_haves")
   publishedAt    DateTime?      @map("published_at")
   createdById    String?        @map("created_by_id") @db.Uuid
   createdAt      DateTime       @default(now()) @map("created_at")
@@ -399,8 +447,9 @@ model Submission {
   position      Position       @relation(fields: [positionId], references: [id])
   vendorOrg     VendorOrg      @relation(fields: [vendorOrgId], references: [id])
   vendorUser    VendorUser     @relation(fields: [vendorUserId], references: [id])
-  candidate     Candidate?     @relation(fields: [candidateId], references: [id])
+  candidate     Candidate?        @relation(fields: [candidateId], references: [id])
   matchDecision MatchDecision?
+  reviewItems   MatchReviewItem[]
 
   @@index([organizationId, positionId])
   @@index([organizationId, candidateId, receivedAt])
@@ -429,6 +478,35 @@ model Application {
   @@unique([positionId, candidateId])
   @@index([organizationId, status])
   @@map("application")
+}
+
+enum ReviewStatus {
+  open
+  linked
+  kept_separate
+
+  @@map("review_status")
+}
+
+/// Human-in-the-loop queue for review-band fuzzy matches (docs/04 §3).
+/// kept_separate items are remembered as negative examples so the engine
+/// stops re-asking about the same pair.
+model MatchReviewItem {
+  id                   String       @id @default(uuid()) @db.Uuid
+  organizationId       String       @map("organization_id") @db.Uuid
+  submissionId         String       @map("submission_id") @db.Uuid
+  candidateIdSuggested String       @map("candidate_id_suggested") @db.Uuid
+  score                Float
+  featureBreakdown     Json         @map("feature_breakdown")
+  status               ReviewStatus @default(open)
+  resolvedById         String?      @map("resolved_by_id") @db.Uuid
+  resolvedAt           DateTime?    @map("resolved_at")
+  createdAt            DateTime     @default(now()) @map("created_at")
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@map("match_review_item")
 }
 
 /// Why a submission linked (or didn't) — explainability (docs/04 §1.2).
@@ -607,11 +685,24 @@ model Skill {
   @@map("skill")
 }
 
+enum Proficiency {
+  awareness
+  working
+  proficient
+  expert
+
+  @@map("proficiency")
+}
+
+/// Importance (must/good) and required proficiency are separate axes:
+/// "must have Kubernetes at working level" ≠ "nice to have K8s at expert".
 model PositionSkill {
-  id         String           @id @default(uuid()) @db.Uuid
-  positionId String           @map("position_id") @db.Uuid
-  skillId    String           @map("skill_id") @db.Uuid
-  level      RequirementLevel
+  id          String           @id @default(uuid()) @db.Uuid
+  positionId  String           @map("position_id") @db.Uuid
+  skillId     String           @map("skill_id") @db.Uuid
+  level       RequirementLevel
+  proficiency Proficiency      @default(working)
+  minYears    Int?             @map("min_years")
 
   position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
   skill    Skill    @relation(fields: [skillId], references: [id])

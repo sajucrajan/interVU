@@ -37,6 +37,14 @@ export class PositionsController {
     );
   }
 
+  @Get(":id")
+  async detail(@Tenant() tenant: TenantContext, @Param("id", ParseUUIDPipe) id: string) {
+    const position = await this.positions.detail(tenant.org!.organizationId, id);
+    const access = await this.authz.access(tenant);
+    this.authz.require(access, "positions.view", position.orgUnitId);
+    return position;
+  }
+
   @Post(":id/publish")
   async publish(
     @Tenant() tenant: TenantContext,

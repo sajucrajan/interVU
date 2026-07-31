@@ -360,6 +360,44 @@ async function main() {
     console.log("Seeded skills + 3 panels (2 vertical-scoped, 1 org-wide)");
   }
 
+  // --- Role posting metadata (guarded: only if no position has it yet)
+  const withMeta = await prisma.position.count({
+    where: { organizationId: org.id, NOT: { seniority: null } },
+  });
+  if (withMeta === 0) {
+    const meta: Record<string, object> = {
+      "Senior Platform Engineer": {
+        seniority: "senior", employmentType: "full_time", locationPolicy: "hybrid",
+        locationText: "Austin, TX", minTotalYears: 6, rateMin: 90, rateMax: 120,
+        ratePeriod: "hourly", mustHaves: ["CKA certification", "US work authorization"],
+      },
+      "Data Engineer": {
+        seniority: "mid", employmentType: "contract", locationPolicy: "remote",
+        minTotalYears: 3, rateMin: 70, rateMax: 95, ratePeriod: "hourly",
+        mustHaves: ["Overlap with US Central hours"],
+      },
+      "Frontend Engineer": {
+        seniority: "mid", employmentType: "full_time", locationPolicy: "remote", minTotalYears: 3,
+      },
+      "ML Engineer": {
+        seniority: "senior", employmentType: "contract_to_hire", locationPolicy: "hybrid",
+        locationText: "Austin, TX", minTotalYears: 5, rateMin: 100, rateMax: 140, ratePeriod: "hourly",
+      },
+      "Growth Marketer": { seniority: "mid", employmentType: "full_time", locationPolicy: "remote" },
+      "Sales Operations Analyst": {
+        seniority: "junior", employmentType: "full_time", locationPolicy: "onsite",
+        locationText: "Austin, TX", mustHaves: ["Salesforce admin experience"],
+      },
+    };
+    for (const [title, data] of Object.entries(meta)) {
+      await prisma.position.updateMany({
+        where: { organizationId: org.id, title },
+        data,
+      });
+    }
+    console.log("Seeded role posting metadata");
+  }
+
   console.log(`
 All demo accounts use password: ${DEMO_PASSWORD}
   Org login:    POST /api/v1/auth/org/login    {"org_slug":"acme","email":…,"password":…}

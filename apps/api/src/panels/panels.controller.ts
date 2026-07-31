@@ -35,6 +35,14 @@ export class PanelsController {
     return this.panels.list(tenant.org!.organizationId);
   }
 
+  /** Skill taxonomy for pickers/autocomplete on the posting form. */
+  @Get("skills")
+  async skills(@Tenant() tenant: TenantContext) {
+    const access = await this.authz.access(tenant);
+    this.authz.require(access, "positions.view");
+    return this.panels.listSkills(tenant.org!.organizationId);
+  }
+
   @Get("applications/:id/panel-suggestions")
   async suggestions(
     @Tenant() tenant: TenantContext,

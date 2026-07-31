@@ -111,7 +111,10 @@ export default function OrgDashboard() {
         </div>
       )}
 
-      <h2>Positions</h2>
+      <div className="row spread">
+        <h2>Positions</h2>
+        <a href="/positions/new"><button className="secondary">+ New position</button></a>
+      </div>
       <table className="data">
         <thead>
           <tr>
@@ -126,7 +129,7 @@ export default function OrgDashboard() {
           {positions.map((p) => (
             <tr key={p.id}>
               <td>
-                <strong>{p.title}</strong>
+                <a href={`/positions/${p.id}`}><strong>{p.title}</strong></a>
                 {p.skills.length > 0 && (
                   <div style={{ marginTop: "0.2rem" }}>
                     {p.skills.map((s) => (

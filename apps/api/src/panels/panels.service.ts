@@ -60,6 +60,14 @@ export class PanelsService {
     });
   }
 
+  listSkills(organizationId: string) {
+    return this.prisma.skill.findMany({
+      where: { organizationId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  }
+
   list(organizationId: string) {
     return this.prisma.panel.findMany({
       where: { organizationId },

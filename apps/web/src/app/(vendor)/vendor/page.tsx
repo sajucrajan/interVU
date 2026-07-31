@@ -15,6 +15,14 @@ interface VendorPosition {
   title: string;
   description: string;
   openings: number;
+  seniority: string | null;
+  employment_type: string;
+  location_policy: string | null;
+  location_text: string | null;
+  min_total_years: number | null;
+  rate_band: string | null;
+  must_haves: string[];
+  skills: { name: string; level: string; proficiency: string; min_years: number | null }[];
 }
 interface VendorSubmission {
   id: string;
@@ -91,6 +99,35 @@ export default function VendorHome() {
               <span className="muted">
                 · {p.organization} · {p.openings} opening{p.openings > 1 ? "s" : ""}
               </span>
+              <p className="muted" style={{ margin: "0.15rem 0" }}>
+                {[
+                  p.seniority,
+                  p.employment_type?.replaceAll("_", " "),
+                  [p.location_policy, p.location_text].filter(Boolean).join(" · "),
+                  p.min_total_years != null ? `${p.min_total_years}+ yrs` : null,
+                  p.rate_band,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+              {p.skills.length > 0 && (
+                <div style={{ margin: "0.25rem 0" }}>
+                  {p.skills.map((s) => (
+                    <span
+                      key={s.name}
+                      className={`skill-chip ${s.level === "must_have" ? "must" : ""}`}
+                      title={`${s.proficiency}${s.min_years ? ` · ${s.min_years}+ yrs` : ""}`}
+                    >
+                      {s.name} · {s.proficiency}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {p.must_haves.length > 0 && (
+                <p className="muted" style={{ margin: "0.15rem 0", fontSize: "0.85rem" }}>
+                  Must-haves: {p.must_haves.join(" · ")}
+                </p>
+              )}
               {p.description && <p className="muted">{p.description}</p>}
             </div>
             <button onClick={() => setSubmitFor(submitFor?.id === p.id ? null : p)}>

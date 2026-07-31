@@ -4,8 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { Prisma } from "@prisma/client";
-import { normalizeEmail, normalizePhone } from "@intervu/matching-core";
+import type { Prisma, Position, VendorOrg } from "@prisma/client";
+import {
+  normalizeEmail,
+  normalizePhone,
+  scorePair,
+  T_AUTO,
+  T_REVIEW,
+  type MatchFeatureBreakdown,
+} from "@intervu/matching-core";
 import type { VendorSubmissionCreate } from "@intervu/contracts";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -102,18 +109,33 @@ export class SubmissionsService {
       },
     });
     // Email hit wins if identifiers disagree; the disagreement is recorded for
-    // the M3 review queue (docs/04 §2.2 collision guard).
+    // the review queue (docs/04 §2.2 collision guard).
     const candidateIds = [...new Set(hits.map((h) => h.candidateId))];
     const emailHit = hits.find((h) => h.kind === "email");
-    const matchedCandidateId = emailHit?.candidateId ?? hits[0]?.candidateId ?? null;
+    let matchedCandidateId = emailHit?.candidateId ?? hits[0]?.candidateId ?? null;
     const identityConflict = candidateIds.length > 1;
 
-    const featureBreakdown = {
+    let matchScore = matchedCandidateId ? 1 : 0;
+    let featureBreakdown: Record<string, unknown> = {
       email_hit: !!emailHit,
       phone_hit: hits.some((h) => h.kind === "phone" || h.kind === "phone_last10"),
       identity_conflict: identityConflict,
       distinct_candidates_hit: candidateIds.length,
     };
+
+    // --- Stage 2b: probabilistic match on deterministic miss (docs/04 §2.3–2.4)
+    if (!matchedCandidateId) {
+      const fuzzy = await this.fuzzyMatch(position.organizationId, input, emailNorm);
+      if (fuzzy && fuzzy.score >= T_AUTO) {
+        matchedCandidateId = fuzzy.candidateId;
+        matchScore = fuzzy.score;
+        featureBreakdown = { fuzzy: true, ...fuzzy.breakdown };
+      } else if (fuzzy && fuzzy.score >= T_REVIEW) {
+        // Uncertain: park for a human (docs/04 §3) — no candidate link, no
+        // application, vendor just sees "received".
+        return this.parkForReview(position, vendorOrg, vendor, input, fuzzy);
+      }
+    }
 
     // --- Stage 3: ownership evaluation (docs/03 §5, docs/05 §4)
     if (matchedCandidateId) {
@@ -168,8 +190,8 @@ export class SubmissionsService {
               submissionId: dup.id,
               candidateId: matchedCandidateId,
               outcome: "auto_linked",
-              score: 1,
-              featureBreakdown,
+              score: matchScore,
+              featureBreakdown: featureBreakdown as Prisma.InputJsonValue,
             },
           });
           await tx.auditLog.create({
@@ -252,8 +274,8 @@ export class SubmissionsService {
           submissionId: submission.id,
           candidateId: candidate.id,
           outcome: matchedCandidateId ? "auto_linked" : "auto_new",
-          score: matchedCandidateId ? 1 : 0,
-          featureBreakdown,
+          score: matchScore,
+          featureBreakdown: featureBreakdown as Prisma.InputJsonValue,
         },
       });
 
@@ -310,6 +332,136 @@ export class SubmissionsService {
       },
       orderBy: { receivedAt: "desc" },
     });
+  }
+
+  /**
+   * Blocking + pairwise scoring (docs/04 §2.3–2.4): trigram-similar names in
+   * this org (GIN index), scored against name/email-local/employer/title/
+   * location. Pairs a human already ruled "kept separate" are excluded.
+   */
+  private async fuzzyMatch(
+    organizationId: string,
+    input: VendorSubmissionCreate,
+    emailNorm: string,
+  ): Promise<{ candidateId: string; score: number; breakdown: MatchFeatureBreakdown } | null> {
+    const blocked = await this.prisma.$queryRaw<
+      {
+        id: string;
+        display_name: string;
+        current_title: string | null;
+        current_employer: string | null;
+        location: string | null;
+      }[]
+    >`
+      SELECT id, display_name, current_title, current_employer, location
+      FROM candidate
+      WHERE organization_id = ${organizationId}::uuid
+        AND similarity(display_name, ${input.candidate_name}) > 0.35
+      ORDER BY similarity(display_name, ${input.candidate_name}) DESC
+      LIMIT 25`;
+    if (blocked.length === 0) return null;
+
+    const ids = blocked.map((b) => b.id);
+    const [emails, keptSeparate] = await Promise.all([
+      this.prisma.candidateIdentity.findMany({
+        where: { candidateId: { in: ids }, kind: "email" },
+        select: { candidateId: true, valueNorm: true },
+      }),
+      this.prisma.matchReviewItem.findMany({
+        where: {
+          organizationId,
+          candidateIdSuggested: { in: ids },
+          status: "kept_separate",
+        },
+        include: { submission: { select: { rawProfile: true } } },
+      }),
+    ]);
+    const emailByCandidate = new Map(emails.map((e) => [e.candidateId, e.valueNorm]));
+    // Negative memory: same suggested candidate + same submitter email norm
+    const vetoed = new Set(
+      keptSeparate
+        .filter((k) => {
+          const raw = k.submission.rawProfile as { email?: string };
+          return raw.email && normalizeEmail(raw.email) === emailNorm;
+        })
+        .map((k) => k.candidateIdSuggested),
+    );
+
+    const subjectLocal = emailNorm.split("@")[0] ?? null;
+    let best: { candidateId: string; score: number; breakdown: MatchFeatureBreakdown } | null =
+      null;
+    for (const c of blocked) {
+      if (vetoed.has(c.id)) continue;
+      const candEmail = emailByCandidate.get(c.id);
+      const { score, breakdown } = scorePair(
+        {
+          name: input.candidate_name,
+          emailLocal: subjectLocal,
+          employer: input.current_employer,
+          title: input.current_title,
+          location: input.location,
+        },
+        {
+          name: c.display_name,
+          emailLocal: candEmail ? candEmail.split("@")[0] : null,
+          employer: c.current_employer,
+          title: c.current_title,
+          location: c.location,
+        },
+      );
+      if (!best || score > best.score) best = { candidateId: c.id, score, breakdown };
+    }
+    return best;
+  }
+
+  /** Review-band landing: submission recorded, human decides (docs/04 §3). */
+  private async parkForReview(
+    position: Position,
+    vendorOrg: VendorOrg,
+    vendor: VendorIdentity,
+    input: VendorSubmissionCreate,
+    fuzzy: { candidateId: string; score: number; breakdown: MatchFeatureBreakdown },
+  ) {
+    const submission = await this.prisma.$transaction(async (tx) => {
+      const sub = await tx.submission.create({
+        data: {
+          organizationId: position.organizationId,
+          positionId: position.id,
+          vendorOrgId: vendorOrg.id,
+          vendorUserId: vendor.vendorUserId,
+          rawProfile: input as unknown as Prisma.InputJsonValue,
+          status: "pending_review",
+          consentConfirmed: input.candidate_consent_confirmed,
+          expectedRate: input.expected_rate,
+          vendorNotes: input.vendor_notes,
+        },
+      });
+      await tx.matchReviewItem.create({
+        data: {
+          organizationId: position.organizationId,
+          submissionId: sub.id,
+          candidateIdSuggested: fuzzy.candidateId,
+          score: fuzzy.score,
+          featureBreakdown: fuzzy.breakdown as unknown as Prisma.InputJsonValue,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          organizationId: position.organizationId,
+          actorType: "system",
+          event: "match_review.queued",
+          entityType: "submission",
+          entityId: sub.id,
+          payload: { score: fuzzy.score, candidateIdSuggested: fuzzy.candidateId },
+        },
+      });
+      return sub;
+    });
+    return {
+      submission: this.toVendorDto(submission, position.title),
+      idempotent: false,
+      pending_review: true,
+    };
   }
 
   private toVendorDto(

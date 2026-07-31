@@ -6,6 +6,7 @@ import { CandidatesModule } from "./candidates/candidates.module";
 import { EntitlementsModule } from "./entitlements/entitlements.module";
 import { HealthModule } from "./health/health.module";
 import { InterviewsModule } from "./interviews/interviews.module";
+import { MatchReviewsModule } from "./match-reviews/match-reviews.module";
 import { OrgUnitsModule } from "./org-units/org-units.module";
 import { OrgUsersModule } from "./org-users/org-users.module";
 import { PanelsModule } from "./panels/panels.module";
@@ -32,6 +33,7 @@ import { VendorPortalModule } from "./vendor-portal/vendor-portal.module";
     ApplicationsModule,
     AnalyticsModule,
     InterviewsModule,
+    MatchReviewsModule,
     CandidatesModule,
     VendorPortalModule,
   ],

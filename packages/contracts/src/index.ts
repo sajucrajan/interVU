@@ -33,10 +33,19 @@ export const ReleasePolicy = z.discriminatedUnion("mode", [
 export const PositionStatus = z.enum(["draft", "open", "paused", "closed"]);
 
 export const RequirementLevel = z.enum(["must_have", "good_to_have"]);
+export const Proficiency = z.enum(["awareness", "working", "proficient", "expert"]);
+export const Seniority = z.enum(["junior", "mid", "senior", "staff", "principal"]);
+export const EmploymentType = z.enum(["full_time", "contract", "contract_to_hire"]);
+export const LocationPolicyEnum = z.enum(["onsite", "hybrid", "remote"]);
+export const RatePeriod = z.enum(["hourly", "daily", "monthly", "annual"]);
 
+/** One row of the skill matrix: importance and required proficiency are
+ *  separate axes; min_years is an optional screening heuristic. */
 export const PositionSkillInput = z.object({
   name: z.string().min(1).max(80),
   level: RequirementLevel,
+  proficiency: Proficiency.default("working"),
+  min_years: z.number().int().min(0).max(40).nullish(),
 });
 
 export const PositionCreate = z.object({
@@ -44,7 +53,24 @@ export const PositionCreate = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(20_000).default(""),
   openings: z.number().int().min(1).default(1),
+  seniority: Seniority.nullish(),
+  employment_type: EmploymentType.default("full_time"),
+  location_policy: LocationPolicyEnum.nullish(),
+  location_text: z.string().max(200).nullish(),
+  min_total_years: z.number().int().min(0).max(50).nullish(),
+  rate_min: z.number().int().min(0).nullish(),
+  rate_max: z.number().int().min(0).nullish(),
+  rate_currency: z.string().length(3).default("USD"),
+  rate_period: RatePeriod.nullish(),
+  /** Non-skill screening requirements: certifications, visa, languages… */
+  must_haves: z.array(z.string().min(1).max(200)).max(20).default([]),
   skills: z.array(PositionSkillInput).max(30).default([]),
+}).refine((p) => p.rate_min == null || p.rate_max == null || p.rate_min <= p.rate_max, {
+  message: "rate_min must be ≤ rate_max",
+});
+
+export const MatchReviewResolve = z.object({
+  action: z.enum(["link", "keep_separate"]),
 });
 
 // --- Interview panels (skill-tagged panelist pools; scope = org-unit pattern)
@@ -122,6 +148,7 @@ export type PositionCreate = z.infer<typeof PositionCreate>;
 export type VendorSubmissionCreate = z.infer<typeof VendorSubmissionCreate>;
 export type VendorFacingStatus = z.infer<typeof VendorFacingStatus>;
 export type PositionSkillInput = z.infer<typeof PositionSkillInput>;
+export type MatchReviewResolve = z.infer<typeof MatchReviewResolve>;
 export type PanelCreate = z.infer<typeof PanelCreate>;
 export type StageTransitionCreate = z.infer<typeof StageTransitionCreate>;
 export type DecisionCreate = z.infer<typeof DecisionCreate>;

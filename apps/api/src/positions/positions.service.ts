@@ -37,7 +37,9 @@ export class PositionsService {
       organizationId,
       input.skills.map((s) => s.name),
     );
-    const levelByNorm = new Map(input.skills.map((s) => [s.name.trim().toLowerCase(), s.level]));
+    const specByNorm = new Map(
+      input.skills.map((s) => [s.name.trim().toLowerCase(), s]),
+    );
     return this.prisma.position.create({
       data: {
         organizationId,
@@ -45,15 +47,51 @@ export class PositionsService {
         title: input.title,
         description: input.description ?? "",
         openings: input.openings ?? 1,
+        seniority: input.seniority ?? null,
+        employmentType: input.employment_type,
+        locationPolicy: input.location_policy ?? null,
+        locationText: input.location_text ?? null,
+        minTotalYears: input.min_total_years ?? null,
+        rateMin: input.rate_min ?? null,
+        rateMax: input.rate_max ?? null,
+        rateCurrency: input.rate_currency,
+        ratePeriod: input.rate_period ?? null,
+        mustHaves: input.must_haves,
         createdById,
         skills: {
-          create: skills.map((s) => ({
-            skillId: s.id,
-            level: levelByNorm.get(s.nameNorm) ?? "good_to_have",
-          })),
+          create: skills.map((s) => {
+            const spec = specByNorm.get(s.nameNorm);
+            return {
+              skillId: s.id,
+              level: spec?.level ?? "good_to_have",
+              proficiency: spec?.proficiency ?? "working",
+              minYears: spec?.min_years ?? null,
+            };
+          }),
         },
       },
     });
+  }
+
+  /** Full JD view: role identity, skill matrix, must-haves, release state. */
+  async detail(organizationId: string, id: string) {
+    const position = await this.prisma.position.findFirst({
+      where: { id, organizationId },
+      include: {
+        orgUnit: { select: { id: true, name: true } },
+        skills: { include: { skill: { select: { name: true } } } },
+        releasePolicy: true,
+        releases: {
+          include: {
+            vendorOrg: {
+              select: { id: true, tier: true, vendor: { select: { name: true } } },
+            },
+          },
+        },
+      },
+    });
+    if (!position) throw new NotFoundException("Position not found");
+    return position;
   }
 
   /** Scoped listing: users only receive positions in units they can view. */

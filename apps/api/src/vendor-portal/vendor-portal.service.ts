@@ -1,13 +1,23 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 
-/** Sanitized position view for vendors — no tiers, no internal data. */
+/** Sanitized position view for vendors — no tiers, no internal data.
+ *  The JD fields (seniority, type, location, rate band, skill matrix,
+ *  must-haves) ARE vendor-facing: vendors source against them. */
 export interface VendorPositionDto {
   id: string;
   organization: string;
   title: string;
   description: string;
   openings: number;
+  seniority: string | null;
+  employment_type: string;
+  location_policy: string | null;
+  location_text: string | null;
+  min_total_years: number | null;
+  rate_band: string | null;
+  must_haves: string[];
+  skills: { name: string; level: string; proficiency: string; min_years: number | null }[];
   released_at: string;
 }
 
@@ -30,12 +40,9 @@ export class VendorPortalService {
       },
       include: {
         position: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            openings: true,
+          include: {
             organization: { select: { name: true } },
+            skills: { include: { skill: { select: { name: true } } } },
           },
         },
       },
@@ -47,6 +54,22 @@ export class VendorPortalService {
       title: r.position.title,
       description: r.position.description,
       openings: r.position.openings,
+      seniority: r.position.seniority,
+      employment_type: r.position.employmentType,
+      location_policy: r.position.locationPolicy,
+      location_text: r.position.locationText,
+      min_total_years: r.position.minTotalYears,
+      rate_band:
+        r.position.rateMin != null && r.position.rateMax != null
+          ? `${r.position.rateCurrency} ${r.position.rateMin}–${r.position.rateMax}${r.position.ratePeriod ? ` / ${r.position.ratePeriod}` : ""}`
+          : null,
+      must_haves: (r.position.mustHaves as string[]) ?? [],
+      skills: r.position.skills.map((s) => ({
+        name: s.skill.name,
+        level: s.level,
+        proficiency: s.proficiency,
+        min_years: s.minYears,
+      })),
       released_at: r.visibleFrom.toISOString(),
     }));
   }
