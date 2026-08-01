@@ -91,7 +91,7 @@ export default function Dashboard() {
               <>
                 {spell(wl.total)}
                 <br />
-                are waiting on you.
+                {wl.total === 1 ? "is" : "are"} waiting on you.
               </>
             ) : (
               <>
@@ -104,9 +104,20 @@ export default function Dashboard() {
         </div>
         {seesPipeline && (
           <div className="head-stats">
-            <HeadStat label="In flight" value={stats.in_flight} />
             <HeadStat
+              label="In flight"
+              value={stats.in_flight}
+              delta={
+                stats.in_flight_delta > 0
+                  ? { text: `+${stats.in_flight_delta} this week`, good: true }
+                  : null
+              }
+            />
+            <HeadStat
+              /* Time to OFFER: offer acceptance is not modelled yet, so
+                 calling this T2H would overstate it. */
               label="Median time to offer"
+              title="Median days from application to offer decision. Not time-to-hire: offer acceptance is not modelled yet."
               value={
                 stats.median_time_to_offer_days === null
                   ? "—"
@@ -117,7 +128,7 @@ export default function Dashboard() {
                   ? null
                   : {
                       // Faster is better, so a fall is good news.
-                      text: `${stats.median_time_to_offer_delta > 0 ? "+" : ""}${stats.median_time_to_offer_delta}d vs prior 30d`,
+                      text: `${stats.median_time_to_offer_delta > 0 ? "+" : "−"}${Math.abs(stats.median_time_to_offer_delta)}d vs prior 30d`,
                       good: stats.median_time_to_offer_delta <= 0,
                     }
               }
@@ -126,6 +137,11 @@ export default function Dashboard() {
               label="SLA breached"
               value={stats.sla_breached}
               tone={stats.sla_breached > 0 ? "var(--bad)" : undefined}
+              delta={
+                stats.sla_breached_delta > 0
+                  ? { text: `+${stats.sla_breached_delta} since Mon`, good: false }
+                  : null
+              }
             />
           </div>
         )}
@@ -133,7 +149,10 @@ export default function Dashboard() {
 
       {/* ---- The queue: a ruled list that says how late, not just how many ---- */}
       <section>
-        <SectionHead label="Your queue" />
+        <SectionHead
+          label="Your queue"
+          action={<Link href="/admin/people">Configure alerts</Link>}
+        />
         {wl.groups.length === 0 ? (
           <div className="empty-state">
             <span className="empty-icon">✓</span>
@@ -145,17 +164,21 @@ export default function Dashboard() {
             </div>
           </div>
         ) : (
-          wl.groups.map((g) => (
+          wl.groups.map((g) => {
+            // A breached row reads as breached whatever its resting tone: the
+            // point of the row is how late it is, not which queue it came from.
+            const tone = g.sla_state === "breached" ? "critical" : g.tone;
+            return (
             <Link
               key={g.key}
               href={g.href}
               className="queue-row"
               style={{
-                borderLeftColor: TONE_COLOR[g.tone],
-                background: g.sla_state === "breached" ? TONE_WASH[g.tone] : undefined,
+                borderLeftColor: TONE_COLOR[tone],
+                background: g.sla_state === "breached" ? TONE_WASH[tone] : undefined,
               }}
             >
-              <span className="figure queue-n" style={{ color: TONE_COLOR[g.tone] }}>
+              <span className="figure queue-n" style={{ color: TONE_COLOR[tone] }}>
                 {g.count}
               </span>
               <span>
@@ -169,7 +192,7 @@ export default function Dashboard() {
                     color: SLA_COLOR[g.sla_state],
                     borderColor: SLA_COLOR[g.sla_state],
                     background:
-                      g.sla_state === "ok" ? "transparent" : TONE_WASH[g.tone],
+                      g.sla_state === "ok" ? "transparent" : TONE_WASH[tone],
                   }}
                 >
                   {g.sla_label}
@@ -184,7 +207,8 @@ export default function Dashboard() {
                 →
               </span>
             </Link>
-          ))
+            );
+          })
         )}
       </section>
 
@@ -214,7 +238,9 @@ export default function Dashboard() {
                     <span className="figure stage-count">{s.count}</span>
                   </div>
                   <span className="stage-median">
-                    {s.median_hours === null ? "—" : formatAge(s.median_hours)}
+                    {s.median_hours === null
+                      ? "—"
+                      : `${(s.median_hours / 24).toFixed(1)}d`}
                   </span>
                 </div>
               );
@@ -250,7 +276,9 @@ export default function Dashboard() {
                     <div className="mono-label">
                       {when.toLocaleDateString(undefined, { month: "short" })}
                     </div>
-                    <div className="figure date-day">{when.getDate()}</div>
+                    <div className="figure date-day">
+                      {String(when.getDate()).padStart(2, "0")}
+                    </div>
                   </div>
                   <div>
                     <Link href={`/candidates/${i.candidate.id}`} className="next-name">
@@ -270,10 +298,10 @@ export default function Dashboard() {
                     <div
                       className="next-prep"
                       style={{
-                        color: i.my_scorecard_submitted ? "var(--ok)" : "var(--muted)",
+                        color: i.prep_tone === "warn" ? "var(--warn)" : "var(--ok)",
                       }}
                     >
-                      {i.my_scorecard_submitted ? "Scorecard filed" : "Dossier ready"}
+                      {i.prep}
                     </div>
                   </div>
                 </div>
@@ -322,9 +350,14 @@ export default function Dashboard() {
                     <tr key={s.id}>
                       <td>
                         {s.candidate ? (
-                          <Link href={`/candidates/${s.candidate.id}`}>
-                            {s.candidate.displayName}
-                          </Link>
+                          <>
+                            <Link href={`/candidates/${s.candidate.id}`}>
+                              {s.candidate.displayName}
+                            </Link>
+                            {s.candidate.title && (
+                              <span className="row-sub">{s.candidate.title}</span>
+                            )}
+                          </>
                         ) : (
                           <span className="muted">pending review</span>
                         )}
@@ -386,14 +419,16 @@ function HeadStat({
   value,
   delta,
   tone,
+  title,
 }: {
   label: string;
   value: string | number;
   delta?: { text: string; good: boolean } | null;
   tone?: string;
+  title?: string;
 }) {
   return (
-    <div className="head-stat">
+    <div className="head-stat" title={title}>
       <div className="mono-label">{label}</div>
       <div className="figure head-stat-value" style={tone ? { color: tone } : undefined}>
         {value}

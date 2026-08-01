@@ -30,10 +30,12 @@ export interface Worklist {
   total: number;
   head_stats: {
     in_flight: number;
+    in_flight_delta: number;
     /** Offer acceptance is not modelled yet, so this is time to OFFER. */
     median_time_to_offer_days: number | null;
     median_time_to_offer_delta: number | null;
     sla_breached: number;
+    sla_breached_delta: number;
   };
   groups: WorkGroup[];
   pipeline: StageHealth[];
@@ -44,10 +46,12 @@ export interface Worklist {
     candidate: { id: string; displayName: string };
     position_title: string;
     my_scorecard_submitted: boolean;
+    prep: string;
+    prep_tone: "ok" | "warn";
   }[];
   recent_submissions: {
     id: string;
-    candidate: { id: string; displayName: string } | null;
+    candidate: { id: string; displayName: string; title: string } | null;
     position_title: string;
     position_reference: string | null;
     vendor: string;

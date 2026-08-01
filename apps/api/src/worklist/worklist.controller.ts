@@ -78,7 +78,7 @@ export class WorklistController {
       canReview
         ? this.prisma.matchReviewItem.findMany({
             where: { organizationId, status: "open" },
-            select: { createdAt: true },
+            select: { createdAt: true, score: true },
           })
         : [],
       canArbitrate
@@ -118,6 +118,8 @@ export class WorklistController {
         select: {
           currentStage: true,
           createdAt: true,
+          positionId: true,
+          sourceSubmissionId: true,
           stageTransitions: { orderBy: { at: "desc" }, take: 1, select: { at: true } },
         },
       }),
@@ -143,7 +145,14 @@ export class WorklistController {
       this.prisma.submission.findMany({
         where: { organizationId, ...inScope },
         include: {
-          candidate: { select: { id: true, displayName: true } },
+          candidate: {
+            select: {
+              id: true,
+              displayName: true,
+              currentTitle: true,
+              currentEmployer: true,
+            },
+          },
           position: { select: { title: true, reference: true } },
           vendorOrg: { select: { vendor: { select: { name: true } } } },
           matchDecision: { select: { score: true } },
@@ -168,6 +177,39 @@ export class WorklistController {
       }),
     ]);
 
+    // Tier of the vendor that sourced each unscreened application, and any
+    // prior rejection for the candidates being interviewed next — both feed
+    // strings the design shows but the old payload could not produce.
+    const unscreenedRows = activeApplications.filter(
+      (a) => a.currentStage === "submitted",
+    );
+    const [sourceSubs, priorRejects] = await Promise.all([
+      unscreenedRows.length
+        ? this.prisma.submission.findMany({
+            where: { id: { in: unscreenedRows.map((a) => a.sourceSubmissionId) } },
+            select: { id: true, vendorOrg: { select: { tier: true } } },
+          })
+        : [],
+      upcomingInterviews.length
+        ? this.prisma.decision.findMany({
+            where: {
+              organizationId,
+              outcome: "reject",
+              application: {
+                candidateId: {
+                  in: upcomingInterviews.map((i) => i.application.candidateId),
+                },
+              },
+            },
+            select: { application: { select: { candidateId: true } } },
+          })
+        : [],
+    ]);
+    const tier1 = sourceSubs.filter((x) => x.vendorOrg.tier === 1).length;
+    const rejectedBefore = new Set(
+      priorRejects.map((d) => d.application.candidateId),
+    );
+
     const enteredStageAt = (a: {
       createdAt: Date;
       stageTransitions: { at: Date }[];
@@ -186,56 +228,74 @@ export class WorklistController {
       if (!oldestAt) return { sla_state: null, sla_label: null };
       const hours = SlaService.hoursSince(oldestAt, now);
       const state = SlaService.state(hours, thresholds[event]);
+      const h = thresholds[event];
+      const window = h % 24 === 0 ? `${h / 24}d` : `${h}h`;
       return {
         sla_state: state,
-        sla_label:
-          state === "breached"
-            ? `${thresholds[event]}h SLA breached`
-            : state === "aging"
-              ? `${thresholds[event]}h SLA · aging`
-              : `within ${thresholds[event]}h`,
+        // The design states the window while there is still time, and only the
+        // verdict once there isn't.
+        sla_label: state === "breached" ? "Breached" : `${window} SLA`,
       };
     };
 
-    const unscreened = activeApplications.filter((a) => a.currentStage === "submitted");
+    // "Probabilistic scores between 62% and 78%" — the actual spread of what
+    // is waiting, so the reviewer knows how borderline the queue is.
+    const reviewScores = matchReviewRows.map((r) => r.score).sort((a, b) => a - b);
+    const reviewScoreRange = reviewScores.length
+      ? `Probabilistic scores between ${Math.round(reviewScores[0]! * 100)}% and ${Math.round(
+          reviewScores[reviewScores.length - 1]! * 100,
+        )}%`
+      : "Uncertain matches need a human call";
 
     const scorecardOldest = oldest(myScorecardRows.map((i) => i.scheduledAt));
     const reviewOldest = oldest(matchReviewRows.map((r) => r.createdAt));
     const dupOldest = oldest(duplicateRows.map((s) => s.receivedAt));
     const decisionOldest = oldest(awaitingDecisionRows.map(enteredStageAt));
-    const unscreenedOldest = oldest(unscreened.map(enteredStageAt));
+    const unscreenedOldest = oldest(unscreenedRows.map(enteredStageAt));
 
     const groups: WorkItemGroup[] = (
       [
         {
-          key: "scorecards",
-          label: "Interviews awaiting your scorecard",
-          sub: "The panel cannot resolve until you file",
-          count: myScorecardRows.length,
-          href: "/interviews",
+          key: "unscreened",
+          label: "New submissions to screen",
+          sub: `Across ${new Set(unscreenedRows.map((a) => a.positionId)).size} role${
+            new Set(unscreenedRows.map((a) => a.positionId)).size === 1 ? "" : "s"
+          } · ${tier1} from tier-1 vendors`,
+          count: unscreenedRows.length,
+          href: "/pipeline?filter=unscreened",
+          tone: "warning",
+          oldest_at: unscreenedOldest,
+          ...stateFor(unscreenedOldest, "first_screen"),
+        },
+        {
+          key: "match_reviews",
+          label: "Uncertain identity matches",
+          sub: reviewScoreRange,
+          count: matchReviewRows.length,
+          href: "/match-reviews",
           tone: "critical",
-          oldest_at: scorecardOldest,
-          ...stateFor(scorecardOldest, "scorecard_due"),
+          oldest_at: reviewOldest,
+          ...stateFor(reviewOldest, "first_screen"),
         },
         {
           key: "decisions",
-          label: "Candidates awaiting a decision",
-          sub: "Everyone interviewed, nobody decided",
+          label: "Decisions awaiting you",
+          sub: "All interviews complete, scorecards in",
           count: awaitingDecisionRows.length,
           href: "/pipeline?filter=awaiting_decision",
-          tone: "critical",
+          tone: "warning",
           oldest_at: decisionOldest,
           ...stateFor(decisionOldest, "decision_due"),
         },
         {
-          key: "match_reviews",
-          label: "Identity matches to review",
-          sub: "Uncertain matches need a human call",
-          count: matchReviewRows.length,
-          href: "/match-reviews",
-          tone: "warning",
-          oldest_at: reviewOldest,
-          ...stateFor(reviewOldest, "first_screen"),
+          key: "scorecards",
+          label: "Your scorecards not submitted",
+          sub: "Feedback stays hidden until you file yours",
+          count: myScorecardRows.length,
+          href: "/interviews",
+          tone: "normal",
+          oldest_at: scorecardOldest,
+          ...stateFor(scorecardOldest, "scorecard_due"),
         },
         {
           key: "duplicates",
@@ -246,16 +306,6 @@ export class WorklistController {
           tone: "warning",
           oldest_at: dupOldest,
           ...stateFor(dupOldest, "vendor_ack"),
-        },
-        {
-          key: "unscreened",
-          label: "New submissions to screen",
-          sub: "Not yet looked at by anyone",
-          count: unscreened.length,
-          href: "/pipeline?filter=unscreened",
-          tone: "normal",
-          oldest_at: unscreenedOldest,
-          ...stateFor(unscreenedOldest, "first_screen"),
         },
       ] as WorkItemGroup[]
     ).filter((g) => g.count > 0);
@@ -283,6 +333,21 @@ export class WorklistController {
     // What the header counts is what the queue below it shows: the items that
     // are actually late. Counting only stage dwell here read as "0 breached"
     // directly above a row stamped "24h SLA breached".
+    // Start of the current week (Monday 00:00 local to the server).
+    const monday = new Date(now);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const hoursSinceMonday = (now - monday.getTime()) / 3_600_000;
+
+    const breachedSinceMonday = groups
+      .filter((g) => g.sla_state === "breached" && g.oldest_at)
+      .reduce((n, g) => {
+        const age = SlaService.hoursSince(g.oldest_at!, now);
+        // Breached now, but younger than "threshold + time since Monday" means
+        // it tipped over during this week rather than before it.
+        return n + (age < hoursSinceMonday + 24 ? g.count : 0);
+      }, 0);
+
     const slaBreached = groups
       .filter((g) => g.sla_state === "breached")
       .reduce((n, g) => n + g.count, 0);
@@ -311,12 +376,20 @@ export class WorklistController {
        *  no comparable prior window — better an absent delta than a made-up one. */
       head_stats: {
         in_flight: activeApplications.length,
+        // Applications opened in the last 7 days. Labelled "this week" because
+        // that is exactly what it counts — we keep no daily snapshots.
+        in_flight_delta: activeApplications.filter(
+          (a) => now - a.createdAt.getTime() <= 7 * DAY,
+        ).length,
         median_time_to_offer_days: medianTto === null ? null : Math.round(medianTto),
         median_time_to_offer_delta:
           medianRecent !== null && medianPrior !== null
             ? Math.round(medianRecent - medianPrior)
             : null,
         sla_breached: slaBreached,
+        // Items that crossed their threshold since Monday: still breached now,
+        // but not yet breached at the start of the week.
+        sla_breached_delta: breachedSinceMonday,
       },
       groups,
       pipeline,
@@ -327,10 +400,25 @@ export class WorklistController {
         candidate: i.application.candidate,
         position_title: i.application.position.title,
         my_scorecard_submitted: i.scorecards.length > 0,
+        /** Cross-team history is why InterVU exists — surface it before the
+         *  interview, not after. */
+        prep: rejectedBefore.has(i.application.candidateId)
+          ? "Prior reject — read"
+          : "Dossier ready",
+        prep_tone: rejectedBefore.has(i.application.candidateId) ? "warn" : "ok",
       })),
       recent_submissions: recentSubmissions.map((s) => ({
         id: s.id,
-        candidate: s.candidate,
+        candidate: s.candidate
+          ? {
+              id: s.candidate.id,
+              displayName: s.candidate.displayName,
+              /** "Backend Engineer @ Volta" — who they are today. */
+              title: [s.candidate.currentTitle, s.candidate.currentEmployer]
+                .filter(Boolean)
+                .join(" @ "),
+            }
+          : null,
         position_title: s.position.title,
         position_reference: s.position.reference,
         vendor: s.vendorOrg.vendor.name,

@@ -1858,3 +1858,11 @@ table.data td time {
   font-size: 9px;
   letter-spacing: 0.16em;
 }
+
+/* Secondary line inside a ledger cell (candidate's current title, etc.). */
+.row-sub {
+  display: block;
+  font: 400 12px/1.4 var(--font-ui);
+  color: var(--muted);
+  margin-top: 2px;
+}
