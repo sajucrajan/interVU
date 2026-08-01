@@ -75,6 +75,29 @@ export class AnalyticsController {
       }),
     ]);
 
+    // Candidate leaves let the explorer drill all the way to a person.
+    // Names only — consistent with what a read-only observer may see
+    // (docs/09 §2); resumes, scorecards and history stay behind their own
+    // permissions.
+    const candidateRows = await this.prisma.submission.findMany({
+      where: { organizationId, ...viaPosition },
+      select: {
+        positionId: true,
+        candidateId: true,
+        candidate: { select: { displayName: true } },
+      },
+    });
+
+    // Skill matrix for the technology view (Java, Snowflake, Spring Boot…).
+    const positionSkills = await this.prisma.positionSkill.findMany({
+      where: { position: positionWhere },
+      select: {
+        positionId: true,
+        level: true,
+        skill: { select: { name: true } },
+      },
+    });
+
     // Funnel from application stages + decisions
     const funnel = {
       submitted: totalSubmissions - duplicatesBlocked,
@@ -118,6 +141,16 @@ export class AnalyticsController {
       children?: Node[];
       value?: number;
     }
+
+    // position → candidate → submission count
+    const candidatesByPosition = new Map<string, Map<string, number>>();
+    for (const row of candidateRows) {
+      const name = row.candidate?.displayName ?? "(pending review)";
+      const perPosition =
+        candidatesByPosition.get(row.positionId) ?? new Map<string, number>();
+      perPosition.set(name, (perPosition.get(name) ?? 0) + 1);
+      candidatesByPosition.set(row.positionId, perPosition);
+    }
     const build = (parentId: string | null): Node[] =>
       units
         .filter((u) => u.parentId === parentId)
@@ -125,11 +158,24 @@ export class AnalyticsController {
           const childUnits = build(u.id);
           const leafPositions: Node[] = positions
             .filter((p) => p.orgUnitId === u.id)
-            .map((p) => ({
-              name: p.title,
-              kind: "position",
-              value: Math.max(countByPosition.get(p.id) ?? 0, 1),
-            }));
+            .map((p) => {
+              const people = candidatesByPosition.get(p.id);
+              if (people && people.size > 0) {
+                return {
+                  name: p.title,
+                  kind: "position",
+                  children: [...people.entries()]
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([name, value]) => ({ name, kind: "candidate", value })),
+                };
+              }
+              // No submissions yet — keep the position visible as a thin leaf.
+              return {
+                name: p.title,
+                kind: "position",
+                value: Math.max(countByPosition.get(p.id) ?? 0, 1),
+              };
+            });
           return {
             name: u.name,
             kind: u.kind,
@@ -138,6 +184,48 @@ export class AnalyticsController {
         })
         .filter((n) => (n.children?.length ?? 0) > 0);
     const hierarchy: Node = { name: "Organization", kind: "org", children: build(null) };
+
+    // ---- Technology view: skill → position → candidate ----
+    // A position requiring several skills appears under each of them, so
+    // branch totals describe demand per technology and intentionally sum to
+    // more than the submission count.
+    const positionById = new Map(positions.map((p) => [p.id, p]));
+    const bySkill = new Map<string, { positionId: string; level: string }[]>();
+    for (const ps of positionSkills) {
+      const list = bySkill.get(ps.skill.name) ?? [];
+      list.push({ positionId: ps.positionId, level: ps.level });
+      bySkill.set(ps.skill.name, list);
+    }
+    const skillChildren: Node[] = [...bySkill.entries()]
+      .map(([skillName, entries]) => {
+        const children: Node[] = entries
+          .map(({ positionId, level }) => {
+            const position = positionById.get(positionId);
+            if (!position) return null;
+            const people = candidatesByPosition.get(positionId);
+            const label = `${position.title}${level === "must_have" ? " ★" : ""}`;
+            if (people && people.size > 0) {
+              return {
+                name: label,
+                kind: "position",
+                children: [...people.entries()]
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([name, value]) => ({ name, kind: "candidate", value })),
+              } as Node;
+            }
+            return { name: label, kind: "position", value: 1 } as Node;
+          })
+          .filter((n): n is Node => n !== null);
+        return { name: skillName, kind: "skill", children };
+      })
+      .filter((n) => (n.children?.length ?? 0) > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const skillHierarchy: Node = {
+      name: "All technologies",
+      kind: "org",
+      children: skillChildren,
+    };
 
     return {
       totals: {
@@ -151,6 +239,7 @@ export class AnalyticsController {
       funnel,
       vendors,
       hierarchy,
+      skill_hierarchy: skillHierarchy,
     };
   }
 }

@@ -8,7 +8,10 @@ import { ZoomableSunburst, type SunburstNode } from "@/components/zoomable-sunbu
 interface Overview {
   totals: { submissions: number; candidates: number; open_positions: number };
   hierarchy: SunburstNode;
+  skill_hierarchy: SunburstNode;
 }
+
+type View = "org" | "skill";
 
 function descend(node: SunburstNode): { units: number; positions: number } {
   let units = 0;
@@ -26,6 +29,7 @@ function descend(node: SunburstNode): { units: number; positions: number } {
 export default function ExplorePage() {
   const router = useRouter();
   const [data, setData] = useState<Overview | null>(null);
+  const [view, setView] = useState<View>("org");
   const [trail, setTrail] = useState<SunburstNode[]>([]);
   const [focus, setFocus] = useState<SunburstNode | null>(null);
 
@@ -41,23 +45,49 @@ export default function ExplorePage() {
 
   if (!data) return <main className="wide muted">Loading…</main>;
 
-  const current = focus ?? data.hierarchy;
+  const rootFor = (v: View) => (v === "org" ? data.hierarchy : data.skill_hierarchy);
+  const root = rootFor(view);
+  const current = focus ?? root;
   const counts = descend(current);
-  const share =
-    data.totals.submissions > 0
-      ? Math.round(((sumOf(current) ?? 0) / sumOf(data.hierarchy)!) * 100)
-      : 0;
+  const rootTotal = sumOf(root);
+  const share = rootTotal > 0 ? Math.round((sumOf(current) / rootTotal) * 100) : 0;
+
+  function switchView(v: View) {
+    setView(v);
+    const r = rootFor(v);
+    setFocus(r);
+    setTrail([r]);
+  }
 
   return (
     <main className="wide">
       <div className="row spread">
         <div>
-          <h1 style={{ marginBottom: "0.2rem" }}>Hierarchy explorer</h1>
+          <h1 style={{ marginBottom: "0.2rem" }}>Explorer</h1>
           <p className="muted" style={{ marginTop: 0 }}>
-            Where candidate supply is landing across the organization. Click a
-            wedge to zoom in, the centre to zoom back out.
+            {view === "org"
+              ? "Where candidate supply is landing across the organization."
+              : "Which technologies your open demand is concentrated in."}{" "}
+            Click a wedge to zoom in, the centre to zoom back out.
           </p>
         </div>
+      </div>
+
+      <div className="tabs">
+        <button
+          type="button"
+          className={view === "org" ? "active" : ""}
+          onClick={() => switchView("org")}
+        >
+          By organization
+        </button>
+        <button
+          type="button"
+          className={view === "skill" ? "active" : ""}
+          onClick={() => switchView("skill")}
+        >
+          By technology
+        </button>
       </div>
 
       <nav className="crumbs">
@@ -74,7 +104,8 @@ export default function ExplorePage() {
       <div className="explore-layout">
         <section className="card explore-chart">
           <ZoomableSunburst
-            data={data.hierarchy}
+            key={view}
+            data={root}
             size={820}
             onFocusChange={(t, node) => {
               setTrail(t);
@@ -144,9 +175,23 @@ export default function ExplorePage() {
           <div className="card">
             <p className="chart-title">How to read this</p>
             <ul className="muted" style={{ fontSize: "0.86rem", paddingLeft: "1.1rem", margin: 0 }}>
-              <li>Each ring is a level: organization → vertical → team → position.</li>
+              {view === "org" ? (
+                <li>
+                  Rings are levels: organization → vertical → team → position →
+                  candidate.
+                </li>
+              ) : (
+                <>
+                  <li>Rings are: technology → position → candidate. ★ marks a must-have.</li>
+                  <li>
+                    A role needing several technologies appears under each, so branch
+                    totals describe demand per technology rather than summing to the
+                    submission count.
+                  </li>
+                </>
+              )}
               <li>Wedge size is the number of vendor submissions received.</li>
-              <li>Colour follows the top-level vertical, lightening with depth.</li>
+              <li>Colour follows the top-level branch, lightening with depth.</li>
               <li>Only positions you have access to are included.</li>
             </ul>
           </div>

@@ -4,12 +4,12 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
+import { ActionsMenu, Modal, type MenuItem } from "@/components/actions-menu";
 
 interface Application {
   id: string;
   currentStage: string;
   status: string;
-  createdAt?: string;
   candidate: { id: string; displayName: string };
   position: { id: string; title: string; orgUnit: { name: string } };
   interviews: { id: string; roundName: string; status: string }[];
@@ -47,7 +47,7 @@ function PipelineBoard() {
   const [apps, setApps] = useState<Application[] | null>(null);
   const [subs, setSubs] = useState<Submission[]>([]);
   const [users, setUsers] = useState<OrgUserRow[]>([]);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [scheduleFor, setScheduleFor] = useState<Application | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -65,24 +65,87 @@ function PipelineBoard() {
     refresh().catch(() => router.push("/login"));
   }, [refresh, router]);
 
-  async function act(fn: () => Promise<unknown>) {
-    setError(null);
-    try {
-      await fn();
-      await refresh();
-    } catch (e) {
-      setError(apiErrorMessage(e));
-    }
-  }
+  const act = useCallback(
+    async (fn: () => Promise<unknown>) => {
+      setError(null);
+      try {
+        await fn();
+        await refresh();
+      } catch (e) {
+        setError(apiErrorMessage(e));
+      }
+    },
+    [refresh],
+  );
+
+  /** One place that builds the action menu for an application. */
+  const menuFor = useCallback(
+    (a: Application): MenuItem[] => {
+      const moves = STAGES.filter((s) => s.key !== a.currentStage).map((s) => ({
+        label: `Move to ${s.label}`,
+        onSelect: () =>
+          act(() =>
+            api(`/applications/${a.id}/transition`, {
+              method: "POST",
+              body: { to_stage: s.key },
+            }),
+          ),
+      }));
+      const items: MenuItem[] = [
+        { label: "Move stage", heading: true },
+        ...moves,
+        { label: "Interview", heading: true },
+        { label: "Schedule interview…", onSelect: () => setScheduleFor(a) },
+      ];
+      if (!a.decision) {
+        items.push(
+          { label: "Decision", heading: true },
+          {
+            label: "Record offer",
+            tone: "primary",
+            onSelect: () =>
+              act(() =>
+                api(`/applications/${a.id}/decision`, {
+                  method: "POST",
+                  body: { outcome: "offer", reason: "" },
+                }),
+              ),
+          },
+          {
+            label: "Record rejection",
+            tone: "danger",
+            onSelect: () =>
+              act(() =>
+                api(`/applications/${a.id}/decision`, {
+                  method: "POST",
+                  body: { outcome: "reject", reason: "" },
+                }),
+              ),
+          },
+        );
+      }
+      items.push(
+        { label: "View", heading: true },
+        {
+          label: "Candidate history",
+          onSelect: () => router.push(`/candidates/${a.candidate.id}`),
+        },
+      );
+      return items;
+    },
+    [act, router],
+  );
 
   if (!apps) return <main className="wide muted">Loading…</main>;
 
-  // Duplicates are about submissions, not pipeline stages.
   if (filter === "duplicates") {
     const dups = subs.filter((s) => s.ownershipStatus === "duplicate");
     return (
       <main className="wide">
-        <PipelineHeader active="duplicates" subtitle={`${dups.length} contested submission${dups.length === 1 ? "" : "s"}`} />
+        <PipelineHeader
+          active="duplicates"
+          subtitle={`${dups.length} contested submission${dups.length === 1 ? "" : "s"}`}
+        />
         <p className="muted section-intro">
           The same candidate arrived from more than one source. The first valid
           submission owns by default; the losing vendor only ever sees
@@ -136,11 +199,7 @@ function PipelineBoard() {
   }
   if (stageParam) visible = visible.filter((a) => a.currentStage === stageParam);
 
-  // A single stage or a filtered view is a focused LIST — a one-column board
-  // would stretch each card across the whole screen. The board is only for
-  // comparing stages side by side.
   const focused = !!stageParam || filter === "unscreened" || filter === "awaiting_decision";
-
   const subtitle = focused
     ? `${visible.length} candidate${visible.length === 1 ? "" : "s"}`
     : `${visible.length} active across ${STAGES.length} stages`;
@@ -154,15 +213,56 @@ function PipelineBoard() {
       {error && <p className="error">{error}</p>}
 
       {focused ? (
-        <FocusedTable
-          rows={visible}
-          users={users}
-          expanded={expanded}
-          setExpanded={setExpanded}
-          act={act}
-          refresh={refresh}
-          showStage={!stageParam}
-        />
+        visible.length === 0 ? (
+          <div className="card empty-state">
+            <span className="empty-icon">✓</span>
+            <div>
+              <strong>Nothing here.</strong>
+              <p className="muted" style={{ margin: 0 }}>
+                No candidates match this view right now.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Position</th>
+                <th>Team</th>
+                {!stageParam && <th>Stage</th>}
+                <th>Progress</th>
+                <th style={{ width: 120 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((a) => (
+                <tr key={a.id}>
+                  <td>
+                    <Link href={`/candidates/${a.candidate.id}`}>
+                      <strong>{a.candidate.displayName}</strong>
+                    </Link>
+                  </td>
+                  <td>{a.position.title}</td>
+                  <td className="muted">{a.position.orgUnit.name}</td>
+                  {!stageParam && (
+                    <td>
+                      <span className="badge">
+                        {STAGE_LABEL[a.currentStage] ?? a.currentStage}
+                      </span>
+                    </td>
+                  )}
+                  <td>
+                    <StatusBadges app={a} />
+                  </td>
+                  <td>
+                    <ActionsMenu items={menuFor(a)} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
       ) : (
         <div className="board">
           {STAGES.map((stage) => {
@@ -176,32 +276,40 @@ function PipelineBoard() {
                 {cards.length === 0 && <p className="board-empty">—</p>}
                 {cards.map((a) => (
                   <div className="board-card" key={a.id}>
-                    <Link href={`/candidates/${a.candidate.id}`}>
-                      <strong>{a.candidate.displayName}</strong>
-                    </Link>
+                    <div className="row spread" style={{ gap: "0.4rem" }}>
+                      <Link href={`/candidates/${a.candidate.id}`}>
+                        <strong>{a.candidate.displayName}</strong>
+                      </Link>
+                      <ActionsMenu items={menuFor(a)} label="⋯" />
+                    </div>
                     <div className="muted" style={{ fontSize: "0.8rem" }}>
                       {a.position.title} · {a.position.orgUnit.name}
                     </div>
-                    <div style={{ margin: "0.35rem 0" }}>
+                    <div style={{ marginTop: "0.35rem" }}>
                       <StatusBadges app={a} />
                     </div>
-                    <button
-                      className="secondary board-action"
-                      onClick={() => setExpanded(expanded === a.id ? null : a.id)}
-                    >
-                      {expanded === a.id ? "Close" : "Actions"}
-                    </button>
-                    {expanded === a.id && (
-                      <div className="board-actions">
-                        <ActionPanel a={a} users={users} act={act} refresh={refresh} />
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
             );
           })}
         </div>
+      )}
+
+      {scheduleFor && (
+        <Modal
+          title={`Schedule interview — ${scheduleFor.candidate.displayName}`}
+          onClose={() => setScheduleFor(null)}
+        >
+          <ScheduleInterviewForm
+            application={scheduleFor}
+            users={users}
+            onDone={async () => {
+              setScheduleFor(null);
+              await refresh();
+            }}
+          />
+        </Modal>
       )}
     </main>
   );
@@ -221,184 +329,6 @@ function StatusBadges({ app }: { app: Application }) {
         <span className={`badge ${app.decision.outcome === "offer" ? "ok" : "bad"}`}>
           {app.decision.outcome}
         </span>
-      )}
-    </>
-  );
-}
-
-/** Dense list for a focused view — uses the width instead of wasting it. */
-function FocusedTable({
-  rows,
-  users,
-  expanded,
-  setExpanded,
-  act,
-  refresh,
-  showStage,
-}: {
-  rows: Application[];
-  users: OrgUserRow[];
-  expanded: string | null;
-  setExpanded: (v: string | null) => void;
-  act: (fn: () => Promise<unknown>) => Promise<void>;
-  refresh: () => Promise<void>;
-  showStage: boolean;
-}) {
-  if (rows.length === 0) {
-    return (
-      <div className="card empty-state">
-        <span className="empty-icon">✓</span>
-        <div>
-          <strong>Nothing here.</strong>
-          <p className="muted" style={{ margin: 0 }}>
-            No candidates match this view right now.
-          </p>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <table className="data">
-      <thead>
-        <tr>
-          <th>Candidate</th>
-          <th>Position</th>
-          <th>Team</th>
-          {showStage && <th>Stage</th>}
-          <th>Progress</th>
-          <th style={{ width: 200 }}>Move to</th>
-          <th style={{ width: 130 }}></th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((a) => (
-          <>
-            <tr key={a.id}>
-              <td>
-                <Link href={`/candidates/${a.candidate.id}`}>
-                  <strong>{a.candidate.displayName}</strong>
-                </Link>
-              </td>
-              <td>{a.position.title}</td>
-              <td className="muted">{a.position.orgUnit.name}</td>
-              {showStage && (
-                <td>
-                  <span className="badge">{STAGE_LABEL[a.currentStage] ?? a.currentStage}</span>
-                </td>
-              )}
-              <td>
-                <StatusBadges app={a} />
-              </td>
-              <td>
-                <select
-                  value={a.currentStage}
-                  onChange={(e) =>
-                    act(() =>
-                      api(`/applications/${a.id}/transition`, {
-                        method: "POST",
-                        body: { to_stage: e.target.value },
-                      }),
-                    )
-                  }
-                >
-                  {STAGES.map((s) => (
-                    <option key={s.key} value={s.key}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <button
-                  className="secondary board-action"
-                  onClick={() => setExpanded(expanded === a.id ? null : a.id)}
-                >
-                  {expanded === a.id ? "Close" : "Actions"}
-                </button>
-              </td>
-            </tr>
-            {expanded === a.id && (
-              <tr key={`${a.id}-x`}>
-                <td colSpan={showStage ? 7 : 6} style={{ background: "var(--page)" }}>
-                  <div style={{ maxWidth: 620 }}>
-                    <ActionPanel a={a} users={users} act={act} refresh={refresh} hideStage />
-                  </div>
-                </td>
-              </tr>
-            )}
-          </>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function ActionPanel({
-  a,
-  users,
-  act,
-  refresh,
-  hideStage,
-}: {
-  a: Application;
-  users: OrgUserRow[];
-  act: (fn: () => Promise<unknown>) => Promise<void>;
-  refresh: () => Promise<void>;
-  hideStage?: boolean;
-}) {
-  return (
-    <>
-      {!hideStage && (
-        <>
-          <label>Move to stage</label>
-          <select
-            value={a.currentStage}
-            onChange={(e) =>
-              act(() =>
-                api(`/applications/${a.id}/transition`, {
-                  method: "POST",
-                  body: { to_stage: e.target.value },
-                }),
-              )
-            }
-          >
-            {STAGES.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </>
-      )}
-      <ScheduleInterview applicationId={a.id} users={users} onDone={refresh} />
-      {!a.decision && (
-        <div className="row" style={{ marginTop: "0.5rem" }}>
-          <button
-            onClick={() =>
-              act(() =>
-                api(`/applications/${a.id}/decision`, {
-                  method: "POST",
-                  body: { outcome: "offer", reason: "" },
-                }),
-              )
-            }
-          >
-            Offer
-          </button>
-          <button
-            className="secondary"
-            onClick={() =>
-              act(() =>
-                api(`/applications/${a.id}/decision`, {
-                  method: "POST",
-                  body: { outcome: "reject", reason: "" },
-                }),
-              )
-            }
-          >
-            Reject
-          </button>
-        </div>
       )}
     </>
   );
@@ -446,54 +376,54 @@ function PipelineHeader({ active, subtitle }: { active: string; subtitle?: strin
   );
 }
 
-function ScheduleInterview({
-  applicationId,
+function ScheduleInterviewForm({
+  application,
   users,
   onDone,
 }: {
-  applicationId: string;
+  application: Application;
   users: OrgUserRow[];
   onDone: () => Promise<void> | void;
 }) {
-  const [open, setOpen] = useState(false);
   const [round, setRound] = useState("Technical Round 1");
   const [when, setWhen] = useState("");
   const [panel, setPanel] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
   const [suggested, setSuggested] = useState<
     { org_user: { id: string; name: string }; matched_skills: { name: string }[] }[]
   >([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
     api<{ suggestions: typeof suggested }>(
-      `/applications/${applicationId}/panel-suggestions`,
+      `/applications/${application.id}/panel-suggestions`,
     )
       .then((r) => setSuggested(r.suggestions))
       .catch(() => setSuggested([]));
-  }, [open, applicationId]);
-
-  if (!open) {
-    return (
-      <button
-        className="secondary"
-        style={{ marginTop: "0.5rem" }}
-        onClick={() => setOpen(true)}
-      >
-        Schedule interview
-      </button>
-    );
-  }
+  }, [application.id]);
 
   return (
-    <div style={{ marginTop: "0.5rem" }}>
-      <label>Round</label>
-      <input value={round} onChange={(e) => setRound(e.target.value)} />
-      <label>When</label>
-      <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+    <>
+      <p className="muted" style={{ marginTop: 0 }}>
+        {application.position.title} · {application.position.orgUnit.name}
+      </p>
+      <div className="row">
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <label>Round</label>
+          <input value={round} onChange={(e) => setRound(e.target.value)} />
+        </div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <label>When</label>
+          <input
+            type="datetime-local"
+            value={when}
+            onChange={(e) => setWhen(e.target.value)}
+          />
+        </div>
+      </div>
       {suggested.length > 0 && (
         <>
-          <label>Suggested panelists (skill-matched)</label>
+          <label>Suggested panelists (skill-matched — click to add)</label>
           {suggested.map((s) => (
             <div
               key={s.org_user.id}
@@ -506,7 +436,7 @@ function ScheduleInterview({
                 )
               }
             >
-              <strong style={{ fontSize: "0.85rem" }}>{s.org_user.name}</strong>
+              <strong style={{ fontSize: "0.88rem" }}>{s.org_user.name}</strong>
               <span style={{ marginLeft: "auto" }}>
                 {s.matched_skills.slice(0, 3).map((k) => (
                   <span key={k.name} className="skill-chip">
@@ -518,9 +448,10 @@ function ScheduleInterview({
           ))}
         </>
       )}
-      <label>All panelists</label>
+      <label>All panelists (cmd/ctrl-click for multiple)</label>
       <select
         multiple
+        size={5}
         value={panel}
         onChange={(e) => setPanel(Array.from(e.target.selectedOptions).map((o) => o.value))}
       >
@@ -530,13 +461,14 @@ function ScheduleInterview({
           </option>
         ))}
       </select>
-      <div className="row" style={{ marginTop: "0.5rem" }}>
+      <div className="row" style={{ marginTop: "1rem" }}>
         <button
-          disabled={!when || panel.length === 0}
+          disabled={busy || !when || panel.length === 0}
           onClick={async () => {
+            setBusy(true);
             setError(null);
             try {
-              await api(`/applications/${applicationId}/interviews`, {
+              await api(`/applications/${application.id}/interviews`, {
                 method: "POST",
                 body: {
                   round_name: round,
@@ -545,21 +477,19 @@ function ScheduleInterview({
                   panelist_ids: panel,
                 },
               });
-              setOpen(false);
               await onDone();
             } catch (e) {
               setError(apiErrorMessage(e));
+            } finally {
+              setBusy(false);
             }
           }}
         >
-          Schedule
-        </button>
-        <button className="secondary" onClick={() => setOpen(false)}>
-          Cancel
+          {busy ? "Scheduling…" : "Schedule"}
         </button>
       </div>
       {error && <p className="error">{error}</p>}
-    </div>
+    </>
   );
 }
 

@@ -829,6 +829,117 @@ details.table-view summary {
   border-bottom: 0;
 }
 
+/* ---------- actions menu & modal ---------- */
+
+.menu-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.menu-trigger {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.65rem;
+  white-space: nowrap;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  min-width: 210px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  z-index: 60;
+  padding: 0.3rem;
+  overflow: hidden;
+}
+
+.menu-left {
+  right: auto;
+  left: 0;
+}
+
+.menu-heading {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--faint);
+  padding: 0.45rem 0.6rem 0.2rem;
+}
+
+.menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--fg);
+  border: 0;
+  border-radius: 7px;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.menu-item:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  transform: none;
+  box-shadow: none;
+}
+
+.menu-item.primary {
+  color: var(--ok);
+}
+
+.menu-item.danger {
+  color: var(--bad);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in oklab, #000 55%, transparent);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.modal {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6);
+  width: min(100%, 620px);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1.2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-close {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.9rem;
+}
+
+.modal-body {
+  padding: 1rem 1.2rem 1.3rem;
+  overflow-y: auto;
+}
+
 /* ---------- hierarchy explorer ---------- */
 
 .explore-layout {
