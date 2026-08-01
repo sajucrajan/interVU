@@ -29,6 +29,7 @@ model Organization {
   candidates   Candidate[]
   auditLogs    AuditLog[]
   inviteTokens InviteToken[]
+  roles        Role[]
 
   @@map("organization")
 }
@@ -67,14 +68,30 @@ model OrgUnit {
 
 // ---------- Org users & memberships ----------
 
-enum OrgRole {
-  org_admin
-  recruiter
-  hiring_manager
-  project_manager
-  interviewer
+/// An organization-defined bundle of permissions.
+///
+/// Enforcement is always on permissions, never on role names (docs/09 §2), so
+/// an organization can name authority the way it actually does — "Release
+/// Train Engineer", "Program Manager", "Managing Director" — without a code
+/// change or a migration. The five built-ins ship as `isSystem` rows.
+model Role {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  /// Stable slug; system roles keep their historical keys (org_admin, …).
+  key            String
+  name           String
+  description    String?
+  permissions    String[]
+  /// Built-ins can be re-permissioned but never deleted.
+  isSystem       Boolean  @default(false) @map("is_system")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  @@map("org_role")
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  memberships  OrgMembership[]
+
+  @@unique([organizationId, key])
+  @@map("role")
 }
 
 enum UserStatus {
@@ -113,13 +130,17 @@ model OrgMembership {
   id        String   @id @default(uuid()) @db.Uuid
   orgUserId String   @map("org_user_id") @db.Uuid
   orgUnitId String?  @map("org_unit_id") @db.Uuid
-  role      OrgRole
+  roleId    String   @map("role_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
   orgUser OrgUser  @relation(fields: [orgUserId], references: [id])
   orgUnit OrgUnit? @relation(fields: [orgUnitId], references: [id])
+  role    Role     @relation(fields: [roleId], references: [id])
 
-  @@unique([orgUserId, orgUnitId, role])
+  // Postgres treats NULLs as distinct, so this does NOT stop a duplicate
+  // org-wide grant (org_unit_id IS NULL) — the service checks explicitly.
+  @@unique([orgUserId, orgUnitId, roleId])
+  @@index([roleId])
   @@map("org_membership")
 }
 

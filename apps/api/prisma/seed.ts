@@ -3,7 +3,8 @@
 // and positions demonstrating all three release policies.
 // Run: pnpm db:seed  (idempotent — safe to re-run)
 
-import { PrismaClient, type OrgRole } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
+import { SYSTEM_ROLES } from "../src/entitlements/permissions";
 import { hashPassword } from "../src/auth/password";
 
 const prisma = new PrismaClient();
@@ -45,8 +46,28 @@ async function main() {
   const gtm = await unit("GTM", "unit", null);
   const salesOps = await unit("Sales Ops", "team", gtm.id);
 
+  // --- Roles: the built-ins every organization starts with. Organizations add
+  // their own on top (program manager, release train engineer, …).
+  const roleByKey = new Map<string, string>();
+  for (const r of SYSTEM_ROLES) {
+    const role = await prisma.role.upsert({
+      where: { organizationId_key: { organizationId: org.id, key: r.key } },
+      update: { name: r.name, description: r.description, permissions: [...r.permissions] },
+      create: {
+        organizationId: org.id,
+        key: r.key,
+        name: r.name,
+        description: r.description,
+        permissions: [...r.permissions],
+        isSystem: true,
+      },
+    });
+    roleByKey.set(r.key, role.id);
+  }
+
   // --- Org users
-  async function orgUser(email: string, name: string, role: OrgRole, orgUnitId: string | null) {
+  async function orgUser(email: string, name: string, roleKey: string, orgUnitId: string | null) {
+    const roleId = roleByKey.get(roleKey)!;
     const user = await prisma.orgUser.upsert({
       where: { organizationId_email: { organizationId: org.id, email } },
       update: { status: "active", passwordHash: demoHash },
@@ -55,11 +76,11 @@ async function main() {
     // find-or-create: the composite unique includes a nullable column,
     // which Prisma upsert can't target
     const membership = await prisma.orgMembership.findFirst({
-      where: { orgUserId: user.id, orgUnitId, role },
+      where: { orgUserId: user.id, orgUnitId, roleId },
     });
     if (!membership) {
       await prisma.orgMembership.create({
-        data: { orgUserId: user.id, orgUnitId, role },
+        data: { orgUserId: user.id, orgUnitId, roleId },
       });
     }
     return user;

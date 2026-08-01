@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 /** Each administrative area has its own permission; show only what applies. */
 const TABS = [
   { href: "/admin/people", label: "People", needs: "org.manage_users" },
+  { href: "/admin/roles", label: "Roles", needs: "org.manage_users" },
   { href: "/admin/teams", label: "Teams", needs: "org.manage_structure" },
   { href: "/admin/vendors", label: "Vendors", needs: "vendors.manage" },
 ];

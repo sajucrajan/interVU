@@ -173,7 +173,10 @@ export class WorklistController {
     }));
 
     return {
-      user: { name: tenant.org!.user.name, roles: [...new Set(tenant.org!.memberships.map((m) => m.role))] },
+      user: {
+        name: tenant.org!.user.name,
+        roles: [...new Set(tenant.org!.memberships.map((m) => m.roleName))],
+      },
       total: groups.reduce((n, g) => n + g.count, 0),
       groups,
       pipeline,

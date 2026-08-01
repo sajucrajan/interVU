@@ -66,18 +66,25 @@ export type VendorUserCreate = z.infer<typeof VendorUserCreate>;
 
 // --- Org users & access grants (docs/09-entitlements.md)
 
-export const OrgRoleEnum = z.enum([
-  "org_admin",
-  "recruiter",
-  "hiring_manager",
-  "project_manager",
-  "interviewer",
-]);
-
-/** A `role @ scope` grant. org_unit_id null/absent = org-wide. */
+/**
+ * Roles are organization-defined rows, not a fixed list, so a grant names a
+ * role by id. org_unit_id null/absent = org-wide.
+ */
 export const MembershipGrant = z.object({
-  role: OrgRoleEnum,
+  role_id: z.string().uuid(),
   org_unit_id: z.string().uuid().nullish(),
+});
+
+export const RoleCreate = z.object({
+  name: z.string().min(1).max(80),
+  description: z.string().max(300).nullish(),
+  permissions: z.array(z.string()).default([]),
+});
+
+export const RoleUpdate = z.object({
+  name: z.string().min(1).max(80).optional(),
+  description: z.string().max(300).nullish(),
+  permissions: z.array(z.string()).optional(),
 });
 
 /** At least one grant: a user with no role can sign in and see nothing. */
@@ -98,8 +105,9 @@ export const ActivateAccount = z.object({
   password: z.string().min(12).max(200),
 });
 
-export type OrgRoleEnum = z.infer<typeof OrgRoleEnum>;
 export type MembershipGrant = z.infer<typeof MembershipGrant>;
+export type RoleCreate = z.infer<typeof RoleCreate>;
+export type RoleUpdate = z.infer<typeof RoleUpdate>;
 export type OrgUserCreate = z.infer<typeof OrgUserCreate>;
 export type OrgUserUpdate = z.infer<typeof OrgUserUpdate>;
 export type ActivateAccount = z.infer<typeof ActivateAccount>;
