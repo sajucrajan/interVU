@@ -5,6 +5,14 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { ActionsMenu, Modal, type MenuItem } from "@/components/actions-menu";
+import {
+  MustHavesEditor,
+  SkillMatrixEditor,
+  fromSkillRecords,
+  toSkillPayload,
+  useKnownSkills,
+  type SkillRow,
+} from "@/components/skill-matrix";
 
 interface Detail {
   id: string;
@@ -47,9 +55,9 @@ export default function PositionDetailPage() {
   const [p, setP] = useState<Detail | null>(null);
   const [vendors, setVendors] = useState<VendorOrg[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<"publish" | "release" | "template" | "edit" | null>(
-    null,
-  );
+  const [dialog, setDialog] = useState<
+    "publish" | "release" | "template" | "edit" | "requirements" | null
+  >(null);
 
   const refresh = useCallback(
     () =>
@@ -104,6 +112,7 @@ export default function PositionDetailPage() {
 
   const items: MenuItem[] = [{ label: "Edit", heading: true }];
   items.push({ label: "Edit details…", onSelect: () => setDialog("edit") });
+  items.push({ label: "Edit requirements…", onSelect: () => setDialog("requirements") });
   if (p.status === "draft") {
     items.push({
       label: "Publish to vendors…",
@@ -211,10 +220,15 @@ export default function PositionDetailPage() {
         <div className="card">
           <p className="chart-title">Requirements</p>
           {p.skills.length === 0 ? (
-            <p className="muted" style={{ margin: 0 }}>
-              No skills defined. Add a skill matrix so panel matching and vendor
-              screening have something to work with.
-            </p>
+            <>
+              <p className="muted" style={{ margin: "0 0 0.6rem" }}>
+                No skills defined. Add a skill matrix so panel matching and vendor
+                screening have something to work with.
+              </p>
+              <button className="secondary" onClick={() => setDialog("requirements")}>
+                Add requirements
+              </button>
+            </>
           ) : (
             <table className="data">
               <thead>
@@ -323,6 +337,20 @@ export default function PositionDetailPage() {
       {dialog === "template" && (
         <Modal title={`Save ${p.reference} as a template`} onClose={() => setDialog(null)}>
           <SaveTemplateForm position={p} onDone={() => setDialog(null)} />
+        </Modal>
+      )}
+      {dialog === "requirements" && (
+        <Modal
+          title={`Requirements — ${p.reference}`}
+          onClose={() => setDialog(null)}
+        >
+          <RequirementsForm
+            position={p}
+            onDone={async () => {
+              setDialog(null);
+              await refresh();
+            }}
+          />
         </Modal>
       )}
       {dialog === "edit" && (
@@ -448,41 +476,100 @@ function ReleaseForm({
 }
 
 function EditForm({ position, onDone }: { position: Detail; onDone: () => Promise<void> }) {
-  const [title, setTitle] = useState(position.title);
-  const [description, setDescription] = useState(position.description);
-  const [openings, setOpenings] = useState(String(position.openings));
-  const [rateMin, setRateMin] = useState(position.rateMin != null ? String(position.rateMin) : "");
-  const [rateMax, setRateMax] = useState(position.rateMax != null ? String(position.rateMax) : "");
+  const [f, setF] = useState({
+    title: position.title,
+    description: position.description,
+    openings: String(position.openings),
+    seniority: position.seniority ?? "",
+    employment_type: position.employmentType,
+    location_policy: position.locationPolicy ?? "",
+    location_text: position.locationText ?? "",
+    rate_min: position.rateMin != null ? String(position.rateMin) : "",
+    rate_max: position.rateMax != null ? String(position.rateMax) : "",
+    rate_currency: position.rateCurrency,
+    rate_period: position.ratePeriod ?? "",
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const set =
+    (k: keyof typeof f) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+      setF({ ...f, [k]: e.target.value });
+
   return (
     <>
       <label>Title</label>
-      <input value={title} onChange={(e) => setTitle(e.target.value)} />
-      <label>Description</label>
-      <textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} />
+      <input value={f.title} onChange={set("title")} />
       <div className="row">
-        <div style={{ width: 120 }}>
+        <div style={{ flex: 1, minWidth: 140 }}>
+          <label>Seniority</label>
+          <select value={f.seniority} onChange={set("seniority")}>
+            <option value="">—</option>
+            {["junior", "mid", "senior", "staff", "principal"].map((x) => (
+              <option key={x} value={x}>
+                {x}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <label>Employment</label>
+          <select value={f.employment_type} onChange={set("employment_type")}>
+            <option value="full_time">Full-time</option>
+            <option value="contract">Contract</option>
+            <option value="contract_to_hire">Contract-to-hire</option>
+          </select>
+        </div>
+        <div style={{ width: 110 }}>
           <label>Openings</label>
-          <input
-            type="number"
-            min={1}
-            value={openings}
-            onChange={(e) => setOpenings(e.target.value)}
-          />
-        </div>
-        <div style={{ width: 130 }}>
-          <label>Rate min</label>
-          <input type="number" value={rateMin} onChange={(e) => setRateMin(e.target.value)} />
-        </div>
-        <div style={{ width: 130 }}>
-          <label>Rate max</label>
-          <input type="number" value={rateMax} onChange={(e) => setRateMax(e.target.value)} />
+          <input type="number" min={1} value={f.openings} onChange={set("openings")} />
         </div>
       </div>
+      <div className="row">
+        <div style={{ flex: 1, minWidth: 140 }}>
+          <label>Location policy</label>
+          <select value={f.location_policy} onChange={set("location_policy")}>
+            <option value="">—</option>
+            <option value="onsite">Onsite</option>
+            <option value="hybrid">Hybrid</option>
+            <option value="remote">Remote</option>
+          </select>
+        </div>
+        <div style={{ flex: 2, minWidth: 180 }}>
+          <label>Location</label>
+          <input value={f.location_text} onChange={set("location_text")} />
+        </div>
+      </div>
+      <div className="row">
+        <div style={{ width: 120 }}>
+          <label>Rate min</label>
+          <input type="number" value={f.rate_min} onChange={set("rate_min")} />
+        </div>
+        <div style={{ width: 120 }}>
+          <label>Rate max</label>
+          <input type="number" value={f.rate_max} onChange={set("rate_max")} />
+        </div>
+        <div style={{ width: 100 }}>
+          <label>Currency</label>
+          <input value={f.rate_currency} onChange={set("rate_currency")} maxLength={3} />
+        </div>
+        <div style={{ width: 130 }}>
+          <label>Per</label>
+          <select value={f.rate_period} onChange={set("rate_period")}>
+            <option value="">—</option>
+            {["hourly", "daily", "monthly", "annual"].map((x) => (
+              <option key={x} value={x}>
+                {x}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <label>Description</label>
+      <textarea rows={5} value={f.description} onChange={set("description")} />
       <div style={{ marginTop: "1rem" }}>
         <button
-          disabled={busy || !title.trim()}
+          disabled={busy || !f.title.trim()}
           onClick={async () => {
             setBusy(true);
             setError(null);
@@ -490,11 +577,17 @@ function EditForm({ position, onDone }: { position: Detail; onDone: () => Promis
               await api(`/positions/${position.id}`, {
                 method: "PATCH",
                 body: {
-                  title: title.trim(),
-                  description,
-                  openings: Number(openings) || 1,
-                  rate_min: rateMin ? Number(rateMin) : null,
-                  rate_max: rateMax ? Number(rateMax) : null,
+                  title: f.title.trim(),
+                  description: f.description,
+                  openings: Number(f.openings) || 1,
+                  seniority: f.seniority || null,
+                  employment_type: f.employment_type,
+                  location_policy: f.location_policy || null,
+                  location_text: f.location_text || null,
+                  rate_min: f.rate_min ? Number(f.rate_min) : null,
+                  rate_max: f.rate_max ? Number(f.rate_max) : null,
+                  rate_currency: f.rate_currency,
+                  rate_period: f.rate_period || null,
                 },
               });
               await onDone();
@@ -506,6 +599,77 @@ function EditForm({ position, onDone }: { position: Detail; onDone: () => Promis
           }}
         >
           {busy ? "Saving…" : "Save changes"}
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
+    </>
+  );
+}
+
+function RequirementsForm({
+  position,
+  onDone,
+}: {
+  position: Detail;
+  onDone: () => Promise<void>;
+}) {
+  const knownSkills = useKnownSkills();
+  const [skills, setSkills] = useState<SkillRow[]>(fromSkillRecords(position.skills));
+  const [mustHaves, setMustHaves] = useState<string[]>(position.mustHaves ?? []);
+  const [minYears, setMinYears] = useState(
+    position.minTotalYears != null ? String(position.minTotalYears) : "",
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Importance and required proficiency are separate axes — panel matching
+        weights the first, interviewers assess against the second. Vendors see
+        this matrix on the posting.
+      </p>
+      <label>Minimum total experience (years)</label>
+      <input
+        type="number"
+        min={0}
+        style={{ width: 140 }}
+        value={minYears}
+        onChange={(e) => setMinYears(e.target.value)}
+      />
+      <label style={{ marginTop: "0.9rem" }}>Skill matrix</label>
+      <SkillMatrixEditor
+        rows={skills}
+        onChange={setSkills}
+        knownSkills={knownSkills}
+        listId="pos-edit-skills"
+      />
+      <label style={{ marginTop: "1rem" }}>Other must-haves</label>
+      <MustHavesEditor values={mustHaves} onChange={setMustHaves} />
+      <div style={{ marginTop: "1.2rem" }}>
+        <button
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            try {
+              await api(`/positions/${position.id}`, {
+                method: "PATCH",
+                body: {
+                  skills: toSkillPayload(skills),
+                  must_haves: mustHaves,
+                  min_total_years: minYears ? Number(minYears) : null,
+                },
+              });
+              await onDone();
+            } catch (e) {
+              setError(apiErrorMessage(e));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {busy ? "Saving…" : "Save requirements"}
         </button>
       </div>
       {error && <p className="error">{error}</p>}

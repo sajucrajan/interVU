@@ -3,6 +3,14 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
+import {
+  MustHavesEditor,
+  SkillMatrixEditor,
+  emptySkill,
+  toSkillPayload,
+  useKnownSkills,
+  type SkillRow,
+} from "@/components/skill-matrix";
 
 interface TemplateSummary {
   id: string;
@@ -35,20 +43,6 @@ interface UnitNode {
   kind: string;
   children: UnitNode[];
 }
-interface SkillRow {
-  name: string;
-  level: "must_have" | "good_to_have";
-  proficiency: "awareness" | "working" | "proficient" | "expert";
-  min_years: string;
-}
-
-const emptySkill = (): SkillRow => ({
-  name: "",
-  level: "must_have",
-  proficiency: "working",
-  min_years: "",
-});
-
 /** Flatten the unit tree into team options with breadcrumb labels. */
 function teamOptions(nodes: UnitNode[], path: string[] = []): { id: string; label: string }[] {
   return nodes.flatMap((n) => {
@@ -64,7 +58,7 @@ function NewPositionForm() {
   const router = useRouter();
   const params = useSearchParams();
   const [teams, setTeams] = useState<{ id: string; label: string }[]>([]);
-  const [knownSkills, setKnownSkills] = useState<string[]>([]);
+  const knownSkills = useKnownSkills();
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [appliedFrom, setAppliedFrom] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +81,6 @@ function NewPositionForm() {
   });
   const [skills, setSkills] = useState<SkillRow[]>([emptySkill()]);
   const [mustHaves, setMustHaves] = useState<string[]>([]);
-  const [mustHaveDraft, setMustHaveDraft] = useState("");
   const [release, setRelease] = useState("all_at_once");
 
   /** Fill the form from a saved template — the whole point of templates. */
@@ -125,9 +118,6 @@ function NewPositionForm() {
     api<UnitNode[]>("/org-units")
       .then((tree) => setTeams(teamOptions(tree)))
       .catch(() => router.push("/login"));
-    api<{ name: string }[]>("/skills")
-      .then((s) => setKnownSkills(s.map((x) => x.name)))
-      .catch(() => undefined);
     api<TemplateSummary[]>("/position-templates")
       .then(setTemplates)
       .catch(() => undefined);
@@ -143,9 +133,6 @@ function NewPositionForm() {
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm({ ...form, [k]: e.target.value });
-
-  const setSkill = (i: number, patch: Partial<SkillRow>) =>
-    setSkills(skills.map((s, j) => (j === i ? { ...s, ...patch } : s)));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -167,14 +154,7 @@ function NewPositionForm() {
         rate_currency: form.rate_currency,
         rate_period: form.rate_period || null,
         must_haves: mustHaves,
-        skills: skills
-          .filter((s) => s.name.trim())
-          .map((s) => ({
-            name: s.name.trim(),
-            level: s.level,
-            proficiency: s.proficiency,
-            min_years: s.min_years ? Number(s.min_years) : null,
-          })),
+        skills: toSkillPayload(skills),
       };
       const created = await api<{ id: string }>("/positions", { method: "POST", body });
       if (release !== "draft") {
@@ -344,90 +324,22 @@ function NewPositionForm() {
             Importance (must / nice) and required proficiency are separate axes;
             panel matching and vendor screening both read this matrix.
           </p>
-          {skills.map((s, i) => (
-            <div className="row" key={i} style={{ marginBottom: "0.4rem" }}>
-              <div style={{ flex: 2, minWidth: 180 }}>
-                <input
-                  list="known-skills"
-                  value={s.name}
-                  onChange={(e) => setSkill(i, { name: e.target.value })}
-                  placeholder="Skill (e.g. Kubernetes)"
-                />
-              </div>
-              <select
-                style={{ width: 140 }}
-                value={s.level}
-                onChange={(e) => setSkill(i, { level: e.target.value as SkillRow["level"] })}
-              >
-                <option value="must_have">Must-have</option>
-                <option value="good_to_have">Good-to-have</option>
-              </select>
-              <select
-                style={{ width: 130 }}
-                value={s.proficiency}
-                onChange={(e) => setSkill(i, { proficiency: e.target.value as SkillRow["proficiency"] })}
-              >
-                {["awareness", "working", "proficient", "expert"].map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-              <input
-                style={{ width: 90 }}
-                type="number"
-                min={0}
-                placeholder="yrs"
-                value={s.min_years}
-                onChange={(e) => setSkill(i, { min_years: e.target.value })}
-              />
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => setSkills(skills.filter((_, j) => j !== i))}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          <datalist id="known-skills">
-            {knownSkills.map((k) => (
-              <option key={k} value={k} />
-            ))}
-          </datalist>
-          <button type="button" className="secondary" onClick={() => setSkills([...skills, emptySkill()])}>
-            + Add skill
-          </button>
+          <SkillMatrixEditor
+            rows={skills}
+            onChange={setSkills}
+            knownSkills={knownSkills}
+            listId="new-pos-skills"
+          />
         </div>
 
         <div className="card">
           <p className="chart-title">Other must-haves</p>
           <p className="chart-sub">Certifications, work authorization, languages — vendors screen against these.</p>
-          <div className="row">
-            <input
-              style={{ flex: 1 }}
-              value={mustHaveDraft}
-              onChange={(e) => setMustHaveDraft(e.target.value)}
-              placeholder="e.g. CKA certification"
-            />
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => {
-                if (mustHaveDraft.trim()) {
-                  setMustHaves([...mustHaves, mustHaveDraft.trim()]);
-                  setMustHaveDraft("");
-                }
-              }}
-            >
-              Add
-            </button>
-          </div>
-          <div style={{ marginTop: "0.5rem" }}>
-            {mustHaves.map((m, i) => (
-              <span key={i} className="skill-chip" style={{ cursor: "pointer" }} onClick={() => setMustHaves(mustHaves.filter((_, j) => j !== i))}>
-                {m} ✕
-              </span>
-            ))}
-          </div>
+          <MustHavesEditor
+            values={mustHaves}
+            onChange={setMustHaves}
+            placeholder="e.g. CKA certification"
+          />
         </div>
 
         <div className="card">
