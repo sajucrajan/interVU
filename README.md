@@ -2,6 +2,9 @@
 
 **Open-source interview & vendor-sourced hiring management platform.**
 
+[![CI](https://github.com/sajucrajan/interVU/actions/workflows/ci.yml/badge.svg)](https://github.com/sajucrajan/interVU/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 InterVU is built for organizations that run high volumes of interviews across many positions, where candidate profiles are sourced through multiple external **vendors** (staffing agencies). It solves the three problems that generic ATSs handle poorly:
 
 1. **Candidate identity resolution** — the same candidate is often submitted by different vendors, for different positions, at different times. InterVU detects and links these into a single *candidate master record* using deterministic + probabilistic matching, with a human review queue for uncertain matches.
