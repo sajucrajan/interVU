@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
+import { PipelineBoard as BoardView } from "./board";
 import { ActionsMenu, Modal, type MenuItem } from "@/components/actions-menu";
 
 interface Application {
@@ -209,116 +210,78 @@ function PipelineBoard() {
 
   return (
     <main className="wide">
-      <PipelineHeader
-        active={filter ?? (stageParam ? `stage:${stageParam}` : positionParam ? "position" : "all")}
-        subtitle={subtitle}
-      />
-      {error && <p className="error">{error}</p>}
-
       {focused ? (
-        visible.length === 0 ? (
-          <div className="card empty-state">
-            <span className="empty-icon">✓</span>
-            <div>
-              <strong>Nothing here.</strong>
-              <p className="muted" style={{ margin: 0 }}>
-                No candidates match this view right now.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <table className="data">
-            <thead>
-              <tr>
-                <th>Candidate</th>
-                <th>Position</th>
-                <th>Team</th>
-                {!stageParam && <th>Stage</th>}
-                <th>Progress</th>
-                <th style={{ width: 120 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((a) => (
-                <tr key={a.id}>
-                  <td>
-                    <Link href={`/candidates/${a.candidate.id}`}>
-                      <strong>{a.candidate.displayName}</strong>
-                    </Link>
-                  </td>
-                  <td>
-                    {a.position.reference && (
-                      <span className="ref-code">{a.position.reference}</span>
-                    )}{" "}
-                    {a.position.title}
-                  </td>
-                  <td className="muted">{a.position.orgUnit.name}</td>
-                  {!stageParam && (
-                    <td>
-                      <span className="badge">
-                        {STAGE_LABEL[a.currentStage] ?? a.currentStage}
-                      </span>
-                    </td>
-                  )}
-                  <td>
-                    <StatusBadges app={a} />
-                  </td>
-                  <td>
-                    <ActionsMenu items={menuFor(a)} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )
-      ) : (
-        <div className="board">
-          {STAGES.map((stage) => {
-            const cards = visible.filter((a) => a.currentStage === stage.key);
-            return (
-              <div className="board-col" key={stage.key}>
-                <div className="board-col-head">
-                  <Link href={`/pipeline?stage=${stage.key}`}>{stage.label}</Link>
-                  <span className="board-col-count">{cards.length}</span>
-                </div>
-                {cards.length === 0 && <p className="board-empty">—</p>}
-                {cards.map((a) => (
-                  <div className="board-card" key={a.id}>
-                    <div className="row spread" style={{ gap: "0.4rem" }}>
-                      <Link href={`/candidates/${a.candidate.id}`}>
-                        <strong>{a.candidate.displayName}</strong>
-                      </Link>
-                      <ActionsMenu items={menuFor(a)} label="⋯" />
-                    </div>
-                    <div className="muted" style={{ fontSize: "0.8rem" }}>
-                      {a.position.reference ? `${a.position.reference} · ` : ""}
-                      {a.position.title} · {a.position.orgUnit.name}
-                    </div>
-                    <div style={{ marginTop: "0.35rem" }}>
-                      <StatusBadges app={a} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {scheduleFor && (
-        <Modal
-          title={`Schedule interview — ${scheduleFor.candidate.displayName}`}
-          onClose={() => setScheduleFor(null)}
-        >
-          <ScheduleInterviewForm
-            application={scheduleFor}
-            users={users}
-            onDone={async () => {
-              setScheduleFor(null);
-              await refresh();
-            }}
+        <>
+          <PipelineHeader
+            active={
+              filter ?? (stageParam ? `stage:${stageParam}` : positionParam ? "position" : "all")
+            }
+            subtitle={subtitle}
           />
-        </Modal>
+          {error && <p className="error">{error}</p>}
+          {visible.length === 0 ? (
+            <div className="empty-state">
+              <span className="empty-icon">✓</span>
+              <div>
+                <strong>Nothing here.</strong>
+                <p className="muted" style={{ margin: 0 }}>
+                  No candidates match this view right now.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Candidate</th>
+                  <th>Position</th>
+                  <th>Team</th>
+                  {!stageParam && <th>Stage</th>}
+                  <th>Progress</th>
+                  <th style={{ width: 60 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((a) => (
+                  <tr key={a.id}>
+                    <td>
+                      <Link href={`/candidates/${a.candidate.id}`}>
+                        {a.candidate.displayName}
+                      </Link>
+                    </td>
+                    <td>
+                      {a.position.reference && (
+                        <span className="ref-code">{a.position.reference}</span>
+                      )}{" "}
+                      {a.position.title}
+                    </td>
+                    <td className="muted">{a.position.orgUnit.name}</td>
+                    {!stageParam && (
+                      <td>
+                        <span className="badge">
+                          {STAGE_LABEL[a.currentStage] ?? a.currentStage}
+                        </span>
+                      </td>
+                    )}
+                    <td>
+                      <StatusBadges app={a} />
+                    </td>
+                    <td className="num">
+                      <ActionsMenu items={menuFor(a)} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      ) : (
+        <BoardView
+          view={filter ?? "all"}
+          onView={(key: string) =>
+            router.push(key === "all" ? "/pipeline" : `/pipeline?filter=${key}`)
+          }
+        />
       )}
     </main>
   );
