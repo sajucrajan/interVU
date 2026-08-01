@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { api, apiErrorMessage } from "@/lib/api";
 import { formatAge } from "@/components/age-pill";
+import { ActionsMenu, type MenuItem } from "@/components/actions-menu";
 
 export interface BoardCard {
   id: string;
@@ -28,9 +29,21 @@ interface BoardColumn {
   cards: BoardCard[];
 }
 
+interface DuplicateRow {
+  id: string;
+  candidate: { id: string; displayName: string } | null;
+  position_reference: string | null;
+  position_title: string;
+  blocked_vendor: string;
+  received_at: string;
+  winning_vendor: string | null;
+  window_expires_at: string | null;
+}
+
 interface BoardData {
   total: number;
   columns: BoardColumn[];
+  duplicates: DuplicateRow[];
   views: { key: string; label: string; count: number; tone?: string }[];
 }
 
@@ -65,11 +78,22 @@ const BULK_STAGES = ["submitted", "screening", "interviewing", "offer"];
 export function PipelineBoard({
   view,
   onView,
-  onOpenCard,
+  stage,
+  positionId,
+  actionsFor,
+  reloadKey,
 }: {
   view: string;
   onView: (key: string) => void;
-  onOpenCard?: (card: BoardCard) => void;
+  /** Drill-downs from the dashboard and the position page narrow the board
+   *  rather than opening a different screen. */
+  stage?: string | null;
+  positionId?: string | null;
+  /** The page owns the action set (transition, schedule, decide) and the
+   *  modals behind it; the board only decides where the trigger sits. */
+  actionsFor?: (card: BoardCard) => MenuItem[];
+  /** Lets the page refresh the board after one of those actions. */
+  reloadKey?: number;
 }) {
   const [data, setData] = useState<BoardData | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -82,18 +106,23 @@ export function PipelineBoard({
       .catch((e) => setError(apiErrorMessage(e)));
   }, []);
 
-  useEffect(load, [load]);
+  useEffect(load, [load, reloadKey]);
 
   if (!data) return <p className="muted">Loading…</p>;
 
   const matches = (c: BoardCard) => {
+    if (positionId && c.position_id !== positionId) return false;
+    if (stage && c.stage !== stage) return false;
     if (view === "unscreened") return c.stage === "submitted";
     if (view === "sla_breached") return c.age_state === "breached";
-    if (view === "duplicates") return c.flags.some((f) => f.label === "Duplicate");
     if (view === "awaiting_decision")
       return c.flags.some((f) => f.label === "Decision due");
     return true;
   };
+
+  const visibleColumns = stage
+    ? data.columns.filter((c) => c.stage === stage)
+    : data.columns;
 
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -174,8 +203,82 @@ export function PipelineBoard({
         </div>
       )}
 
+      {/* Contested submissions are blocked at intake, so they are never board
+          cards — the duplicates view is a different population entirely. */}
+      {view === "duplicates" ? (
+        data.duplicates.length === 0 ? (
+          <div className="empty-state">
+            <span className="empty-icon">✓</span>
+            <div>
+              <strong>No contested submissions.</strong>
+              <p className="muted" style={{ margin: 0 }}>
+                When two vendors submit the same candidate for the same role, the
+                second is blocked and appears here with the arbitration.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Position</th>
+                <th>Blocked vendor</th>
+                <th>Owned by</th>
+                <th className="num">Window expires</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.duplicates.map((d) => (
+                <tr key={d.id}>
+                  <td>
+                    {d.candidate ? (
+                      <Link href={`/candidates/${d.candidate.id}`}>
+                        {d.candidate.displayName}
+                      </Link>
+                    ) : (
+                      <span className="muted">pending review</span>
+                    )}
+                  </td>
+                  <td>
+                    {d.position_reference && (
+                      <span className="ref-code">{d.position_reference}</span>
+                    )}{" "}
+                    {d.position_title}
+                  </td>
+                  <td>
+                    <span className="badge warn">{d.blocked_vendor}</span>
+                  </td>
+                  <td>
+                    {d.winning_vendor ? (
+                      <span className="badge ok">{d.winning_vendor}</span>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
+                  <td className="num muted">
+                    {d.window_expires_at
+                      ? new Date(d.window_expires_at).toLocaleDateString()
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      ) : visibleColumns.every((col) => col.cards.filter(matches).length === 0) ? (
+        <div className="empty-state">
+          <span className="empty-icon">✓</span>
+          <div>
+            <strong>Nothing in this view.</strong>
+            <p className="muted" style={{ margin: 0 }}>
+              No candidates match right now — pick another view above.
+            </p>
+          </div>
+        </div>
+      ) : (
       <div className="board">
-        {data.columns.map((col) => {
+        {visibleColumns.map((col) => {
           const cards = col.cards.filter(matches);
           return (
             <div className="board-col" key={col.stage}>
@@ -245,17 +348,13 @@ export function PipelineBoard({
                     ))}
                     <span className="pipe-vendor">{c.vendor}</span>
                   </div>
-                  {onOpenCard && (
-                    <button
-                      type="button"
-                      className="pipe-open"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenCard(c);
-                      }}
+                  {actionsFor && (
+                    <span
+                      className="pipe-actions"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      ⋯
-                    </button>
+                      <ActionsMenu items={actionsFor(c)} />
+                    </span>
                   )}
                 </div>
               ))}
@@ -263,6 +362,7 @@ export function PipelineBoard({
           );
         })}
       </div>
+      )}
     </>
   );
 }

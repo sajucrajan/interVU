@@ -146,14 +146,74 @@ export class BoardController {
       };
     });
 
+    // Contested submissions are BLOCKED at intake, so they never become
+    // applications — counting cards would always report zero. The duplicates
+    // view is a different population and needs its own query.
+    const contested = await this.prisma.submission.findMany({
+      where: { organizationId, ownershipStatus: "duplicate", ...byPosition },
+      select: {
+        id: true,
+        receivedAt: true,
+        candidate: { select: { id: true, displayName: true } },
+        position: { select: { id: true, title: true, reference: true } },
+        vendorOrg: { select: { vendor: { select: { name: true } } } },
+      },
+      orderBy: { receivedAt: "desc" },
+    });
+
+    // Who actually holds each contested (candidate, position) pair, so the
+    // arbitration is readable: today only the loser is named.
+    const owners = await this.prisma.submission.findMany({
+      where: {
+        organizationId,
+        // The explicit owner, or — where ownership was never contested at the
+        // time — the earliest submission that was not itself blocked. That is
+        // the rule the arbitration actually applies.
+        ownershipStatus: { in: ["owner", "not_applicable"] },
+        candidateId: { in: contested.map((c) => c.candidate?.id ?? "") },
+      },
+      orderBy: { receivedAt: "asc" },
+      select: {
+        candidateId: true,
+        positionId: true,
+        receivedAt: true,
+        vendorOrg: { select: { vendor: { select: { name: true } } } },
+      },
+    });
+    const ownerFor = new Map<string, (typeof owners)[number]>();
+    for (const o of owners) {
+      const key = `${o.candidateId}:${o.positionId}`;
+      if (!ownerFor.has(key)) ownerFor.set(key, o); // earliest wins
+    }
+
+    const windowDays =
+      ((org?.settings as { ownership_window_days?: number })?.ownership_window_days) ?? 180;
+
+    const duplicateRows = contested.map((s) => {
+      const owner = s.candidate
+        ? ownerFor.get(`${s.candidate.id}:${s.position.id}`)
+        : undefined;
+      return {
+        id: s.id,
+        candidate: s.candidate,
+        position_reference: s.position.reference,
+        position_title: s.position.title,
+        blocked_vendor: s.vendorOrg.vendor.name,
+        received_at: s.receivedAt,
+        winning_vendor: owner?.vendorOrg.vendor.name ?? null,
+        window_expires_at: owner
+          ? new Date(owner.receivedAt.getTime() + windowDays * 86_400_000)
+          : null,
+      };
+    });
+
     const breached = cards.filter((c) => c.age_state === "breached").length;
-    const duplicates = cards.filter((c) =>
-      c.flags.some((f) => f.label === "Duplicate"),
-    ).length;
+    const duplicates = duplicateRows.length;
 
     return {
       total: cards.length,
       columns,
+      duplicates: duplicateRows,
       // The four existing filter chips become the default saved views, plus
       // the one the design adds.
       views: [
