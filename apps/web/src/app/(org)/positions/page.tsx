@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 
 interface Position {
   id: string;
+  reference: string;
   title: string;
   status: string;
   openings: number;
@@ -72,6 +73,7 @@ function PositionTable({ title, rows }: { title: string; rows: Position[] }) {
       <table className="data">
         <thead>
           <tr>
+            <th style={{ width: 110 }}>Ref</th>
             <th>Role</th>
             <th>Team</th>
             <th>Status</th>
@@ -82,6 +84,9 @@ function PositionTable({ title, rows }: { title: string; rows: Position[] }) {
         <tbody>
           {rows.map((p) => (
             <tr key={p.id}>
+              <td>
+                <span className="ref-code">{p.reference}</span>
+              </td>
               <td>
                 <Link href={`/positions/${p.id}`}>
                   <strong>{p.title}</strong>

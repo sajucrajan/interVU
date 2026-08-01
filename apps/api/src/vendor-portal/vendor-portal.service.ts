@@ -6,6 +6,8 @@ import { PrismaService } from "../prisma/prisma.service";
  *  must-haves) ARE vendor-facing: vendors source against them. */
 export interface VendorPositionDto {
   id: string;
+  /** The reference vendors quote back in email threads (POS-001). */
+  reference: string;
   organization: string;
   title: string;
   description: string;
@@ -55,6 +57,7 @@ export class VendorPortalService {
     });
     return releases.map((r) => ({
       id: r.position.id,
+      reference: r.position.reference,
       organization: r.position.organization.name,
       title: r.position.title,
       description: r.position.description,

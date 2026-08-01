@@ -212,6 +212,27 @@ p.muted {
   margin: 0 0.2rem 0.15rem 0;
 }
 
+/* Human-readable position reference (POS-001) — monospace so it reads as an
+   identifier people quote, not prose. */
+.ref-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  background: color-mix(in oklab, var(--fg) 7%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.08rem 0.4rem;
+  white-space: nowrap;
+}
+
+.ref-code.ref-lg {
+  font-size: 0.95rem;
+  vertical-align: middle;
+  margin-right: 0.35rem;
+}
+
 .skill-chip.must {
   color: var(--accent);
   border-color: color-mix(in oklab, var(--accent) 50%, transparent);
@@ -446,9 +467,11 @@ button:disabled {
 
 /* ---------- analytics ---------- */
 
+/* auto-fit so a row of stat tiles distributes evenly instead of leaving one
+   orphaned on a second line. */
 .tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.85rem;
   margin: 1.25rem 0;
 }

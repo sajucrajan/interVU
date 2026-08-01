@@ -84,12 +84,12 @@ export class ReleaseNotifierService implements OnModuleInit, OnModuleDestroy {
           await this.notifications.enqueueEmail(
             p.organizationId,
             recipients.map((r) => r.email),
-          `New position released to you: ${p.title} — ${p.organization.name}`,
+          `New position released to you: ${p.reference} ${p.title} — ${p.organization.name}`,
           `Hello ${release.vendorOrg.vendor.name},
 
 ${p.organization.name} has released a position to you on InterVU:
 
-  ${p.title}
+  ${p.reference} — ${p.title}
   ${[p.seniority, p.employmentType?.replaceAll("_", " "), p.locationPolicy, p.locationText].filter(Boolean).join(" · ")}
   Openings: ${p.openings}${rate}
 

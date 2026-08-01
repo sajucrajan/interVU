@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 
 interface Detail {
   id: string;
+  reference: string;
   title: string;
   description: string;
   status: string;
@@ -58,7 +59,9 @@ export default function PositionDetailPage() {
     <main className="wide">
       <p><a href="/dashboard">← Dashboard</a></p>
       <div className="row spread">
-        <h1 style={{ marginBottom: 0 }}>{p.title}</h1>
+        <h1 style={{ marginBottom: 0 }}>
+          <span className="ref-code ref-lg">{p.reference}</span> {p.title}
+        </h1>
         <span className={`badge ${p.status === "open" ? "ok" : ""}`}>{p.status}</span>
       </div>
       <p className="muted" style={{ marginTop: "0.4rem" }}>

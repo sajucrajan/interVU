@@ -11,7 +11,7 @@ interface Application {
   currentStage: string;
   status: string;
   candidate: { id: string; displayName: string };
-  position: { id: string; title: string; orgUnit: { name: string } };
+  position: { id: string; reference?: string; title: string; orgUnit: { name: string } };
   interviews: { id: string; roundName: string; status: string }[];
   decision: { outcome: string } | null;
 }
@@ -243,7 +243,12 @@ function PipelineBoard() {
                       <strong>{a.candidate.displayName}</strong>
                     </Link>
                   </td>
-                  <td>{a.position.title}</td>
+                  <td>
+                    {a.position.reference && (
+                      <span className="ref-code">{a.position.reference}</span>
+                    )}{" "}
+                    {a.position.title}
+                  </td>
                   <td className="muted">{a.position.orgUnit.name}</td>
                   {!stageParam && (
                     <td>
@@ -283,6 +288,7 @@ function PipelineBoard() {
                       <ActionsMenu items={menuFor(a)} label="⋯" />
                     </div>
                     <div className="muted" style={{ fontSize: "0.8rem" }}>
+                      {a.position.reference ? `${a.position.reference} · ` : ""}
                       {a.position.title} · {a.position.orgUnit.name}
                     </div>
                     <div style={{ marginTop: "0.35rem" }}>

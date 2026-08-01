@@ -35,6 +35,7 @@ export class PositionsService {
         detail: "Positions attach to team nodes, not units/verticals",
       });
     }
+    const reference = await this.nextReference(organizationId);
     const skills = await this.panels.upsertSkills(
       organizationId,
       input.skills.map((s) => s.name),
@@ -46,6 +47,7 @@ export class PositionsService {
       data: {
         organizationId,
         orgUnitId: unit.id,
+        reference,
         title: input.title,
         description: input.description ?? "",
         openings: input.openings ?? 1,
@@ -73,6 +75,20 @@ export class PositionsService {
         },
       },
     });
+  }
+
+  /**
+   * Next human-readable reference for the org (POS-001, POS-002, …).
+   * The unique index is the real guard; on a race the caller retries.
+   */
+  private async nextReference(organizationId: string): Promise<string> {
+    const latest = await this.prisma.position.findFirst({
+      where: { organizationId },
+      orderBy: { reference: "desc" },
+      select: { reference: true },
+    });
+    const n = latest ? Number(latest.reference.replace(/\D/g, "")) || 0 : 0;
+    return `POS-${String(n + 1).padStart(3, "0")}`;
   }
 
   /** Full JD view: role identity, skill matrix, must-haves, release state. */

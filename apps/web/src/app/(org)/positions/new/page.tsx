@@ -121,13 +121,33 @@ export default function NewPositionPage() {
     }
   }
 
+  const dirty =
+    form.title.trim() !== "" ||
+    form.description.trim() !== "" ||
+    mustHaves.length > 0 ||
+    skills.some((s) => s.name.trim() !== "");
+
+  function cancel() {
+    if (dirty && !window.confirm("Discard this position? Your changes will be lost.")) {
+      return;
+    }
+    router.push("/positions");
+  }
+
   return (
     <main className="wide">
-      <h1>New position</h1>
-      <p className="muted" style={{ marginTop: 0 }}>
-        The structured posting is the single source of truth: it renders the job
-        description, drives vendor sourcing, and feeds panel matching.
-      </p>
+      <div className="row spread">
+        <div>
+          <h1 style={{ marginBottom: "0.2rem" }}>New position</h1>
+          <p className="muted" style={{ marginTop: 0 }}>
+            The structured posting is the single source of truth: it renders the job
+            description, drives vendor sourcing, and feeds panel matching.
+          </p>
+        </div>
+        <button type="button" className="secondary" onClick={cancel}>
+          Cancel
+        </button>
+      </div>
       <form onSubmit={submit}>
         <div className="card">
           <p className="chart-title">Role</p>
@@ -323,6 +343,9 @@ export default function NewPositionPage() {
               <option value="draft">Save as draft</option>
             </select>
             <button disabled={busy}>{busy ? "Creating…" : "Create position"}</button>
+            <button type="button" className="secondary" onClick={cancel} disabled={busy}>
+              Cancel
+            </button>
           </div>
           {error && <p className="error">{error}</p>}
         </div>

@@ -12,6 +12,7 @@ interface Me {
 }
 interface VendorPosition {
   id: string;
+  reference: string;
   organization: string;
   title: string;
   description: string;
@@ -99,6 +100,7 @@ export default function VendorHome() {
         <div className="card" key={p.id}>
           <div className="row spread">
             <div>
+              <span className="ref-code">{p.reference}</span>{" "}
               <strong>{p.title}</strong>{" "}
               <span className="muted">
                 · {p.organization} · {p.openings} opening{p.openings > 1 ? "s" : ""}

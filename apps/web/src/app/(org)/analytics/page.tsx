@@ -25,6 +25,7 @@ interface Overview {
     other: number;
   }[];
   hierarchy: SunburstNode;
+  skill_hierarchy: SunburstNode;
 }
 
 /* Ordinal blue ramp (reference palette): light starts at step 250, dark stops
@@ -73,6 +74,9 @@ export default function AnalyticsPage() {
   const funnelMax = Math.max(...funnelSteps.map(([, v]) => v), 1);
   const funnelColors = dark ? FUNNEL_DARK : FUNNEL_LIGHT;
   const vendorMax = Math.max(...data.vendors.map((v) => v.submissions), 1);
+  const skills = (data.skill_hierarchy?.children ?? [])
+    .map((s) => ({ name: s.name, value: sumOf(s) }))
+    .sort((a, b) => b.value - a.value);
 
   return (
     <main className="wide">
@@ -94,7 +98,7 @@ export default function AnalyticsPage() {
         <div className="card">
           <p className="chart-title">Where submissions land</p>
           <p className="chart-sub">
-            Organization → vertical → team → position, by submission volume.
+            Vertical → team → position, by submission volume.
           </p>
           <table className="data">
             <thead>
@@ -104,11 +108,13 @@ export default function AnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              <HierarchyRows node={data.hierarchy} depth={0} />
+              {/* Stop at positions — candidate-level detail belongs in the
+                  explorer, not a summary table. */}
+              <HierarchyRows node={data.hierarchy} depth={0} maxDepth={3} />
             </tbody>
           </table>
           <p style={{ marginBottom: 0, marginTop: "0.8rem" }}>
-            <Link href="/explore">Open the interactive explorer →</Link>
+            <Link href="/explore">Drill down to candidates in the explorer →</Link>
           </p>
         </div>
 
@@ -169,10 +175,51 @@ export default function AnalyticsPage() {
               ))}
             </div>
           </div>
+
+          <div className="card">
+            <p className="chart-title">Demand by technology</p>
+            <p className="chart-sub">
+              Submissions against roles requiring each skill. A role needing
+              several appears under each.
+            </p>
+            {skills.length === 0 ? (
+              <p className="muted">No skills tagged on positions yet.</p>
+            ) : (
+              <>
+                {skills.slice(0, 8).map((s) => (
+                  <div className="hbar-row" key={s.name}>
+                    <span className="muted">{s.name}</span>
+                    <div className="hbar-track">
+                      <div
+                        className="hbar-seg"
+                        style={{
+                          width: `${(s.value / skills[0]!.value) * 100}%`,
+                          background: "var(--s3)",
+                        }}
+                        title={`${s.name}: ${s.value}`}
+                      />
+                    </div>
+                    <span className="hbar-val">{s.value}</span>
+                  </div>
+                ))}
+                {skills.length > 8 && (
+                  <p className="muted" style={{ fontSize: "0.82rem", marginBottom: 0 }}>
+                    +{skills.length - 8} more —{" "}
+                    <Link href="/explore">see all in the explorer</Link>
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </main>
   );
+}
+
+function sumOf(node: SunburstNode): number {
+  if (node.value !== undefined && !node.children?.length) return node.value;
+  return (node.children ?? []).reduce((n, c) => n + sumOf(c), 0);
 }
 
 function Tile({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
@@ -184,7 +231,15 @@ function Tile({ label, value, accent }: { label: string; value: number; accent?:
   );
 }
 
-function HierarchyRows({ node, depth }: { node: SunburstNode; depth: number }) {
+function HierarchyRows({
+  node,
+  depth,
+  maxDepth,
+}: {
+  node: SunburstNode;
+  depth: number;
+  maxDepth?: number;
+}) {
   const value =
     node.value ??
     (node.children ?? []).reduce(function sum(n: number, c: SunburstNode): number {
@@ -198,9 +253,10 @@ function HierarchyRows({ node, depth }: { node: SunburstNode; depth: number }) {
           <td className="num">{value}</td>
         </tr>
       )}
-      {(node.children ?? []).map((c, i) => (
-        <HierarchyRows key={i} node={c} depth={depth + 1} />
-      ))}
+      {(maxDepth === undefined || depth < maxDepth) &&
+        (node.children ?? []).map((c, i) => (
+          <HierarchyRows key={i} node={c} depth={depth + 1} maxDepth={maxDepth} />
+        ))}
     </>
   );
 }
