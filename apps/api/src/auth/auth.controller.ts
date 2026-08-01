@@ -1,6 +1,16 @@
-import { Body, Controller, Get, Post, Req, Res, UnauthorizedException } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+} from "@nestjs/common";
 import type { Request, Response } from "express";
 import { z } from "zod";
+import { ActivateAccount } from "@intervu/contracts";
 import { parseBody } from "../common/zod";
 import { readCookie } from "../common/cookies";
 import { AuthzService } from "../entitlements/authz.service";
@@ -46,6 +56,23 @@ export class AuthController {
     );
     this.setCookie(res, session);
     return { ok: true, expires_at: session.expiresAt.toISOString() };
+  }
+
+  /**
+   * Look up an invitation without redeeming it, so the activation page can
+   * greet the user and show which organization they're joining. Unauthenticated
+   * by necessity — the token IS the credential.
+   */
+  @Get("invite/:token")
+  async invite(@Param("token") token: string) {
+    return this.auth.describeInvite(token);
+  }
+
+  /** Redeem an invitation: set the password and activate the account. */
+  @Post("activate")
+  async activate(@Body() body: unknown) {
+    const input = parseBody(ActivateAccount, body);
+    return this.auth.activate(input.token, input.password);
   }
 
   @Post("logout")

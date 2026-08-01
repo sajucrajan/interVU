@@ -32,6 +32,20 @@ export class Access {
     if (unitId === undefined) return scope.length > 0;
     return scope.includes(unitId);
   }
+
+  /**
+   * May the user hand out access AT `unitId` (null = org-wide)?
+   *
+   * Distinct from `can(permission, unitId)`: granting is the one operation
+   * where the *absence* of a unit means "everywhere" rather than "anywhere",
+   * so a unit-scoped admin must never satisfy it. Otherwise a team-level
+   * admin could mint themselves an org-wide grant and escape their scope.
+   */
+  canGrantAt(permission: Permission, unitId: string | null): boolean {
+    const scope = this.unitIdsFor(permission);
+    if (scope === "org") return true;
+    return unitId !== null && scope.includes(unitId);
+  }
 }
 
 /** Expand each membership's scope node into its subtree. */

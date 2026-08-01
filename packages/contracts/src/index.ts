@@ -15,6 +15,46 @@ export const OrgUnitCreate = z.object({
 export type OrgUnitKind = z.infer<typeof OrgUnitKind>;
 export type OrgUnitCreate = z.infer<typeof OrgUnitCreate>;
 
+// --- Org users & access grants (docs/09-entitlements.md)
+
+export const OrgRoleEnum = z.enum([
+  "org_admin",
+  "recruiter",
+  "hiring_manager",
+  "project_manager",
+  "interviewer",
+]);
+
+/** A `role @ scope` grant. org_unit_id null/absent = org-wide. */
+export const MembershipGrant = z.object({
+  role: OrgRoleEnum,
+  org_unit_id: z.string().uuid().nullish(),
+});
+
+/** At least one grant: a user with no role can sign in and see nothing. */
+export const OrgUserCreate = z.object({
+  email: z.string().email().max(320),
+  name: z.string().min(1).max(200),
+  memberships: z.array(MembershipGrant).min(1),
+});
+
+export const OrgUserUpdate = z.object({
+  name: z.string().min(1).max(200).optional(),
+  status: z.enum(["active", "disabled"]).optional(),
+});
+
+/** Redeeming an invite: the token sets the password and activates the user. */
+export const ActivateAccount = z.object({
+  token: z.string().min(20),
+  password: z.string().min(12).max(200),
+});
+
+export type OrgRoleEnum = z.infer<typeof OrgRoleEnum>;
+export type MembershipGrant = z.infer<typeof MembershipGrant>;
+export type OrgUserCreate = z.infer<typeof OrgUserCreate>;
+export type OrgUserUpdate = z.infer<typeof OrgUserUpdate>;
+export type ActivateAccount = z.infer<typeof ActivateAccount>;
+
 // --- Positions & release (docs/03-data-model.md, docs/05-vendor-portal-and-release.md)
 
 export const ReleaseMode = z.enum(["all_at_once", "tiered", "manual"]);

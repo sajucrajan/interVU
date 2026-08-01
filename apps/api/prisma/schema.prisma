@@ -22,12 +22,13 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  orgUnits   OrgUnit[]
-  orgUsers   OrgUser[]
-  vendorOrgs VendorOrg[]
-  positions  Position[]
-  candidates Candidate[]
-  auditLogs  AuditLog[]
+  orgUnits     OrgUnit[]
+  orgUsers     OrgUser[]
+  vendorOrgs   VendorOrg[]
+  positions    Position[]
+  candidates   Candidate[]
+  auditLogs    AuditLog[]
+  inviteTokens InviteToken[]
 
   @@map("organization")
 }
@@ -100,6 +101,7 @@ model OrgUser {
   panelistOn   InterviewPanelist[]
   scorecards   Scorecard[]
   panelMemberships PanelMember[]
+  inviteTokens InviteToken[]
 
   @@unique([organizationId, email])
   @@map("org_user")
@@ -181,12 +183,40 @@ model VendorUser {
   status       UserStatus @default(invited)
   createdAt    DateTime   @default(now()) @map("created_at")
 
-  vendor      Vendor       @relation(fields: [vendorId], references: [id])
-  sessions    Session[]
-  submissions Submission[]
+  vendor       Vendor        @relation(fields: [vendorId], references: [id])
+  sessions     Session[]
+  submissions  Submission[]
+  inviteTokens InviteToken[]
 
   @@unique([vendorId, email])
   @@map("vendor_user")
+}
+
+/// A single-use activation link for a user who has no password yet.
+///
+/// Only the SHA-256 hash of the token is stored — the same discipline as
+/// `Session` — so a leaked database row cannot be replayed against the
+/// activation endpoint. Exactly one of orgUserId/vendorUserId is set.
+///
+/// The token travels by email only, never through the org-wide Slack/Teams
+/// channels: those have a wider audience than the invitee.
+model InviteToken {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  orgUserId      String?   @map("org_user_id") @db.Uuid
+  vendorUserId   String?   @map("vendor_user_id") @db.Uuid
+  tokenHash      String    @unique @map("token_hash")
+  expiresAt      DateTime  @map("expires_at")
+  usedAt         DateTime? @map("used_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  orgUser      OrgUser?     @relation(fields: [orgUserId], references: [id])
+  vendorUser   VendorUser?  @relation(fields: [vendorUserId], references: [id])
+
+  @@index([orgUserId])
+  @@index([vendorUserId])
+  @@map("invite_token")
 }
 
 /// Server-side sessions. Only the SHA-256 hash of the bearer token is stored;

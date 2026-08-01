@@ -16,6 +16,7 @@ const LINKS: { href: string; label: string; needs?: string }[] = [
   { href: "/analytics", label: "Analytics", needs: "positions.view" },
   { href: "/explore", label: "Explore", needs: "positions.view" },
   { href: "/interviews", label: "My interviews" },
+  { href: "/admin/people", label: "Admin", needs: "org.manage_users" },
 ];
 
 interface OrgMe {

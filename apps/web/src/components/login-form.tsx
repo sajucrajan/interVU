@@ -26,6 +26,10 @@ export function LoginForm({ kind }: { kind: "org" | "vendor" }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    // Arriving from /activate carries both, so a freshly-activated user only
+    // has to type the password they just chose.
+    const emailFromUrl = params.get("email");
+    if (emailFromUrl) setEmail(emailFromUrl);
     api<LoginContext>("/auth/login-context")
       .then((c) => {
         setCtx(c);
