@@ -7,7 +7,9 @@ API-first: the org workspace and vendor portal consume the same documented REST 
 > `POST /auth/vendor/login`, `POST /auth/logout`, `GET /auth/me` ✅ (cookie
 > sessions). **Both logins take `org_slug`** — vendors authenticate per client
 > organization and a session is bound to exactly one organization
-> (docs/05 §1). Also implemented beyond the original sketch: `GET /org-units` +
+> (docs/05 §1). `GET /auth/login-context` ✅ (unauthenticated) tells the
+> sign-in page whether to auto-resolve a single organization, show a
+> dropdown, or ask for a typed slug — see `LOGIN_ORG_MODE`. Also implemented beyond the original sketch: `GET /org-units` +
 > `POST /org-units` ✅, `GET /org-users` ✅, `GET|POST /panels` +
 > `GET /applications/{id}/panel-suggestions` ✅ (skill-matched panelists),
 > `GET /skills` ✅, `GET /analytics/overview` ✅, `GET|PATCH /settings` ✅

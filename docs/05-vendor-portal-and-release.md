@@ -23,6 +23,19 @@ shape as org login. This is deliberate:
 - Login requires an existing `vendor_org` contract, so an agency cannot
   discover which organizations exist by probing slugs.
 
+**How the organization is chosen at sign-in** — `GET /auth/login-context`
+tells the page what to render, controlled by the `LOGIN_ORG_MODE` env var:
+
+| Mode | Behaviour | Use when |
+|---|---|---|
+| `auto` *(default)* | Exactly one organization on the deployment → it is resolved automatically and the field disappears ("Signing in to Acme Corp"). More than one → a typed slug, enumerating nothing. | The normal one-org-per-deployment install |
+| `picker` | Dropdown of all organizations. | A multi-org install with a soft trust boundary (e.g. subsidiaries) — note it **publishes your organization list to anyone**, including on the vendor tab |
+| `manual` | Always a typed slug, never enumerate, even with one organization. | Privacy-strict deployments |
+
+Regardless of mode, invitation links may carry `?org=<slug>` to pre-fill the
+field — the recommended way to onboard vendors without either typing or a
+public list.
+
 ### Vendor lifecycle
 `invited → active → suspended → terminated`. Suspension/termination immediately removes portal visibility of open positions; **historical submissions remain** (read-only) because ownership and audit outlive contracts.
 
