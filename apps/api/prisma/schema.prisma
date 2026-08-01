@@ -705,9 +705,8 @@ model InterviewPanelist {
   orgUserId   String @map("org_user_id") @db.Uuid
   role        String @default("interviewer")
 
-  interview    Interview             @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  orgUser      OrgUser               @relation(fields: [orgUserId], references: [id])
-  competencies ScorecardCompetency[]
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  orgUser   OrgUser   @relation(fields: [orgUserId], references: [id])
 
   @@unique([interviewId, orgUserId])
   @@map("interview_panelist")
