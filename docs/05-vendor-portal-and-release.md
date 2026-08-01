@@ -144,15 +144,13 @@ any SMTP server, Slack, Teams, custom endpoints, all of them, or none:
 **Admin → Vendors** (`vendors.manage`) administers the contract itself: tier,
 status, contract window, and the people at the agency.
 
-- A `Vendor` is a **global identity** — the same agency may supply several
-  client organizations on one deployment — while `VendorOrg` is the contract
-  with *this* organization and carries everything an admin controls. Adding a
-  vendor whose name already exists reuses that identity and adds a contract,
-  rather than duplicating the agency per client.
+- A **deployment serves one organization**, so a vendor belongs to that
+  organization and nothing else. `Vendor` carries the agency's identity and
+  `VendorOrg` the contract terms; the two are 1:1, and an agency of the same
+  name is never silently reused — there is no other tenant it could come from.
 - **Vendor people** are invited through the same single-use activation flow as
   org users (docs/09), and land on the vendor portal afterwards. Their
-  credential namespace is `(vendor, email)`, so the same recruiter signs in
-  separately for each client organization.
+  credential namespace is `(vendor, email)`.
 - Inviting people to a **suspended or terminated** contract is refused —
   onboarding someone who cannot sign in is never what was meant.
 

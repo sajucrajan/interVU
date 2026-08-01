@@ -12,10 +12,10 @@ import { InvitesService, type Invite } from "../invites/invites.service";
 /**
  * Contract administration for the org↔vendor relationship.
  *
- * A `Vendor` is a global identity — the same agency may supply several client
- * organizations — while `VendorOrg` is the contract with THIS organization and
- * carries everything an admin controls: tier, status and dates. Every query
- * here is therefore keyed on the contract, never on the vendor alone.
+ * `Vendor` holds the agency's identity and `VendorOrg` the contract terms —
+ * tier, status, dates. A deployment serves one organization, so the two are
+ * 1:1 in practice; queries stay keyed on the contract because that is what
+ * submissions and releases reference.
  */
 @Injectable()
 export class VendorsService {
@@ -79,28 +79,27 @@ export class VendorsService {
   }
 
   /**
-   * Add a vendor. If an agency with this name already exists globally — it
-   * supplies another organization on this deployment — reuse that identity and
-   * add a contract, so the same agency isn't duplicated per client.
+   * Add a vendor. A deployment serves ONE organization (docs/02 §1), so a
+   * vendor belongs to this organization and nothing else — an agency of the
+   * same name is never silently reused, because there is no other tenant it
+   * could have come from.
    */
   async create(organizationId: string, input: VendorCreate) {
     const name = input.name.trim();
-    const vendor =
-      (await this.prisma.vendor.findFirst({ where: { name } })) ??
-      (await this.prisma.vendor.create({ data: { name } }));
 
-    const existing = await this.prisma.vendorOrg.findUnique({
-      where: { vendorId_organizationId: { vendorId: vendor.id, organizationId } },
+    const clash = await this.prisma.vendorOrg.findFirst({
+      where: { organizationId, vendor: { name } },
     });
-    if (existing) {
+    if (clash) {
       throw new ConflictException({
         code: "contract_exists",
-        detail: `${name} already has a contract with this organization.`,
+        detail: `${name} is already a vendor here.`,
       });
     }
 
     this.assertDateOrder(input.contract_start, input.contract_end);
 
+    const vendor = await this.prisma.vendor.create({ data: { name } });
     return this.prisma.vendorOrg.create({
       data: {
         vendorId: vendor.id,

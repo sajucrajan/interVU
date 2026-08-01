@@ -258,10 +258,6 @@ function ContractForm({
         <>
           <label>Agency name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} />
-          <p className="muted" style={{ fontSize: "0.85rem" }}>
-            If this agency already supplies another organization on this
-            deployment, the existing identity is reused rather than duplicated.
-          </p>
         </>
       )}
       <div className="row">
