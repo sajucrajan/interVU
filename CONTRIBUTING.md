@@ -79,9 +79,22 @@ pnpm --filter @intervu/api exec prisma studio    # browse the database
 - Conventional commits; PRs need a passing CI and one maintainer review.
 - DCO: sign off your commits (`git commit -s`).
 
-> **Note:** the GitHub Actions workflow is currently disabled by the maintainer
-> while the project stabilizes. Run `pnpm typecheck && pnpm test` locally before
-> opening a PR.
+## How a change reaches `main`
+
+`main` is protected — it takes no direct pushes, force-pushes or deletions. Every
+change arrives as a pull request from a branch (or, for outside contributors, a
+fork), and merges only once:
+
+1. **CI is green.** Two required checks must pass — `build-and-test` (install,
+   build, unit and eval suites) and `db-verify` (a fresh Postgres taken through
+   migrate → seed → seed again, so migrations and the seed can't drift apart).
+2. **A maintainer has approved it.** Pushing new commits to an approved PR
+   dismisses the approval, so what gets merged is what was reviewed.
+3. **The branch is up to date with `main`,** so the checks that passed ran
+   against the code that actually lands.
+
+Run `pnpm typecheck && pnpm test` locally first — it's the same ground CI covers,
+and it's faster to find out on your machine.
 
 ## Code of conduct
 
