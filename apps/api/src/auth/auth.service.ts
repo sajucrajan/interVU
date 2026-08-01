@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import type { TenantContext } from "../tenancy/tenant-context";
-import { verifyPassword } from "./password";
+import { hashPassword, verifyPassword } from "./password";
 
 export const SESSION_COOKIE = "intervu_session";
 const SESSION_TTL_MS = 7 * 24 * 3_600_000;
@@ -52,6 +52,94 @@ export class AuthService {
       : null;
     this.checkCredentials(user?.passwordHash, password, user?.status);
     return this.createSession({ vendorUserId: user!.id, organizationId: org!.id });
+  }
+
+  /**
+   * Describe a pending invitation so the activation page can greet the user.
+   * Reveals only what the token holder already knows — their own name, email
+   * and organization — and nothing at all for a bad or spent token.
+   */
+  async describeInvite(token: string) {
+    const invite = await this.findLiveInvite(token);
+    const org = await this.prisma.organization.findUnique({
+      where: { id: invite.organizationId },
+      select: { name: true, slug: true },
+    });
+    const user = invite.orgUser ?? invite.vendorUser!;
+    return {
+      email: user.email,
+      name: user.name,
+      kind: invite.orgUserId ? "org" : "vendor",
+      organization: { name: org?.name ?? "", slug: org?.slug ?? "" },
+    };
+  }
+
+  /**
+   * Redeem an invitation. Setting the password and marking the token spent
+   * happen in one transaction, so a token can never be used twice — and every
+   * other outstanding invite for that user is retired at the same time.
+   */
+  async activate(token: string, password: string) {
+    const invite = await this.findLiveInvite(token);
+    const passwordHash = hashPassword(password);
+
+    await this.prisma.$transaction(async (tx) => {
+      // Re-check inside the transaction: two concurrent redemptions of the
+      // same link must not both succeed.
+      const claimed = await tx.inviteToken.updateMany({
+        where: { id: invite.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count === 0) {
+        throw new BadRequestException({
+          code: "invite_invalid",
+          detail: "This invitation link is no longer valid.",
+        });
+      }
+      if (invite.orgUserId) {
+        await tx.orgUser.update({
+          where: { id: invite.orgUserId },
+          data: { passwordHash, status: "active" },
+        });
+      } else {
+        await tx.vendorUser.update({
+          where: { id: invite.vendorUserId! },
+          data: { passwordHash, status: "active" },
+        });
+      }
+    });
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: invite.organizationId },
+      select: { slug: true },
+    });
+    const user = invite.orgUser ?? invite.vendorUser!;
+    // Enough for the web app to send them to the right sign-in form, prefilled.
+    return {
+      ok: true,
+      kind: invite.orgUserId ? "org" : "vendor",
+      email: user.email,
+      org_slug: org?.slug ?? "",
+    };
+  }
+
+  private async findLiveInvite(token: string) {
+    const invite = await this.prisma.inviteToken.findUnique({
+      where: { tokenHash: sha256(token) },
+      include: {
+        orgUser: { select: { email: true, name: true } },
+        vendorUser: { select: { email: true, name: true } },
+      },
+    });
+    // One error for missing, spent and expired alike — a probing caller learns
+    // nothing about which tokens ever existed.
+    if (!invite || invite.usedAt || invite.expiresAt < new Date()) {
+      throw new BadRequestException({
+        code: "invite_invalid",
+        detail: "This invitation link is invalid or has expired.",
+      });
+    }
+    return invite;
   }
 
   private checkCredentials(

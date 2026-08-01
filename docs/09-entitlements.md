@@ -59,6 +59,42 @@ Roles are **bundles of permissions**; enforcement is always on permissions, neve
 - **Moving a unit** re-parents its subtree and therefore its effective entitlements; the move is audited (`org_unit.moved`) precisely because it is an entitlement change.
 - **Resolution is query-time:** effective unit-sets are computed per request from the memberships + tree (small, cached per request). Nothing is denormalized, so there is no stale-grant window.
 
+### Administering grants (Admin → People)
+
+Users holding `org.manage_users` get **Admin → People**: the full directory
+including invited and disabled users, each grant shown as `role @ scope`, and
+controls to invite, grant, revoke, disable and re-enable.
+
+Two rules keep the surface from undermining the model it edits:
+
+- **A grant may never exceed the granter's own scope.** `Access.canGrantAt()`
+  is deliberately stricter than `can()`: for granting, a *missing* unit means
+  "everywhere" rather than "anywhere", so a unit-scoped admin cannot mint an
+  org-wide grant, nor grant sideways into a subtree they don't administer.
+  Without this distinction a team-level admin could promote themselves out of
+  their own scope in one call.
+- **The last organization-wide `org_admin` cannot be disabled or revoked.**
+  Otherwise an organization can lock itself out of user and structure
+  management with no route back in through the UI.
+
+### Invitations
+
+New users are created with no password, in `invited` status, and receive a
+single-use activation link (`/activate?token=…`):
+
+- Only the **SHA-256 hash** of the token is stored, the same discipline as
+  sessions — a leaked `invite_token` row cannot be replayed.
+- Links **expire after 7 days**, are **single-use**, and issuing a new one
+  retires any outstanding invitation for that user.
+- Redemption sets the password and flips the user to `active` in one
+  transaction, so two concurrent redemptions cannot both succeed.
+- The link is delivered **by email only** — never through the org-wide
+  Slack/Teams channels, whose audience is far wider than the invitee. It is
+  also returned once to the inviting admin, so deployments with no SMTP
+  configured can still onboard people.
+- Missing, spent and expired tokens return one identical error, so probing
+  reveals nothing about which tokens ever existed.
+
 ## 4. Contextual entitlements (where pure RBAC isn't enough)
 
 Three flows deliberately cross or narrow the scope model; each is an explicit, documented exception — not a hole:
