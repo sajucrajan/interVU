@@ -2134,10 +2134,26 @@ table.data td time {
 
 .feature-row {
   display: grid;
-  grid-template-columns: 78px 1fr 40px;
+  /* minmax(0, …) so a long label shrinks and truncates instead of running
+     straight through the bar beside it. */
+  grid-template-columns: minmax(0, 92px) minmax(0, 1fr) 40px;
   align-items: center;
   gap: 10px;
   margin-top: 7px;
+}
+
+.feature-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--step-3);
+  justify-content: flex-end;
 }
 
 .feature-track {

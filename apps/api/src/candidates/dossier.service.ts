@@ -3,6 +3,29 @@ import { PrismaService } from "../prisma/prisma.service";
 
 const DAY = 86_400_000;
 
+/**
+ * feature_breakdown holds two different kinds of thing: per-feature SIMILARITY
+ * scores (0..1), and boolean diagnostics about how the match was reached.
+ * Only the first kind belongs on a confidence bar — rendering
+ * `distinct_candidates_hit` as "100%" claims a contribution it never made.
+ */
+const SIMILARITY_FEATURES: { key: string; label: string }[] = [
+  { key: "name", label: "Name" },
+  { key: "email_local", label: "Email" },
+  { key: "employer", label: "Employer" },
+  { key: "title", label: "Title" },
+  { key: "location", label: "Location" },
+];
+
+/** Boolean diagnostics, shown as plain statements rather than as bars. */
+const SIGNAL_LABELS: Record<string, string> = {
+  email_hit: "Matched on email",
+  phone_hit: "Matched on phone",
+  identity_conflict: "Conflicting identity",
+  erased_record_existed: "An erased record matched",
+  distinct_candidates_hit: "Matched several candidates",
+};
+
 /** How a stored identity came to be attached to this master record. */
 function matchMethod(kind: string, valueRaw: string, valueNorm: string): string {
   if (kind === "tombstone") return "erased";
@@ -70,7 +93,10 @@ export class DossierService {
       // breakdown behind it. Today this is only visible on /match-reviews —
       // it belongs where people actually decide about the person.
       this.prisma.matchDecision.findFirst({
-        where: { candidateId },
+        // A zero score means nothing matched — a NEW candidate, not a weak
+        // one. Reporting "0% identity confidence" would read as doubt about a
+        // record we were never uncertain about.
+        where: { candidateId, score: { gt: 0 } },
         orderBy: { score: "desc" },
         select: { score: true, featureBreakdown: true },
       }),
@@ -128,9 +154,21 @@ export class DossierService {
       /** 3rd time means three applications, not three submissions. */
       application_count: candidate.applications.length,
       identity_confidence: bestMatch ? Math.round(bestMatch.score * 100) : null,
-      identity_features: Object.entries(features)
-        .filter(([, v]) => typeof v === "number")
-        .map(([key, value]) => ({ key, value: Math.round(value * 100) })),
+      identity_features: SIMILARITY_FEATURES.filter(
+        (f) => typeof features[f.key] === "number",
+      ).map((f) => ({
+        key: f.key,
+        label: f.label,
+        value: Math.round((features[f.key] as number) * 100),
+      })),
+      /** Diagnostics worth stating, but never as a percentage. */
+      identity_signals: Object.keys(SIGNAL_LABELS)
+        .filter((k) => Boolean(features[k]))
+        .map((k) => ({
+          key: k,
+          label: SIGNAL_LABELS[k]!,
+          tone: k === "identity_conflict" || k === "erased_record_existed" ? "warn" : "ok",
+        })),
       identities: candidate.identities.map((i) => ({
         id: i.id,
         kind: i.kind,

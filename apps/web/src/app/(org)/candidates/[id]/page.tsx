@@ -28,7 +28,8 @@ interface Dossier {
   vendors: number;
   application_count: number;
   identity_confidence: number | null;
-  identity_features: { key: string; value: number }[];
+  identity_features: { key: string; label: string; value: number }[];
+  identity_signals: { key: string; label: string; tone: "ok" | "warn" }[];
   identities: { id: string; kind: string; value: string; method: string }[];
   sources: {
     id: string;
@@ -178,7 +179,9 @@ export default function CandidateDossierPage() {
                 the review queue, not where people decide about the person. */}
             {d.identity_features.map((f) => (
               <div key={f.key} className="feature-row">
-                <span className="mono-label">{f.key}</span>
+                <span className="mono-label feature-name" title={f.label}>
+                  {f.label}
+                </span>
                 <span className="feature-track">
                   <span
                     style={{
@@ -190,6 +193,20 @@ export default function CandidateDossierPage() {
                 <span className="feature-pct">{f.value}%</span>
               </div>
             ))}
+            {/* Diagnostics are statements, not contributions — a boolean has
+                no percentage to show. */}
+            {d.identity_signals?.length > 0 && (
+              <div className="signal-row">
+                {d.identity_signals.map((sg) => (
+                  <span
+                    key={sg.key}
+                    className={`badge ${sg.tone === "warn" ? "warn" : "ok"}`}
+                  >
+                    {sg.label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </header>
