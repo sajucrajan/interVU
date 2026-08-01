@@ -1,501 +1,202 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, ApiError, apiErrorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
+import type { Worklist } from "@/lib/worklist";
 
-interface Me {
-  kind: string;
-  name: string;
-  email: string;
-  memberships: { role: string; org_unit_id: string | null }[];
-}
-interface Position {
-  id: string;
-  title: string;
-  status: string;
-  openings: number;
-  orgUnit: { name: string };
-  skills: { level: string; skill: { name: string } }[];
-  releasePolicy?: { mode: string } | null;
-  releases: { visibleFrom: string; vendorOrg: { vendor: { name: string } } }[];
-}
-interface Submission {
-  id: string;
-  status: string;
-  ownershipStatus: string;
-  receivedAt: string;
-  position: { title: string; orgUnit: { name: string } };
-  vendorOrg: { vendor: { name: string } };
-  candidate: { id: string; displayName: string } | null;
-  matchDecision: { outcome: string } | null;
-}
-interface Application {
-  id: string;
-  currentStage: string;
-  status: string;
-  candidate: { id: string; displayName: string };
-  position: { title: string; orgUnit: { name: string } };
-  interviews: { id: string; roundName: string; status: string }[];
-  decision: { outcome: string } | null;
-}
-interface OrgUserRow {
-  id: string;
-  name: string;
-  roles: string[];
-}
+const STAGE_LABEL: Record<string, string> = {
+  submitted: "New",
+  screening: "Screening",
+  interviewing: "Interviewing",
+  offer: "Offer",
+};
 
-const STAGES = ["submitted", "screening", "interviewing", "offer"];
-
-export default function OrgDashboard() {
+export default function Dashboard() {
   const router = useRouter();
-  const [me, setMe] = useState<Me | null>(null);
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [users, setUsers] = useState<OrgUserRow[]>([]);
-
-  const refresh = useCallback(async () => {
-    const [p, s, a, u] = await Promise.all([
-      api<Position[]>("/positions"),
-      api<Submission[]>("/submissions"),
-      api<Application[]>("/applications"),
-      api<OrgUserRow[]>("/org-users").catch(() => []),
-    ]);
-    setPositions(p);
-    setSubmissions(s);
-    setApplications(a);
-    setUsers(u);
-  }, []);
+  const [wl, setWl] = useState<Worklist | null>(null);
 
   useEffect(() => {
-    api<Me>("/auth/me")
-      .then((m) => {
-        if (m.kind !== "org") throw new Error();
-        setMe(m);
-        return refresh();
-      })
+    api<Worklist>("/me/worklist")
+      .then(setWl)
       .catch(() => router.push("/login"));
-  }, [router, refresh]);
+  }, [router]);
 
-  if (!me) return <main className="wide muted">Loading…</main>;
+  if (!wl) return <main className="wide muted">Loading…</main>;
 
-  const duplicates = submissions.filter((s) => s.ownershipStatus === "duplicate");
+  const firstName = wl.user.name.split(" ")[0];
+  const pipelineTotal = wl.pipeline.reduce((n, s) => n + s.count, 0);
 
   return (
     <main className="wide">
-      <div className="row spread">
-        <h1>Organization workspace</h1>
-        <div className="row">
-          <span className="muted">
-            {me.name} · {me.memberships.map((m) => m.role).join(", ")}
-          </span>
-          <button
-            className="secondary"
-            onClick={() =>
-              api("/auth/logout", { method: "POST" }).then(() => router.push("/login"))
-            }
-          >
-            Sign out
-          </button>
-        </div>
-      </div>
+      <h1 style={{ marginBottom: "0.2rem" }}>Good to see you, {firstName}</h1>
+      <p className="muted" style={{ marginTop: 0 }}>
+        {wl.total > 0
+          ? `${wl.total} item${wl.total === 1 ? "" : "s"} need your attention.`
+          : "Nothing is waiting on you right now."}
+      </p>
 
-      {duplicates.length > 0 && (
-        <div className="card">
-          <strong>⚠ {duplicates.length} duplicate submission contest{duplicates.length > 1 ? "s" : ""}</strong>
-          <p className="muted">
-            The same candidate arrived from more than one source. First valid
-            submission owns by default; arbitration is available on each row.
-          </p>
-        </div>
-      )}
-
-      <div className="row spread">
-        <h2>Positions</h2>
-        <a href="/positions/new"><button className="secondary">+ New position</button></a>
-      </div>
-      <table className="data">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Team</th>
-            <th>Status</th>
-            <th>Release</th>
-            <th>Vendors</th>
-          </tr>
-        </thead>
-        <tbody>
-          {positions.map((p) => (
-            <tr key={p.id}>
-              <td>
-                <a href={`/positions/${p.id}`}><strong>{p.title}</strong></a>
-                {p.skills.length > 0 && (
-                  <div style={{ marginTop: "0.2rem" }}>
-                    {p.skills.map((s) => (
-                      <span
-                        key={s.skill.name}
-                        className={`skill-chip ${s.level === "must_have" ? "must" : ""}`}
-                      >
-                        {s.skill.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </td>
-              <td>{p.orgUnit.name}</td>
-              <td>
-                <span className={`badge ${p.status === "open" ? "ok" : ""}`}>{p.status}</span>
-              </td>
-              <td className="muted">{p.releasePolicy?.mode.replaceAll("_", " ") ?? "—"}</td>
-              <td className="muted">
-                {p.releases.filter((r) => new Date(r.visibleFrom) <= new Date()).length}
-                {" / "}
-                {p.releases.length} released
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <h2>Applications</h2>
-      {applications.length === 0 ? (
-        <p className="muted">No applications yet.</p>
-      ) : (
-        applications.map((a) => (
-          <ApplicationCard key={a.id} app={a} users={users} onChange={refresh} />
-        ))
-      )}
-
-      <h2>Submissions</h2>
-      {submissions.length === 0 ? (
-        <p className="muted">No submissions yet.</p>
-      ) : (
-        <table className="data">
-          <thead>
-            <tr>
-              <th>Candidate</th>
-              <th>Position</th>
-              <th>Vendor</th>
-              <th>Status</th>
-              <th>Ownership</th>
-              <th>Match</th>
-              <th>CV</th>
-              <th>Received</th>
-            </tr>
-          </thead>
-          <tbody>
-            {submissions.map((s) => (
-              <tr key={s.id}>
-                <td>
-                  {s.candidate ? (
-                    <a href={`/candidates/${s.candidate.id}`}>
-                      <strong>{s.candidate.displayName}</strong>
-                    </a>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td>
-                  {s.position.title}{" "}
-                  <span className="muted">· {s.position.orgUnit.name}</span>
-                </td>
-                <td>{s.vendorOrg.vendor.name}</td>
-                <td>
-                  <span className={`badge ${s.status === "accepted" ? "ok" : s.status === "duplicate" ? "bad" : ""}`}>
-                    {s.status}
-                  </span>
-                </td>
-                <td>
-                  <span className={`badge ${s.ownershipStatus === "owner" ? "ok" : s.ownershipStatus === "duplicate" ? "warn" : ""}`}>
-                    {s.ownershipStatus.replaceAll("_", " ")}
-                  </span>
-                </td>
-                <td className="muted">{s.matchDecision?.outcome.replaceAll("_", " ") ?? "—"}</td>
-                <td>
-                  <a
-                    href="#"
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      try {
-                        const r = await api<{ url: string }>(`/submissions/${s.id}/resume`);
-                        window.open(r.url, "_blank");
-                      } catch (err) {
-                        alert(
-                          err instanceof ApiError && err.status === 404
-                            ? "No resume attached to this submission."
-                            : apiErrorMessage(err),
-                        );
-                      }
-                    }}
-                  >
-                    📄
-                  </a>
-                </td>
-                <td className="muted">{new Date(s.receivedAt).toLocaleString()}</td>
-              </tr>
+      {/* ---- The action queue: the reason to open this page ---- */}
+      <section>
+        <h2>Needs your attention</h2>
+        {wl.groups.length === 0 ? (
+          <div className="card empty-state">
+            <span className="empty-icon">✓</span>
+            <div>
+              <strong>You&apos;re all caught up.</strong>
+              <p className="muted" style={{ margin: 0 }}>
+                New submissions, reviews and interview feedback will appear here.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="work-grid">
+            {wl.groups.map((g) => (
+              <Link key={g.key} href={g.href} className={`work-card tone-${g.tone}`}>
+                <span className="work-count">{g.count}</span>
+                <span className="work-label">{g.label}</span>
+                <span className="work-go">Open →</span>
+              </Link>
             ))}
-          </tbody>
-        </table>
-      )}
-    </main>
-  );
-}
-
-function ApplicationCard({
-  app,
-  users,
-  onChange,
-}: {
-  app: Application;
-  users: OrgUserRow[];
-  onChange: () => void;
-}) {
-  const [action, setAction] = useState<"none" | "interview">("none");
-  const [error, setError] = useState<string | null>(null);
-
-  async function run(fn: () => Promise<unknown>) {
-    setError(null);
-    try {
-      await fn();
-      onChange();
-    } catch (e) {
-      setError(apiErrorMessage(e));
-    }
-  }
-
-  return (
-    <div className="card">
-      <div className="row spread">
-        <div>
-          <a href={`/candidates/${app.candidate.id}`}>
-            <strong>{app.candidate.displayName}</strong>
-          </a>{" "}
-          <span className="muted">
-            · {app.position.title} · {app.position.orgUnit.name}
-          </span>{" "}
-          <span className={`badge ${app.status === "active" ? "ok" : app.status === "rejected" ? "bad" : ""}`}>
-            {app.status}
-          </span>{" "}
-          <span className="badge">{app.currentStage}</span>
-          {app.decision && (
-            <span className={`badge ${app.decision.outcome === "offer" ? "ok" : "warn"}`}>
-              decision: {app.decision.outcome}
-            </span>
-          )}
-          {app.interviews.length > 0 && (
-            <span className="muted"> · {app.interviews.length} interview(s)</span>
-          )}
-        </div>
-        {app.status === "active" && (
-          <div className="row">
-            <select
-              value={app.currentStage}
-              onChange={(e) =>
-                run(() =>
-                  api(`/applications/${app.id}/transition`, {
-                    method: "POST",
-                    body: { to_stage: e.target.value },
-                  }),
-                )
-              }
-            >
-              {STAGES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-            <button
-              className="secondary"
-              onClick={() => setAction(action === "interview" ? "none" : "interview")}
-            >
-              Schedule interview
-            </button>
-            {!app.decision && (
-              <>
-                <button
-                  onClick={() =>
-                    run(() =>
-                      api(`/applications/${app.id}/decision`, {
-                        method: "POST",
-                        body: { outcome: "offer", reason: "" },
-                      }),
-                    )
-                  }
-                >
-                  Offer
-                </button>
-                <button
-                  className="secondary"
-                  onClick={() =>
-                    run(() =>
-                      api(`/applications/${app.id}/decision`, {
-                        method: "POST",
-                        body: { outcome: "reject", reason: "" },
-                      }),
-                    )
-                  }
-                >
-                  Reject
-                </button>
-              </>
-            )}
           </div>
         )}
-      </div>
-      {action === "interview" && (
-        <InterviewForm
-          applicationId={app.id}
-          users={users}
-          onDone={() => {
-            setAction("none");
-            onChange();
-          }}
-        />
-      )}
-      {error && <p className="error">{error}</p>}
-    </div>
-  );
-}
+      </section>
 
-interface PanelSuggestions {
-  position_skills: { name: string; level: string }[];
-  suggestions: {
-    org_user: { id: string; name: string };
-    panels: string[];
-    matched_skills: { name: string; level: string }[];
-    score: number;
-  }[];
-}
-
-function InterviewForm({
-  applicationId,
-  users,
-  onDone,
-}: {
-  applicationId: string;
-  users: OrgUserRow[];
-  onDone: () => void;
-}) {
-  const [round, setRound] = useState("Technical Round 1");
-  const [when, setWhen] = useState("");
-  const [panel, setPanel] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [suggested, setSuggested] = useState<PanelSuggestions | null>(null);
-
-  useEffect(() => {
-    api<PanelSuggestions>(`/applications/${applicationId}/panel-suggestions`)
-      .then(setSuggested)
-      .catch(() => setSuggested(null));
-  }, [applicationId]);
-
-  const toggle = (id: string) =>
-    setPanel((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await api(`/applications/${applicationId}/interviews`, {
-        method: "POST",
-        body: {
-          round_name: round,
-          scheduled_at: new Date(when).toISOString(),
-          duration_min: 60,
-          panelist_ids: panel,
-        },
-      });
-      onDone();
-    } catch (err) {
-      setError(apiErrorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <form onSubmit={submit} style={{ marginTop: "0.75rem" }}>
-      {suggested && suggested.position_skills.length > 0 && (
-        <div style={{ margin: "0.4rem 0 0.6rem" }}>
-          <span className="muted" style={{ fontSize: "0.8rem", marginRight: "0.5rem" }}>
-            Position skills:
-          </span>
-          {suggested.position_skills.map((s) => (
-            <span key={s.name} className={`skill-chip ${s.level === "must_have" ? "must" : ""}`}>
-              {s.name}
-            </span>
-          ))}
-        </div>
-      )}
-      {suggested && suggested.suggestions.length > 0 && (
-        <div style={{ marginBottom: "0.6rem" }}>
-          <label style={{ marginTop: 0 }}>
-            Suggested panelists (skill-matched — click to add)
-          </label>
-          {suggested.suggestions.map((s) => (
-            <div
-              key={s.org_user.id}
-              className={`suggestion-row ${panel.includes(s.org_user.id) ? "selected" : ""}`}
-              onClick={() => toggle(s.org_user.id)}
-            >
-              <strong>{s.org_user.name}</strong>
-              <span className="muted" style={{ fontSize: "0.78rem" }}>
-                {s.panels.join(" · ")}
-              </span>
-              <span style={{ marginLeft: "auto" }}>
-                {s.matched_skills.map((sk) => (
+      <div className="viz-grid" style={{ marginTop: "1.5rem" }}>
+        {/* ---- Pipeline health, by stage — not a flat list of rows ---- */}
+        <section className="card">
+          <div className="row spread">
+            <p className="chart-title" style={{ margin: 0 }}>
+              Active pipeline
+            </p>
+            <Link href="/pipeline" style={{ fontSize: "0.85rem" }}>
+              View pipeline →
+            </Link>
+          </div>
+          <p className="chart-sub">
+            {pipelineTotal} candidate{pipelineTotal === 1 ? "" : "s"} in flight across your scope.
+          </p>
+          {pipelineTotal === 0 ? (
+            <p className="muted">No active candidates yet.</p>
+          ) : (
+            <div className="stage-bars">
+              {wl.pipeline.map((s) => (
+                <Link
+                  key={s.stage}
+                  href={`/pipeline?stage=${s.stage}`}
+                  className="stage-bar"
+                  title={`${s.count} in ${STAGE_LABEL[s.stage] ?? s.stage}`}
+                >
+                  <span className="stage-count">{s.count}</span>
                   <span
-                    key={sk.name}
-                    className={`skill-chip ${sk.level === "must_have" ? "must" : ""}`}
-                  >
-                    {sk.name}
-                  </span>
-                ))}
-              </span>
+                    className="stage-fill"
+                    style={{
+                      height: `${Math.max(
+                        6,
+                        (s.count / Math.max(...wl.pipeline.map((x) => x.count), 1)) * 100,
+                      )}%`,
+                    }}
+                  />
+                  <span className="stage-name">{STAGE_LABEL[s.stage] ?? s.stage}</span>
+                </Link>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
-      <div className="row">
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <label>Round</label>
-          <input value={round} onChange={(e) => setRound(e.target.value)} required />
-        </div>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <label>When</label>
-          <input
-            type="datetime-local"
-            value={when}
-            onChange={(e) => setWhen(e.target.value)}
-            required
-          />
-        </div>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <label>All panelists (cmd/ctrl-click for multiple)</label>
-          <select
-            multiple
-            value={panel}
-            onChange={(e) =>
-              setPanel(Array.from(e.target.selectedOptions).map((o) => o.value))
-            }
-          >
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} ({u.roles.join(", ") || "member"})
-              </option>
-            ))}
-          </select>
-        </div>
+          )}
+        </section>
+
+        {/* ---- My upcoming interviews ---- */}
+        <section className="card">
+          <p className="chart-title">Your upcoming interviews</p>
+          {wl.upcoming_interviews.length === 0 ? (
+            <p className="muted">None scheduled.</p>
+          ) : (
+            <ul className="plain-list">
+              {wl.upcoming_interviews.map((i) => (
+                <li key={i.id}>
+                  <div className="row spread">
+                    <span>
+                      <Link href={`/candidates/${i.candidate.id}`}>
+                        <strong>{i.candidate.displayName}</strong>
+                      </Link>{" "}
+                      <span className="muted">· {i.round_name}</span>
+                    </span>
+                    <span className="muted" style={{ fontSize: "0.82rem" }}>
+                      {new Date(i.scheduled_at).toLocaleString([], {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                  <span className="muted" style={{ fontSize: "0.82rem" }}>
+                    {i.position_title}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
-      <div style={{ marginTop: "0.75rem" }}>
-        <button disabled={busy || panel.length === 0}>
-          {busy ? "Scheduling…" : "Schedule"}
-        </button>
-      </div>
-      {error && <p className="error">{error}</p>}
-    </form>
+
+      {/* ---- Recent inbound ---- */}
+      <section>
+        <div className="row spread">
+          <h2>Latest submissions</h2>
+          <Link href="/pipeline" style={{ fontSize: "0.85rem" }}>
+            All submissions →
+          </Link>
+        </div>
+        {wl.recent_submissions.length === 0 ? (
+          <p className="muted">No submissions yet.</p>
+        ) : (
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Position</th>
+                <th>Vendor</th>
+                <th>Status</th>
+                <th>Received</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wl.recent_submissions.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    {s.candidate ? (
+                      <Link href={`/candidates/${s.candidate.id}`}>
+                        <strong>{s.candidate.displayName}</strong>
+                      </Link>
+                    ) : (
+                      <span className="muted">pending review</span>
+                    )}
+                  </td>
+                  <td>{s.position_title}</td>
+                  <td className="muted">{s.vendor}</td>
+                  <td>
+                    <span
+                      className={`badge ${
+                        s.ownership_status === "duplicate"
+                          ? "warn"
+                          : s.status === "accepted"
+                            ? "ok"
+                            : ""
+                      }`}
+                    >
+                      {s.ownership_status === "duplicate" ? "duplicate" : s.status}
+                    </span>
+                  </td>
+                  <td className="muted">
+                    {new Date(s.received_at).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </main>
   );
 }

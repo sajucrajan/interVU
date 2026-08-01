@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "@/lib/api";
-import { Sunburst, type SunburstNode } from "@/components/sunburst";
+import type { SunburstNode } from "@/components/zoomable-sunburst";
 
 interface Overview {
   totals: {
@@ -89,28 +90,26 @@ export default function AnalyticsPage() {
         <Tile label="Offers" value={t.offers} />
       </div>
 
-      <div className="viz-grid">
+      <div className="viz-grid thirds">
         <div className="card">
           <p className="chart-title">Where submissions land</p>
           <p className="chart-sub">
-            Organization → vertical → team → position, sized by submissions. Hover to
-            inspect.
+            Organization → vertical → team → position, by submission volume.
           </p>
-          <Sunburst data={data.hierarchy} />
-          <details className="table-view">
-            <summary>View as table</summary>
-            <table className="data" style={{ marginTop: "0.5rem" }}>
-              <thead>
-                <tr>
-                  <th>Vertical / team / position</th>
-                  <th className="num">Submissions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <HierarchyRows node={data.hierarchy} depth={0} />
-              </tbody>
-            </table>
-          </details>
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Vertical / team / position</th>
+                <th className="num">Submissions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <HierarchyRows node={data.hierarchy} depth={0} />
+            </tbody>
+          </table>
+          <p style={{ marginBottom: 0, marginTop: "0.8rem" }}>
+            <Link href="/explore">Open the interactive explorer →</Link>
+          </p>
         </div>
 
         <div>

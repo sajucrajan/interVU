@@ -18,6 +18,7 @@ import { SettingsModule } from "./settings/settings.module";
 import { SubmissionsModule } from "./submissions/submissions.module";
 import { TenancyModule } from "./tenancy/tenancy.module";
 import { VendorPortalModule } from "./vendor-portal/vendor-portal.module";
+import { WorklistModule } from "./worklist/worklist.module";
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { VendorPortalModule } from "./vendor-portal/vendor-portal.module";
     MatchReviewsModule,
     CandidatesModule,
     VendorPortalModule,
+    WorklistModule,
   ],
 })
 export class AppModule {}
