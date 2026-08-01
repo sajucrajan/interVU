@@ -196,6 +196,7 @@ export class BoardController {
       return {
         id: s.id,
         candidate: s.candidate,
+        position_id: s.position.id,
         position_reference: s.position.reference,
         position_title: s.position.title,
         blocked_vendor: s.vendorOrg.vendor.name,

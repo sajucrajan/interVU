@@ -32,6 +32,7 @@ interface BoardColumn {
 interface DuplicateRow {
   id: string;
   candidate: { id: string; displayName: string } | null;
+  position_id: string;
   position_reference: string | null;
   position_title: string;
   blocked_vendor: string;
@@ -221,6 +222,7 @@ export function PipelineBoard({
           <table className="data">
             <thead>
               <tr>
+                <th>Ref</th>
                 <th>Candidate</th>
                 <th>Position</th>
                 <th>Blocked vendor</th>
@@ -231,6 +233,14 @@ export function PipelineBoard({
             <tbody>
               {data.duplicates.map((d) => (
                 <tr key={d.id}>
+                  {/* Its own column, and a link: titles repeat across teams, so
+                      the reference is the only way to tell two contests apart
+                      at a glance — and the only safe way to click through. */}
+                  <td>
+                    <Link href={`/positions/${d.position_id}`} className="ref-link">
+                      {d.position_reference ?? "—"}
+                    </Link>
+                  </td>
                   <td>
                     {d.candidate ? (
                       <Link href={`/candidates/${d.candidate.id}`}>
@@ -240,12 +250,7 @@ export function PipelineBoard({
                       <span className="muted">pending review</span>
                     )}
                   </td>
-                  <td>
-                    {d.position_reference && (
-                      <span className="ref-code">{d.position_reference}</span>
-                    )}{" "}
-                    {d.position_title}
-                  </td>
+                  <td>{d.position_title}</td>
                   <td>
                     <span className="badge warn">{d.blocked_vendor}</span>
                   </td>
