@@ -263,6 +263,44 @@ p.muted {
   background: color-mix(in oklab, var(--accent) 12%, transparent);
 }
 
+/* Second-level tabs inside a section (Admin → People / Teams / Vendors).
+   Sits in the page gutter, so it aligns with the content below it. */
+.subnav {
+  display: flex;
+  gap: 1.2rem;
+  /* Same responsive gutter as main.wide, so the tabs line up with the
+     content beneath them at every viewport width. */
+  padding: 0 clamp(1rem, 3vw, 3.5rem);
+  margin-top: 1.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.subnav a {
+  color: var(--muted);
+  padding: 0.5rem 0;
+  font-size: 0.92rem;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.subnav a:hover {
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.subnav a.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Indent guide for the org-structure tree. */
+.tree-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* ---------- surfaces ---------- */
 
 .card {

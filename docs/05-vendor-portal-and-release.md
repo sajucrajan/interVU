@@ -141,6 +141,34 @@ any SMTP server, Slack, Teams, custom endpoints, all of them, or none:
 
 ## 6. Org-side vendor management screens
 
+**Admin → Vendors** (`vendors.manage`) administers the contract itself: tier,
+status, contract window, and the people at the agency.
+
+- A **deployment serves one organization**, so a vendor belongs to that
+  organization and nothing else. `Vendor` carries the agency's identity and
+  `VendorOrg` the contract terms; the two are 1:1, and an agency of the same
+  name is never silently reused — there is no other tenant it could come from.
+- **Vendor people** are invited through the same single-use activation flow as
+  org users (docs/09), and land on the vendor portal afterwards. Their
+  credential namespace is `(vendor, email)`.
+- Inviting people to a **suspended or terminated** contract is refused —
+  onboarding someone who cannot sign in is never what was meant.
+
+### Suspension takes effect immediately
+
+Contract status is enforced in three places, deliberately overlapping:
+
+1. `loginVendor` admits only `active`/`invited` contracts.
+2. Each vendor-facing query filters releases on `vendorOrg.status = active`.
+3. **`resolveSession` re-checks the contract on every request.** Without this
+   an already-open session would keep working for up to a week after
+   suspension, since sessions live 7 days and nothing re-validated them. This
+   is the backstop that covers any query which forgets the filter.
+
+Contract dates are **calendar dates**, stored as UTC midnight and rendered in
+UTC — formatting them in the viewer's local zone would show `2026-01-01` as
+"31/12/2025" for anyone west of Greenwich.
+
 - Vendor directory: tiers, contract windows, submission volume, conversion stats (submissions → interviews → hires) — this data quietly answers "which vendors are worth tier 1?"
 - Per-position release panel: which vendors can see it, when each tier unlocks, manual release/early-release buttons, release history (audited).
 - Duplicate arbitration inbox: contested (candidate, position) pairs with evidence timeline.

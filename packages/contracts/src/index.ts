@@ -12,8 +12,57 @@ export const OrgUnitCreate = z.object({
   kind: OrgUnitKind,
 });
 
+/**
+ * Absent `parent_id` = leave the unit where it is; explicit `null` = move it
+ * to the top level. The two must stay distinguishable, so this is nullish
+ * rather than merely optional.
+ */
+export const OrgUnitUpdate = z.object({
+  name: z.string().min(1).max(200).optional(),
+  parent_id: z.string().uuid().nullish(),
+});
+
 export type OrgUnitKind = z.infer<typeof OrgUnitKind>;
 export type OrgUnitCreate = z.infer<typeof OrgUnitCreate>;
+export type OrgUnitUpdate = z.infer<typeof OrgUnitUpdate>;
+
+// --- Vendor contracts (docs/05-vendor-portal-and-release.md)
+
+export const VendorStatusEnum = z.enum([
+  "invited",
+  "active",
+  "suspended",
+  "terminated",
+]);
+export const VendorRoleEnum = z.enum(["vendor_admin", "vendor_recruiter"]);
+
+/** Tier 1 is the most preferred; tiered release walks tiers in order. */
+export const VendorCreate = z.object({
+  name: z.string().min(1).max(200),
+  tier: z.number().int().min(1).max(10).default(1),
+  status: VendorStatusEnum.default("invited"),
+  contract_start: z.coerce.date().nullish(),
+  contract_end: z.coerce.date().nullish(),
+});
+
+export const VendorUpdate = z.object({
+  tier: z.number().int().min(1).max(10).optional(),
+  status: VendorStatusEnum.optional(),
+  contract_start: z.coerce.date().nullish(),
+  contract_end: z.coerce.date().nullish(),
+});
+
+export const VendorUserCreate = z.object({
+  email: z.string().email().max(320),
+  name: z.string().min(1).max(200),
+  role: VendorRoleEnum.default("vendor_recruiter"),
+});
+
+export type VendorStatusEnum = z.infer<typeof VendorStatusEnum>;
+export type VendorRoleEnum = z.infer<typeof VendorRoleEnum>;
+export type VendorCreate = z.infer<typeof VendorCreate>;
+export type VendorUpdate = z.infer<typeof VendorUpdate>;
+export type VendorUserCreate = z.infer<typeof VendorUserCreate>;
 
 // --- Org users & access grants (docs/09-entitlements.md)
 

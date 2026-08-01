@@ -5,30 +5,17 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { createHash, randomBytes } from "node:crypto";
 import type { OrgRole } from "@prisma/client";
 import type { MembershipGrant, OrgUserCreate, OrgUserUpdate } from "@intervu/contracts";
 import { PrismaService } from "../prisma/prisma.service";
-import { NotificationsService } from "../notifications/notifications.service";
+import { InvitesService, type Invite } from "../invites/invites.service";
 import type { Access } from "../entitlements/access";
-
-/** Invites are short-lived; an unused link stops working after a week. */
-const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
-const sha256 = (raw: string) => createHash("sha256").update(raw).digest("hex");
-
-export interface Invite {
-  /** The raw token — returned ONCE, never readable again from the database. */
-  token: string;
-  url: string;
-  expiresAt: Date;
-}
 
 @Injectable()
 export class OrgUsersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notifications: NotificationsService,
+    private readonly invites: InvitesService,
   ) {}
 
   /**
@@ -191,57 +178,13 @@ export class OrgUsersService {
     return this.issueInvite(organizationId, user.id, user.email, user.name);
   }
 
-  /**
-   * Mint a single-use token, store only its hash, and mail the link.
-   *
-   * The link is ALSO returned to the caller so an admin can pass it on
-   * directly: deployments with no SMTP configured (log-only mode) would
-   * otherwise be unable to onboard anyone. It deliberately does not go
-   * through `dispatch()` — Slack/Teams channels have a wider audience than
-   * the invitee, and this token is a credential.
-   */
-  private async issueInvite(
+  private issueInvite(
     organizationId: string,
     orgUserId: string,
     email: string,
     name: string,
   ): Promise<Invite> {
-    await this.prisma.inviteToken.updateMany({
-      where: { orgUserId, usedAt: null },
-      data: { usedAt: new Date() },
-    });
-
-    const token = randomBytes(32).toString("base64url");
-    const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
-    await this.prisma.inviteToken.create({
-      data: { organizationId, orgUserId, tokenHash: sha256(token), expiresAt },
-    });
-
-    const org = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: { name: true },
-    });
-    const base = process.env.WEB_ORIGIN ?? "http://localhost:3000";
-    const url = `${base}/activate?token=${token}`;
-
-    await this.notifications.enqueueEmail(
-      organizationId,
-      [email],
-      `Your InterVU account for ${org?.name ?? "your organization"}`,
-      [
-        `Hi ${name},`,
-        "",
-        `You've been given access to InterVU for ${org?.name ?? "your organization"}.`,
-        "Set your password to get started:",
-        "",
-        url,
-        "",
-        "This link can be used once and expires in 7 days.",
-      ].join("\n"),
-      "org_user.invited",
-    );
-
-    return { token, url, expiresAt };
+    return this.invites.issue({ organizationId, orgUserId, email, name });
   }
 
   /**
