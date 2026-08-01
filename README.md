@@ -10,8 +10,9 @@ InterVU is built for organizations that run high volumes of interviews across ma
 
 ## Core features
 
-- **Organization workspace** — teams, positions, interview pipelines, scorecards, decisions.
-- **Vendor portal** — each vendor gets its own login; vendors see only the positions released to them and only their own submissions. Vendors never see other vendors' candidates or internal feedback.
+- **Organization workspace** — a hierarchy of verticals/units/teams, positions with full skill matrices, interview pipelines, scorecards, decisions, and an analytics dashboard.
+- **Vendor portal** — a separate, internet-facing entry point (`/vendor/login`); vendors sign in **per client organization** and see only the positions released to them and their own submissions. Vendors never see other vendors' candidates or internal feedback.
+- **Scoped entitlements** — roles attach at any level of the hierarchy (org-wide, vertical, or single team) and inherit downward; interviewers are scoped by panel assignment rather than the tree.
 - **Tiered position release** — release policies per position: all-at-once, tiered with delays, or manual.
 - **Candidate matching engine** — email/phone deterministic matching, fuzzy name/profile scoring, optional resume-embedding similarity, and a merge-review UI with full audit and un-merge.
 - **Submission ownership & conflict rules** — first-valid-submission ownership with a configurable ownership window; duplicate submissions are flagged and arbitrated, not silently dropped.
@@ -20,7 +21,7 @@ InterVU is built for organizations that run high volumes of interviews across ma
 
 ## Status
 
-✅ **Working implementation — milestones M0–M3 complete** (see [progress](docs/07-roadmap.md#progress)). What runs today:
+✅ **Working implementation — M0–M3 complete, M4 mostly done** (see [progress](docs/07-roadmap.md#progress)). What runs today:
 
 - Session auth (org + vendor portals), org-unit hierarchy (verticals/units/teams), scoped entitlements incl. project-manager role
 - Rich role postings: seniority, employment type, location policy, vendor-facing rate bands, skill matrix (must/good × proficiency × years), non-skill must-haves, rendered JD pages, posting form
@@ -29,7 +30,6 @@ InterVU is built for organizations that run high volumes of interviews across ma
 - First-valid-submission ownership with cross-vendor duplicate flagging and arbitration data
 - Interviews with skill-matched panel suggestions, scorecards with hide-until-submitted feedback policy, decisions, do-not-hire flags, full cross-position candidate timelines
 - Analytics dashboard (D3 sunburst of hierarchy → positions, funnel, vendor performance), white-label branding per org
-
 - Pluggable notifications: per-org channels (any SMTP, Slack, Teams, HMAC-signed webhooks) with durable delivery — retry/backoff, dead letters, delivery log
 - Resume upload to any S3-compatible store, GDPR erasure with matching-safe tombstones, daily re-match sweep, containerized deployment
 
@@ -57,8 +57,34 @@ pnpm --filter @intervu/api db:seed                 # prints demo accounts; passw
 pnpm dev                                           # api :4000, web :3000
 ```
 
-Sign in as `recruiter@acme.test` (org `acme`) or vendor `recruiter@talentbridge.test`.
 Optional services: `--profile mail` (Mailpit inbox at :8025), `--profile files` (MinIO for resumes).
+
+## Demo accounts
+
+**Every seeded account uses the password `intervu-demo`.** Organization slug is
+`acme` (auto-resolved on a single-org deployment, so you usually just type email
++ password). Full reference incl. what each role can and cannot see:
+**[docs/10-demo-accounts.md](docs/10-demo-accounts.md)**.
+
+Internal staff → **http://localhost:3000/login**
+
+| Email | Role | Scope | What it demonstrates |
+|---|---|---|---|
+| `admin@acme.test` | org_admin | org-wide | Everything: settings, vendors, erasure, webhooks |
+| `recruiter@acme.test` | recruiter | org-wide | The main workflow — post roles, arbitrate duplicates, resolve match reviews |
+| `hm.eng@acme.test` | hiring_manager | Engineering vertical | Sees 8 of 11 positions; blocked from the review queue |
+| `pm.gtm@acme.test` | project_manager | GTM vertical | Read-only, 3 positions — scope isolation |
+| `pm.platform@acme.test` | project_manager | Platform team | Read-only, 4 positions — narrowest scope |
+| `interviewer1@acme.test` | interviewer | assignment-only | **0 positions**, but 2 assigned interviews at `/interviews` |
+| `interviewer2@acme.test` | interviewer | assignment-only | Pair with interviewer1 to see the hide-until-submitted feedback policy |
+
+Vendors (external agencies) → **http://localhost:3000/vendor/login**
+
+| Email | Vendor | Tier | Positions visible |
+|---|---|---|---|
+| `recruiter@talentbridge.test` | TalentBridge | 1 | 10 — tier 1 sees tiered releases immediately |
+| `recruiter@hireworks.test` | HireWorks | 2 | 8 — tier 2 unlocks later |
+| `recruiter@staffpro.test` | StaffPro | 2 | 8 |
 
 ## Design docs
 
@@ -75,6 +101,7 @@ The full design lives in [`docs/`](docs/):
 | [07-roadmap.md](docs/07-roadmap.md) | Milestones, MVP cut, governance |
 | [08-database-strategy.md](docs/08-database-strategy.md) | ADR: Postgres core, any cloud/on-prem provider, warehouse export |
 | [09-entitlements.md](docs/09-entitlements.md) | Authorization: role@scope grants, hierarchy inheritance, contextual access |
+| [10-demo-accounts.md](docs/10-demo-accounts.md) | **Test accounts for every role**, seeded data, things to try, reset instructions |
 
 ## Stack (see [architecture doc](docs/02-architecture.md) for rationale)
 

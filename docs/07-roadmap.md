@@ -6,7 +6,7 @@ _Last updated 2026-07-31._ M0–M3 are **built and verified**; M4 is in progress
 
 | Milestone | Status | Notes |
 |---|---|---|
-| M0 skeleton | ✅ done | monorepo, CI config, compose, session auth, tenancy+entitlements, audit, seed |
+| M0 skeleton | ✅ done* | monorepo, CI config, compose, session auth, tenancy+entitlements, audit, seed. *RLS backstop deferred (see M0 below) |
 | M1 MVP loop | ✅ done | positions+releases (all 3 policies), vendor portal, deterministic matching, ownership, timeline |
 | M2 interviews | ✅ done | rounds+panels, scorecards w/ feedback policy, flags, decisions, timeline UI |
 | M3 matching | ✅ done | fuzzy scoring, trgm blocking, review queue, reversible merges, eval corpus in CI, daily re-match sweep |
@@ -20,7 +20,7 @@ _Last updated 2026-07-31._ M0–M3 are **built and verified**; M4 is in progress
 ## 1. Milestones
 
 ### M0 — Skeleton (repo bootstrap)
-Monorepo scaffolding, CI (lint/test/build), docker-compose (postgres+redis+minio+api+web), auth (org + vendor sessions), tenancy guards + RLS, audit log plumbing, seed script. *Exit: `docker compose up` → log in as demo org admin and demo vendor.*
+Monorepo scaffolding, CI (lint/test/build), docker-compose, auth (org + vendor sessions), tenancy guards, audit log plumbing, seed script. *Exit: `docker compose up` → log in as demo org admin and demo vendor.* (Postgres **RLS** was scoped here but deferred — enforcement today is the guard + query layer; RLS remains the planned defence-in-depth backstop.)
 
 ### M1 — MVP: the differentiating loop end-to-end
 The MVP is deliberately the *unusual* part of the product — the part no free ATS gives you:

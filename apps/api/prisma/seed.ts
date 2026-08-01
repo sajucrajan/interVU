@@ -399,25 +399,28 @@ async function main() {
   }
 
   console.log(`
-All demo accounts use password: ${DEMO_PASSWORD}
-  Org login:    POST /api/v1/auth/org/login    {"org_slug":"acme","email":…,"password":…}
-  Vendor login: POST /api/v1/auth/vendor/login {"org_slug":"acme","email":…,"password":…}
-                (vendors sign in per client organization)
-Dev header auth also works outside production (see src/tenancy/auth.guard.ts):
-  Org (headers: x-intervu-org: acme, x-intervu-user: <email>)
-    admin@acme.test        org_admin (org-wide)
-    recruiter@acme.test    recruiter (org-wide)
-    hm.eng@acme.test       hiring_manager (Engineering vertical → Platform + Data)
-    pm.gtm@acme.test       project_manager (GTM vertical, read-only)
-    pm.platform@acme.test  project_manager (Platform team only, read-only)
-  Vendors (header: x-intervu-vendor-user: <email>)
-    recruiter@talentbridge.test   TalentBridge (tier 1)
-    recruiter@hireworks.test      HireWorks (tier 2)
-    recruiter@staffpro.test       StaffPro (tier 2)
+╭───────────────────────────────────────────────────────────────────────────╮
+│  DEMO ACCOUNTS — every account uses password: ${DEMO_PASSWORD}              │
+│  Organization slug: acme   ·   Full guide: docs/10-demo-accounts.md        │
+╰───────────────────────────────────────────────────────────────────────────╯
 
-Expected portal visibility right now:
-  TalentBridge → 3 positions (all-at-once, tiered t1, manual release)
-  HireWorks/StaffPro → 1 position (all-at-once; tiered unlocks in 7 days)
+ORGANIZATION — sign in at http://localhost:3000/login
+  admin@acme.test          org_admin        org-wide     settings, vendors, erasure
+  recruiter@acme.test      recruiter        org-wide     the main workflow
+  hm.eng@acme.test         hiring_manager   Engineering  subset of positions; no review queue
+  pm.gtm@acme.test         project_manager  GTM          read-only, scope isolation
+  pm.platform@acme.test    project_manager  Platform     read-only, narrowest scope
+  interviewer1@acme.test   interviewer      assignment   0 positions; see /interviews
+  interviewer2@acme.test   interviewer      assignment   pair w/ interviewer1 for feedback policy
+
+VENDORS — sign in at http://localhost:3000/vendor/login  (org slug: acme)
+  recruiter@talentbridge.test   TalentBridge  tier 1   sees tiered releases immediately
+  recruiter@hireworks.test      HireWorks     tier 2   fewer positions until tiers unlock
+  recruiter@staffpro.test       StaffPro      tier 2
+
+Outside production, dev header auth also works instead of a session:
+  org:    -H "x-intervu-org: acme" -H "x-intervu-user: <email>"
+  vendor: -H "x-intervu-org: acme" -H "x-intervu-vendor-user: <email>"
 `);
 
   void hireWorks; // referenced in docs above
