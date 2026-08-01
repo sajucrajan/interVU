@@ -4,6 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
+import { Modal } from "@/components/actions-menu";
+import {
+  MustHavesEditor,
+  SkillMatrixEditor,
+  fromSkillRecords,
+  toSkillPayload,
+  useKnownSkills,
+  type SkillRow,
+} from "@/components/skill-matrix";
 
 interface TemplateDetail {
   id: string;
@@ -39,6 +48,7 @@ export default function TemplateDetailPage() {
   const router = useRouter();
   const [t, setT] = useState<TemplateDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     api<TemplateDetail>(`/position-templates/${id}`)
@@ -84,6 +94,9 @@ export default function TemplateDetailPage() {
           <Link href={`/positions/new?template=${t.id}`}>
             <button>Use this template</button>
           </Link>
+          <button className="secondary" onClick={() => setEditing(true)}>
+            Edit
+          </button>
           <button
             className="secondary"
             onClick={async () => {
@@ -102,6 +115,19 @@ export default function TemplateDetailPage() {
       </div>
 
       {error && <p className="error">{error}</p>}
+
+      {editing && (
+        <Modal title={`Edit ${t.name}`} onClose={() => setEditing(false)}>
+          <EditTemplateForm
+            template={t}
+            onDone={async () => {
+              setEditing(false);
+              const fresh = await api<TemplateDetail>(`/position-templates/${t.id}`);
+              setT(fresh);
+            }}
+          />
+        </Modal>
+      )}
 
       <div className="card">
         <p className="chart-title">Description</p>
@@ -175,5 +201,170 @@ export default function TemplateDetailPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+
+function EditTemplateForm({
+  template,
+  onDone,
+}: {
+  template: TemplateDetail;
+  onDone: () => Promise<void>;
+}) {
+  const knownSkills = useKnownSkills();
+  const [f, setF] = useState({
+    name: template.name,
+    summary: template.summary,
+    title: template.title,
+    description: template.description,
+    seniority: template.seniority ?? "",
+    employment_type: template.employmentType,
+    location_policy: template.locationPolicy ?? "",
+    location_text: template.locationText ?? "",
+    min_total_years: template.minTotalYears != null ? String(template.minTotalYears) : "",
+    rate_min: template.rateMin != null ? String(template.rateMin) : "",
+    rate_max: template.rateMax != null ? String(template.rateMax) : "",
+    rate_currency: template.rateCurrency,
+    rate_period: template.ratePeriod ?? "",
+  });
+  const [skills, setSkills] = useState<SkillRow[]>(fromSkillRecords(template.skills));
+  const [mustHaves, setMustHaves] = useState<string[]>(template.mustHaves ?? []);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const set =
+    (k: keyof typeof f) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+      setF({ ...f, [k]: e.target.value });
+
+  return (
+    <>
+      <label>Template name</label>
+      <input value={f.name} onChange={set("name")} />
+      <label>Summary</label>
+      <input value={f.summary} onChange={set("summary")} />
+      <label>Job title</label>
+      <input value={f.title} onChange={set("title")} />
+      <div className="row">
+        <div style={{ flex: 1, minWidth: 140 }}>
+          <label>Seniority</label>
+          <select value={f.seniority} onChange={set("seniority")}>
+            <option value="">—</option>
+            {["junior", "mid", "senior", "staff", "principal"].map((x) => (
+              <option key={x} value={x}>
+                {x}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <label>Employment</label>
+          <select value={f.employment_type} onChange={set("employment_type")}>
+            <option value="full_time">Full-time</option>
+            <option value="contract">Contract</option>
+            <option value="contract_to_hire">Contract-to-hire</option>
+          </select>
+        </div>
+        <div style={{ width: 150 }}>
+          <label>Min experience (yrs)</label>
+          <input
+            type="number"
+            min={0}
+            value={f.min_total_years}
+            onChange={set("min_total_years")}
+          />
+        </div>
+      </div>
+      <div className="row">
+        <div style={{ flex: 1, minWidth: 140 }}>
+          <label>Location policy</label>
+          <select value={f.location_policy} onChange={set("location_policy")}>
+            <option value="">—</option>
+            <option value="onsite">Onsite</option>
+            <option value="hybrid">Hybrid</option>
+            <option value="remote">Remote</option>
+          </select>
+        </div>
+        <div style={{ flex: 2, minWidth: 180 }}>
+          <label>Location</label>
+          <input value={f.location_text} onChange={set("location_text")} />
+        </div>
+      </div>
+      <div className="row">
+        <div style={{ width: 120 }}>
+          <label>Rate min</label>
+          <input type="number" value={f.rate_min} onChange={set("rate_min")} />
+        </div>
+        <div style={{ width: 120 }}>
+          <label>Rate max</label>
+          <input type="number" value={f.rate_max} onChange={set("rate_max")} />
+        </div>
+        <div style={{ width: 100 }}>
+          <label>Currency</label>
+          <input value={f.rate_currency} onChange={set("rate_currency")} maxLength={3} />
+        </div>
+        <div style={{ width: 130 }}>
+          <label>Per</label>
+          <select value={f.rate_period} onChange={set("rate_period")}>
+            <option value="">—</option>
+            {["hourly", "daily", "monthly", "annual"].map((x) => (
+              <option key={x} value={x}>
+                {x}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <label style={{ marginTop: "0.8rem" }}>Skill matrix</label>
+      <SkillMatrixEditor
+        rows={skills}
+        onChange={setSkills}
+        knownSkills={knownSkills}
+        listId="tpl-edit-skills"
+      />
+      <label style={{ marginTop: "1rem" }}>Other must-haves</label>
+      <MustHavesEditor values={mustHaves} onChange={setMustHaves} />
+      <label style={{ marginTop: "1rem" }}>Description</label>
+      <textarea rows={5} value={f.description} onChange={set("description")} />
+      <div style={{ marginTop: "1rem" }}>
+        <button
+          disabled={busy || !f.name.trim() || !f.title.trim()}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            try {
+              await api(`/position-templates/${template.id}`, {
+                method: "PATCH",
+                body: {
+                  name: f.name.trim(),
+                  summary: f.summary,
+                  title: f.title.trim(),
+                  description: f.description,
+                  seniority: f.seniority || null,
+                  employment_type: f.employment_type,
+                  location_policy: f.location_policy || null,
+                  location_text: f.location_text || null,
+                  min_total_years: f.min_total_years ? Number(f.min_total_years) : null,
+                  rate_min: f.rate_min ? Number(f.rate_min) : null,
+                  rate_max: f.rate_max ? Number(f.rate_max) : null,
+                  rate_currency: f.rate_currency,
+                  rate_period: f.rate_period || null,
+                  must_haves: mustHaves,
+                  skills: toSkillPayload(skills),
+                },
+              });
+              await onDone();
+            } catch (e) {
+              setError(apiErrorMessage(e));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {busy ? "Saving…" : "Save template"}
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
+    </>
   );
 }

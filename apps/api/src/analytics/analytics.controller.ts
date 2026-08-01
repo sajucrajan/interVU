@@ -44,7 +44,19 @@ export class AnalyticsController {
       this.prisma.submission.count({
         where: { organizationId, status: "duplicate", ...viaPosition },
       }),
-      this.prisma.candidate.count({ where: { organizationId } }),
+      // Scope-aware: a team-scoped viewer counts only candidates who have an
+      // application in their scope, so this figure agrees with every other
+      // number on the page. Merged and erased records never count.
+      this.prisma.candidate.count({
+        where: {
+          organizationId,
+          mergedIntoId: null,
+          erasedAt: null,
+          ...(scope === "org"
+            ? {}
+            : { applications: { some: { position: { orgUnitId: { in: scope } } } } }),
+        },
+      }),
       this.prisma.interview.count({
         where: { organizationId, ...(scope === "org" ? {} : { application: { position: { orgUnitId: { in: scope } } } }) },
       }),

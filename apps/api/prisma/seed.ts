@@ -9,6 +9,10 @@ import { hashPassword } from "../src/auth/password";
 const prisma = new PrismaClient();
 const HOUR_MS = 3_600_000;
 const DEMO_PASSWORD = "intervu-demo";
+
+/** Seeded positions use the same human-readable scheme the app generates. */
+let refCounter = 0;
+const nextRef = () => `POS-${String(++refCounter).padStart(3, "0")}`;
 const demoHash = hashPassword(DEMO_PASSWORD);
 
 async function main() {
@@ -100,6 +104,7 @@ async function main() {
     const p1 = await prisma.position.create({
       data: {
         organizationId: org.id,
+        reference: nextRef(),
         orgUnitId: platform.id,
         title: "Senior Platform Engineer",
         description: "Kubernetes, Go, internal developer platform.",
@@ -123,6 +128,7 @@ async function main() {
     const p2 = await prisma.position.create({
       data: {
         organizationId: org.id,
+        reference: nextRef(),
         orgUnitId: data.id,
         title: "Data Engineer",
         description: "Spark, Airflow, lakehouse pipelines.",
@@ -150,6 +156,7 @@ async function main() {
     const p3 = await prisma.position.create({
       data: {
         organizationId: org.id,
+        reference: nextRef(),
         orgUnitId: salesOps.id,
         title: "Sales Operations Analyst",
         description: "CRM analytics and pipeline reporting.",
@@ -191,6 +198,7 @@ async function main() {
       const pos = await prisma.position.create({
         data: {
           organizationId: org.id,
+        reference: nextRef(),
           orgUnitId: ep.unitId,
           title: ep.title,
           description: ep.desc,

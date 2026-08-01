@@ -3,6 +3,8 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { parseBody } from "../common/zod";
 import { readCookie } from "../common/cookies";
+import { AuthzService } from "../entitlements/authz.service";
+import { ALL_PERMISSIONS } from "../entitlements/permissions";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthService, SESSION_COOKIE } from "./auth.service";
 
@@ -23,6 +25,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly prisma: PrismaService,
+    private readonly authz: AuthzService,
   ) {}
 
   @Post("org/login")
@@ -67,12 +70,17 @@ export class AuthController {
       });
       const branding =
         ((org.settings as { branding?: Record<string, string> })?.branding) ?? {};
+      // Capabilities let the UI hide what this user cannot act on, instead of
+      // showing pages that render empty or 403 on click (docs/09).
+      const access = await this.authz.access(ctx);
+      const capabilities = ALL_PERMISSIONS.filter((perm) => access.can(perm));
       return {
         kind: "org",
         email: ctx.org.user.email,
         name: ctx.org.user.name,
         organization_id: ctx.org.organizationId,
         organization: { name: org.name, branding },
+        capabilities,
         memberships: ctx.org.memberships.map((m) => ({
           role: m.role,
           org_unit_id: m.orgUnitId,

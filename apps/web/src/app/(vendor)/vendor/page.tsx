@@ -147,6 +147,7 @@ export default function VendorHome() {
                 setSubmitFor(null);
                 void refresh();
               }}
+              onRefresh={() => void refresh()}
             />
           )}
         </div>
@@ -188,9 +189,11 @@ export default function VendorHome() {
 function SubmitForm({
   position,
   onDone,
+  onRefresh,
 }: {
   position: VendorPosition;
   onDone: () => void;
+  onRefresh: () => void;
 }) {
   const [form, setForm] = useState({
     candidate_name: "",
@@ -239,13 +242,10 @@ function SubmitForm({
       }
       onDone();
     } catch (err) {
-      // The duplicate probe answers here: "not eligible, already in process
-      // from another source" — with no source revealed (docs/05 §3).
-      setError(
-        err instanceof ApiError && err.status === 409
-          ? apiErrorMessage(err)
-          : apiErrorMessage(err),
-      );
+      setError(apiErrorMessage(err));
+      // A duplicate rejection still records the submission, so refresh the
+      // list — otherwise the "not eligible" row only appears after a reload.
+      if (err instanceof ApiError && err.status === 409) onRefresh();
     } finally {
       setBusy(false);
     }

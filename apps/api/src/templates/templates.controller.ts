@@ -1,5 +1,14 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post } from "@nestjs/common";
-import { PositionTemplateCreate } from "@intervu/contracts";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+} from "@nestjs/common";
+import { PositionTemplateCreate, PositionTemplateUpdate } from "@intervu/contracts";
 import { parseBody } from "../common/zod";
 import { AuthzService } from "../entitlements/authz.service";
 import { OrgScope, Tenant } from "../tenancy/scope.decorator";
@@ -42,6 +51,18 @@ export class TemplatesController {
       tenant.org!.user.id,
       input,
     );
+  }
+
+  @Patch(":id")
+  async update(
+    @Tenant() tenant: TenantContext,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(PositionTemplateUpdate, body);
+    const access = await this.authz.access(tenant);
+    this.authz.require(access, "positions.create");
+    return this.templates.update(tenant.org!.organizationId, id, input);
   }
 
   @Delete(":id")

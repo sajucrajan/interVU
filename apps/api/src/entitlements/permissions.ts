@@ -72,3 +72,8 @@ export const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   // scorecards.submit is granted contextually by panel membership.
   interviewer: ["scorecards.submit"],
 };
+
+/** Every permission, for building a user's capability list. */
+export const ALL_PERMISSIONS: readonly Permission[] = [
+  ...new Set(Object.values(ROLE_PERMISSIONS).flat()),
+];

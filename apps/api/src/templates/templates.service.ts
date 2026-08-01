@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
-import type { PositionTemplateCreate } from "@intervu/contracts";
+import type {
+  PositionTemplateCreate,
+  PositionTemplateUpdate,
+} from "@intervu/contracts";
 import { PanelsService } from "../panels/panels.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -155,6 +158,90 @@ export class TemplatesService {
         },
       },
       include: TEMPLATE_INCLUDE,
+    });
+  }
+
+  /** Edit a template; supplying `skills` replaces the matrix wholesale. */
+  async update(
+    organizationId: string,
+    id: string,
+    input: PositionTemplateUpdate,
+  ) {
+    const existing = await this.prisma.positionTemplate.findFirst({
+      where: { id, organizationId },
+    });
+    if (!existing) throw new NotFoundException("Template not found");
+
+    let skillData: { skillId: string; level: string; proficiency: string; minYears: number | null }[] | null =
+      null;
+    if (input.skills) {
+      const resolved = await this.panels.upsertSkills(
+        organizationId,
+        input.skills.map((s) => s.name),
+      );
+      const specByNorm = new Map(
+        input.skills.map((s) => [s.name.trim().toLowerCase(), s]),
+      );
+      skillData = resolved.map((s) => {
+        const spec = specByNorm.get(s.nameNorm);
+        return {
+          skillId: s.id,
+          level: spec?.level ?? "good_to_have",
+          proficiency: spec?.proficiency ?? "working",
+          minYears: spec?.min_years ?? null,
+        };
+      });
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      if (skillData) {
+        await tx.positionTemplateSkill.deleteMany({ where: { templateId: id } });
+        await tx.positionTemplateSkill.createMany({
+          data: skillData.map((s) => ({
+            templateId: id,
+            skillId: s.skillId,
+            level: s.level as never,
+            proficiency: s.proficiency as never,
+            minYears: s.minYears,
+          })),
+        });
+      }
+      return tx.positionTemplate.update({
+        where: { id },
+        data: {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.summary !== undefined ? { summary: input.summary } : {}),
+          ...(input.title !== undefined ? { title: input.title } : {}),
+          ...(input.description !== undefined ? { description: input.description } : {}),
+          ...(input.seniority !== undefined ? { seniority: input.seniority as never } : {}),
+          ...(input.employment_type !== undefined
+            ? { employmentType: input.employment_type as never }
+            : {}),
+          ...(input.location_policy !== undefined
+            ? { locationPolicy: input.location_policy as never }
+            : {}),
+          ...(input.location_text !== undefined
+            ? { locationText: input.location_text }
+            : {}),
+          ...(input.min_total_years !== undefined
+            ? { minTotalYears: input.min_total_years }
+            : {}),
+          ...(input.openings !== undefined ? { openings: input.openings } : {}),
+          ...(input.rate_min !== undefined ? { rateMin: input.rate_min } : {}),
+          ...(input.rate_max !== undefined ? { rateMax: input.rate_max } : {}),
+          ...(input.rate_currency !== undefined
+            ? { rateCurrency: input.rate_currency }
+            : {}),
+          ...(input.rate_period !== undefined
+            ? { ratePeriod: input.rate_period as never }
+            : {}),
+          ...(input.must_haves !== undefined
+            ? { mustHaves: input.must_haves as Prisma.InputJsonValue }
+            : {}),
+          ...(input.org_unit_id !== undefined ? { orgUnitId: input.org_unit_id } : {}),
+        },
+        include: TEMPLATE_INCLUDE,
+      });
     });
   }
 

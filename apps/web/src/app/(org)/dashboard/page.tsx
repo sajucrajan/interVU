@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import type { Worklist } from "@/lib/worklist";
 
+interface Me {
+  kind: string;
+  capabilities?: string[];
+}
+
 const STAGE_LABEL: Record<string, string> = {
   submitted: "New",
   screening: "Screening",
@@ -16,11 +21,15 @@ const STAGE_LABEL: Record<string, string> = {
 export default function Dashboard() {
   const router = useRouter();
   const [wl, setWl] = useState<Worklist | null>(null);
+  const [caps, setCaps] = useState<string[]>([]);
 
   useEffect(() => {
     api<Worklist>("/me/worklist")
       .then(setWl)
       .catch(() => router.push("/login"));
+    api<Me>("/auth/me")
+      .then((m) => setCaps(m.capabilities ?? []))
+      .catch(() => undefined);
   }, [router]);
 
   if (!wl) return <main className="wide muted">Loading…</main>;
@@ -64,7 +73,9 @@ export default function Dashboard() {
       </section>
 
       <div className="viz-grid" style={{ marginTop: "1.5rem" }}>
-        {/* ---- Pipeline health, by stage — not a flat list of rows ---- */}
+        {/* Pipeline health is only meaningful to someone who can see
+            submissions; an interviewer gets their assignments instead. */}
+        {caps.includes("submissions.view") && (
         <section className="card">
           <div className="row spread">
             <p className="chart-title" style={{ margin: 0 }}>
@@ -104,6 +115,7 @@ export default function Dashboard() {
             </div>
           )}
         </section>
+        )}
 
         {/* ---- My upcoming interviews ---- */}
         <section className="card">
@@ -141,6 +153,7 @@ export default function Dashboard() {
       </div>
 
       {/* ---- Recent inbound ---- */}
+      {caps.includes("submissions.view") && (
       <section>
         <div className="row spread">
           <h2>Latest submissions</h2>
@@ -197,6 +210,7 @@ export default function Dashboard() {
           </table>
         )}
       </section>
+      )}
     </main>
   );
 }

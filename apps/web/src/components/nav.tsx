@@ -6,19 +6,22 @@ import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import type { Worklist } from "@/lib/worklist";
 
-const LINKS = [
+/** `needs` is the permission that makes a destination useful; links a user
+ *  cannot act on are hidden rather than rendering an empty or 403 page. */
+const LINKS: { href: string; label: string; needs?: string }[] = [
   { href: "/dashboard", label: "Home" },
-  { href: "/pipeline", label: "Pipeline" },
-  { href: "/positions", label: "Positions" },
-  { href: "/templates", label: "Templates" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/explore", label: "Explore" },
+  { href: "/pipeline", label: "Pipeline", needs: "submissions.view" },
+  { href: "/positions", label: "Positions", needs: "positions.view" },
+  { href: "/templates", label: "Templates", needs: "positions.view" },
+  { href: "/analytics", label: "Analytics", needs: "positions.view" },
+  { href: "/explore", label: "Explore", needs: "positions.view" },
   { href: "/interviews", label: "My interviews" },
 ];
 
 interface OrgMe {
   kind: string;
   name?: string;
+  capabilities?: string[];
   organization?: { name: string; branding?: { accent?: string; product_label?: string } };
 }
 
@@ -26,6 +29,7 @@ export function OrgNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [org, setOrg] = useState<OrgMe["organization"] | null>(null);
+  const [caps, setCaps] = useState<string[] | null>(null);
   const [wl, setWl] = useState<Worklist | null>(null);
   const [open, setOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
@@ -35,6 +39,7 @@ export function OrgNav() {
       .then((me) => {
         if (me.kind !== "org" || !me.organization) return;
         setOrg(me.organization);
+        setCaps(me.capabilities ?? []);
         const accent = me.organization.branding?.accent;
         if (accent) document.documentElement.style.setProperty("--accent", accent);
       })
@@ -72,7 +77,7 @@ export function OrgNav() {
       </Link>
       {org && <span className="org-chip">{org.branding?.product_label ?? org.name}</span>}
       <div className="topnav-links">
-        {LINKS.map((l) => (
+        {LINKS.filter((l) => !l.needs || !caps || caps.includes(l.needs)).map((l) => (
           <Link
             key={l.href}
             href={l.href}

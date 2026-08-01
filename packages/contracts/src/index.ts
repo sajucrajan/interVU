@@ -129,6 +129,29 @@ export const PositionTemplateCreate = z.object({
 
 export type PositionTemplateCreate = z.infer<typeof PositionTemplateCreate>;
 
+/** Edit a template. Every field optional — send only what changed. */
+export const PositionTemplateUpdate = z.object({
+  name: z.string().min(1).max(120).optional(),
+  summary: z.string().max(500).optional(),
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(20_000).optional(),
+  seniority: Seniority.nullish(),
+  employment_type: EmploymentType.optional(),
+  location_policy: LocationPolicyEnum.nullish(),
+  location_text: z.string().max(200).nullish(),
+  min_total_years: z.number().int().min(0).max(50).nullish(),
+  openings: z.number().int().min(1).optional(),
+  rate_min: z.number().int().min(0).nullish(),
+  rate_max: z.number().int().min(0).nullish(),
+  rate_currency: z.string().length(3).optional(),
+  rate_period: RatePeriod.nullish(),
+  must_haves: z.array(z.string().min(1).max(200)).max(20).optional(),
+  org_unit_id: z.string().uuid().nullish(),
+  skills: z.array(PositionSkillInput).max(30).optional(),
+});
+
+export type PositionTemplateUpdate = z.infer<typeof PositionTemplateUpdate>;
+
 // --- Interview panels (skill-tagged panelist pools; scope = org-unit pattern)
 
 export const PanelCreate = z.object({
