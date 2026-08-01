@@ -2324,3 +2324,76 @@ table.data td time {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* ---------- design system page (option 1g) ---------- */
+
+.atoms-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 48px;
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .atoms-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  padding: 0;
+  cursor: pointer;
+}
+
+.swatch.active {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
+.swatch-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--faint);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  color: var(--fg);
+}
+
+.swatch-row:hover {
+  background: var(--sunk);
+}
+
+.swatch-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  flex: none;
+}
+
+.swatch-name {
+  flex: 1;
+  font: 500 15px/1.3 var(--font-ui);
+}
+
+.blocked-demo {
+  border: 1px solid var(--bad);
+  border-radius: var(--radius);
+  background-color: var(--bad-wash);
+  color: var(--bad);
+  font: 600 11px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 26px 16px;
+  margin-bottom: var(--step-3);
+}
