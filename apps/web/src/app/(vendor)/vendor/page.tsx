@@ -64,7 +64,7 @@ export default function VendorHome() {
         setMe(m);
         return refresh();
       })
-      .catch(() => router.push("/login"));
+      .catch(() => router.push("/vendor/login"));
   }, [router, refresh]);
 
   if (!me) return <main className="wide muted">Loading…</main>;
@@ -83,7 +83,7 @@ export default function VendorHome() {
           <button
             className="secondary"
             onClick={() =>
-              api("/auth/logout", { method: "POST" }).then(() => router.push("/login"))
+              api("/auth/logout", { method: "POST" }).then(() => router.push("/vendor/login"))
             }
           >
             Sign out

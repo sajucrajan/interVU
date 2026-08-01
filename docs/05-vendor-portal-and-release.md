@@ -36,6 +36,37 @@ Regardless of mode, invitation links may carry `?org=<slug>` to pre-fill the
 field — the recommended way to onboard vendors without either typing or a
 public list.
 
+### Separate entry points for internal and external users
+
+Internal staff and external agencies have **opposite exposure requirements**:
+the workspace is usually restricted to the corporate network or SSO, while the
+vendor portal must be reachable from the public internet. So the two audiences
+have distinct entry points — one app, two doors:
+
+| Audience | Sign-in | App routes | API routes |
+|---|---|---|---|
+| Internal (org users) | `/login` | `/dashboard`, `/analytics`, `/positions/*`, `/candidates/*`, `/interviews`, `/match-reviews` | `/api/v1/*` except `/api/v1/vendor/*` |
+| External (vendors) | `/vendor/login` | `/vendor/*` | `/api/v1/vendor/*` + `/api/v1/auth/*` |
+
+The vendor sign-in page makes no mention of the workspace, and vendor
+redirects (unauthenticated, sign-out) stay inside `/vendor/*`.
+
+**Publishing only the vendor surface** — point a public hostname
+(`vendors.example.com`) at a reverse proxy that allows just:
+
+```
+/vendor/*            # portal pages incl. /vendor/login
+/api/v1/vendor/*     # vendor data endpoints
+/api/v1/auth/*       # login, logout, me, login-context
+/_next/*             # static assets
+```
+
+…and keep everything else on an internal hostname. Because every vendor data
+endpoint already lives under the `/api/v1/vendor` prefix, the allowlist is
+mechanical — no per-endpoint auditing. This is defence in depth, not the
+primary control: the session guards and org+vendor query scoping remain
+authoritative, and both surfaces work fine on one hostname for small installs.
+
 ### Vendor lifecycle
 `invited → active → suspended → terminated`. Suspension/termination immediately removes portal visibility of open positions; **historical submissions remain** (read-only) because ownership and audit outlive contracts.
 
