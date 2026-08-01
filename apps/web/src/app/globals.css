@@ -122,13 +122,13 @@ main {
    kicks in on ultra-wide monitors, where full-bleed text becomes unreadable. */
 main.wide {
   max-width: min(100%, 2200px);
-  margin: 1.5rem auto 4rem;
-  padding: 0 2rem;
+  margin: 1.75rem auto 4rem;
+  /* Breathing room that grows with the viewport instead of a fixed gutter. */
+  padding: 0 clamp(1rem, 3vw, 3.5rem);
 }
 
 @media (max-width: 900px) {
   main.wide {
-    padding: 0 1rem;
     margin-top: 1rem;
   }
 }
@@ -150,7 +150,7 @@ p.muted {
   display: flex;
   align-items: center;
   gap: 2rem;
-  padding: 0.65rem 2rem;
+  padding: 0.65rem clamp(1rem, 3vw, 3.5rem);
   background: color-mix(in oklab, var(--page) 82%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--hairline);
@@ -900,6 +900,19 @@ details.table-view summary {
   letter-spacing: 0.06em;
   color: var(--faint);
   margin-bottom: 0.6rem;
+}
+
+.board-col-head a {
+  color: inherit;
+}
+
+.board-col-head a:hover {
+  color: var(--accent);
+}
+
+.section-intro {
+  margin-top: 0;
+  max-width: 70ch;
 }
 
 .board-col-count {
