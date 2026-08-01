@@ -482,6 +482,9 @@ enum MatchOutcome {
 model Candidate {
   id              String    @id @default(uuid()) @db.Uuid
   organizationId  String    @map("organization_id") @db.Uuid
+  /// Human-readable master id people quote in conversation (CM-0428), the
+  /// same idea as Position.reference. Assigned per organization.
+  reference       String?
   displayName     String    @map("display_name")
   currentTitle    String?   @map("current_title")
   currentEmployer String?   @map("current_employer")
@@ -500,6 +503,7 @@ model Candidate {
   applications Application[]
   flags        CandidateFlag[]
 
+  @@unique([organizationId, reference])
   @@index([organizationId])
   @@map("candidate")
 }

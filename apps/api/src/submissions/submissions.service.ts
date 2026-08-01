@@ -17,6 +17,7 @@ import type { VendorSubmissionCreate } from "@intervu/contracts";
 import { ErasureService } from "../candidates/erasure.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { nextCandidateReference } from "../candidates/reference";
 
 const DAY_MS = 86_400_000;
 
@@ -252,6 +253,7 @@ export class SubmissionsService {
         ? await tx.candidate.findUniqueOrThrow({ where: { id: matchedCandidateId } })
         : await tx.candidate.create({
             data: {
+              reference: await nextCandidateReference(tx, position.organizationId),
               organizationId: position.organizationId,
               displayName: input.candidate_name,
               currentTitle: input.current_title,
