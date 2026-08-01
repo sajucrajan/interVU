@@ -23,7 +23,12 @@ async function main() {
     create: {
       name: "Acme Corp",
       slug: "acme",
-      settings: { ownership_scope: "position", ownership_window_days: 180 },
+      settings: {
+        ownership_scope: "position",
+        ownership_window_days: 180,
+        // Work-in-progress caps per stage, shown on the board column headers.
+        wip_caps: { screening: 12, interviewing: 10 },
+      },
     },
   });
 

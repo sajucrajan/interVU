@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CommandPalette } from "@/components/command-palette";
 import type { Worklist } from "@/lib/worklist";
 
 /**
@@ -199,9 +200,13 @@ export function OrgRail() {
   };
 
   const org = me?.organization;
+  // The rail states who you are as well as where you are (design 1b).
+  const role = wl?.user.roles[0];
 
   return (
-    <aside className="rail">
+    <>
+      <CommandPalette capabilities={caps ?? []} />
+      <aside className="rail">
       <div className="rail-head">
         <Link href="/dashboard" className="brand">
           Inter<span className="brand-accent">/</span>VU
@@ -209,6 +214,7 @@ export function OrgRail() {
         {org && (
           <div className="mono-label" style={{ marginTop: 8 }}>
             {org.branding?.product_label ?? org.name}
+            {role && ` · ${role}`}
           </div>
         )}
       </div>
@@ -273,6 +279,7 @@ export function OrgRail() {
           </div>
         )}
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

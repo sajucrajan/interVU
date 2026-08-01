@@ -7,6 +7,7 @@ import type { Prisma } from "@prisma/client";
 import { normalizeEmail, normalizePhone } from "@intervu/matching-core";
 import type { VendorSubmissionCreate } from "@intervu/contracts";
 import { PrismaService } from "../prisma/prisma.service";
+import { nextCandidateReference } from "../candidates/reference";
 
 const DAY_MS = 86_400_000;
 
@@ -88,6 +89,7 @@ export class MatchReviewsService {
             })
           : await tx.candidate.create({
               data: {
+              reference: await nextCandidateReference(tx, organizationId),
                 organizationId,
                 displayName: input.candidate_name,
                 currentTitle: input.current_title,

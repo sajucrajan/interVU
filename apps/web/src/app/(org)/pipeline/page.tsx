@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
+import { PipelineBoard as BoardView } from "./board";
 import { ActionsMenu, Modal, type MenuItem } from "@/components/actions-menu";
 
 interface Application {
@@ -50,6 +51,8 @@ function PipelineBoard() {
   const [users, setUsers] = useState<OrgUserRow[]>([]);
   const [scheduleFor, setScheduleFor] = useState<Application | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Bumped after any action so the board refetches alongside the page data. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   const refresh = useCallback(async () => {
     const [a, s, u] = await Promise.all([
@@ -72,6 +75,7 @@ function PipelineBoard() {
       try {
         await fn();
         await refresh();
+        setReloadKey((n) => n + 1);
       } catch (e) {
         setError(apiErrorMessage(e));
       }
@@ -139,57 +143,6 @@ function PipelineBoard() {
 
   if (!apps) return <main className="wide muted">Loading…</main>;
 
-  if (filter === "duplicates") {
-    const dups = subs.filter((s) => s.ownershipStatus === "duplicate");
-    return (
-      <main className="wide">
-        <PipelineHeader
-          active="duplicates"
-          subtitle={`${dups.length} contested submission${dups.length === 1 ? "" : "s"}`}
-        />
-        <p className="muted section-intro">
-          The same candidate arrived from more than one source. The first valid
-          submission owns by default; the losing vendor only ever sees
-          &ldquo;not eligible&rdquo;.
-        </p>
-        {dups.length === 0 ? (
-          <p className="muted">No contested submissions.</p>
-        ) : (
-          <table className="data">
-            <thead>
-              <tr>
-                <th>Candidate</th>
-                <th>Position</th>
-                <th>Team</th>
-                <th>Blocked vendor</th>
-                <th>Received</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dups.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    {s.candidate ? (
-                      <Link href={`/candidates/${s.candidate.id}`}>
-                        <strong>{s.candidate.displayName}</strong>
-                      </Link>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td>{s.position.title}</td>
-                  <td className="muted">{s.position.orgUnit.name}</td>
-                  <td>{s.vendorOrg.vendor.name}</td>
-                  <td className="muted">{new Date(s.receivedAt).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </main>
-    );
-  }
-
   let visible = apps.filter((a) => a.status === "active");
   if (filter === "awaiting_decision") {
     visible = visible.filter(
@@ -209,117 +162,20 @@ function PipelineBoard() {
 
   return (
     <main className="wide">
-      <PipelineHeader
-        active={filter ?? (stageParam ? `stage:${stageParam}` : positionParam ? "position" : "all")}
-        subtitle={subtitle}
-      />
       {error && <p className="error">{error}</p>}
-
-      {focused ? (
-        visible.length === 0 ? (
-          <div className="card empty-state">
-            <span className="empty-icon">✓</span>
-            <div>
-              <strong>Nothing here.</strong>
-              <p className="muted" style={{ margin: 0 }}>
-                No candidates match this view right now.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <table className="data">
-            <thead>
-              <tr>
-                <th>Candidate</th>
-                <th>Position</th>
-                <th>Team</th>
-                {!stageParam && <th>Stage</th>}
-                <th>Progress</th>
-                <th style={{ width: 120 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((a) => (
-                <tr key={a.id}>
-                  <td>
-                    <Link href={`/candidates/${a.candidate.id}`}>
-                      <strong>{a.candidate.displayName}</strong>
-                    </Link>
-                  </td>
-                  <td>
-                    {a.position.reference && (
-                      <span className="ref-code">{a.position.reference}</span>
-                    )}{" "}
-                    {a.position.title}
-                  </td>
-                  <td className="muted">{a.position.orgUnit.name}</td>
-                  {!stageParam && (
-                    <td>
-                      <span className="badge">
-                        {STAGE_LABEL[a.currentStage] ?? a.currentStage}
-                      </span>
-                    </td>
-                  )}
-                  <td>
-                    <StatusBadges app={a} />
-                  </td>
-                  <td>
-                    <ActionsMenu items={menuFor(a)} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )
-      ) : (
-        <div className="board">
-          {STAGES.map((stage) => {
-            const cards = visible.filter((a) => a.currentStage === stage.key);
-            return (
-              <div className="board-col" key={stage.key}>
-                <div className="board-col-head">
-                  <Link href={`/pipeline?stage=${stage.key}`}>{stage.label}</Link>
-                  <span className="board-col-count">{cards.length}</span>
-                </div>
-                {cards.length === 0 && <p className="board-empty">—</p>}
-                {cards.map((a) => (
-                  <div className="board-card" key={a.id}>
-                    <div className="row spread" style={{ gap: "0.4rem" }}>
-                      <Link href={`/candidates/${a.candidate.id}`}>
-                        <strong>{a.candidate.displayName}</strong>
-                      </Link>
-                      <ActionsMenu items={menuFor(a)} label="⋯" />
-                    </div>
-                    <div className="muted" style={{ fontSize: "0.8rem" }}>
-                      {a.position.reference ? `${a.position.reference} · ` : ""}
-                      {a.position.title} · {a.position.orgUnit.name}
-                    </div>
-                    <div style={{ marginTop: "0.35rem" }}>
-                      <StatusBadges app={a} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {scheduleFor && (
-        <Modal
-          title={`Schedule interview — ${scheduleFor.candidate.displayName}`}
-          onClose={() => setScheduleFor(null)}
-        >
-          <ScheduleInterviewForm
-            application={scheduleFor}
-            users={users}
-            onDone={async () => {
-              setScheduleFor(null);
-              await refresh();
-            }}
-          />
-        </Modal>
-      )}
+      <BoardView
+        view={filter ?? "all"}
+        stage={stageParam}
+        positionId={positionParam}
+        reloadKey={reloadKey}
+        actionsFor={(card) => {
+          const app = apps.find((a) => a.id === card.id);
+          return app ? menuFor(app) : [];
+        }}
+        onView={(key: string) =>
+          router.push(key === "all" ? "/pipeline" : `/pipeline?filter=${key}`)
+        }
+      />
     </main>
   );
 }
@@ -343,47 +199,6 @@ function StatusBadges({ app }: { app: Application }) {
   );
 }
 
-function PipelineHeader({ active, subtitle }: { active: string; subtitle?: string }) {
-  const chips = [
-    { key: "all", label: "All active", href: "/pipeline" },
-    { key: "unscreened", label: "New to screen", href: "/pipeline?filter=unscreened" },
-    {
-      key: "awaiting_decision",
-      label: "Awaiting decision",
-      href: "/pipeline?filter=awaiting_decision",
-    },
-    { key: "duplicates", label: "Duplicates", href: "/pipeline?filter=duplicates" },
-  ];
-  const stageChip = active.startsWith("stage:")
-    ? STAGE_LABEL[active.slice(6)] ?? active.slice(6)
-    : null;
-  return (
-    <>
-      <div className="row spread">
-        <h1 style={{ marginBottom: "0.2rem" }}>
-          Pipeline{stageChip ? ` · ${stageChip}` : ""}
-        </h1>
-        {subtitle && <span className="muted">{subtitle}</span>}
-      </div>
-      <div className="tabs" style={{ marginBottom: "1.4rem" }}>
-        {chips.map((c) => (
-          <Link key={c.key} href={c.href}>
-            <button type="button" className={active === c.key ? "active" : ""}>
-              {c.label}
-            </button>
-          </Link>
-        ))}
-        {stageChip && (
-          <Link href="/pipeline">
-            <button type="button" className="active">
-              {stageChip} ✕
-            </button>
-          </Link>
-        )}
-      </div>
-    </>
-  );
-}
 
 function ScheduleInterviewForm({
   application,

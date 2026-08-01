@@ -3,11 +3,18 @@ import type { ReactNode } from "react";
 import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-/** Comparable numbers — counts, scores, hero figures. */
+/**
+ * Comparable numbers — counts, scores, hero figures.
+ *
+ * Loaded as the VARIABLE font including the optical-size axis, matching the
+ * design's `opsz,wght@12..96,400..800`. Pinning static weights would drop
+ * opsz, and Bricolage's optical sizing is what keeps a 46px headline and a
+ * 20px figure looking like the same typeface.
+ */
 const display = Bricolage_Grotesque({
   subsets: ["latin"],
   variable: "--font-bricolage",
-  weight: ["500", "600", "700", "800"],
+  axes: ["opsz"],
 });
 
 /** Anything a human wrote. */
