@@ -147,16 +147,20 @@ body {
 
 h1,
 h2,
-h3,
-.brand {
+h3 {
   font-family: var(--font-display);
   letter-spacing: -0.035em;
+}
+
+.brand {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
 }
 
 h1 {
   font-size: 46px;
   font-weight: 700;
-  line-height: 1.04;
+  line-height: 1.02;
   margin: 0 0 var(--step-3);
 }
 
@@ -1733,4 +1737,124 @@ table.data td time {
 
 .match-score {
   font: 600 12px/1 var(--font-mono);
+}
+
+/* ---------- command palette (design option 1c) ---------- */
+
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  justify-content: center;
+  padding-top: 88px;
+}
+
+.palette {
+  width: min(100% - 2rem, 560px);
+  max-height: 440px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.palette-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.palette-icon {
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.palette-head input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: 400 16px/1.2 var(--font-ui);
+  color: var(--fg);
+}
+
+.palette-head input:focus {
+  outline: none;
+}
+
+.palette-head input::placeholder {
+  font: 400 16px/1.2 var(--font-ui);
+  color: var(--faint);
+}
+
+.palette-esc {
+  font: 600 10px/1 var(--font-mono);
+  color: var(--faint);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+
+.palette-results {
+  overflow: auto;
+  padding: 8px;
+}
+
+.palette-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.palette-row.selected {
+  background: var(--sunk);
+}
+
+/* The kind sits in its own column so the eye can skip straight to the name. */
+.palette-kind {
+  font: 600 9px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  width: 70px;
+  flex: none;
+}
+
+.palette-label {
+  font: 500 14px/1.3 var(--font-ui);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-hint {
+  font: 400 12px/1 var(--font-mono);
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.palette-empty {
+  padding: 26px 12px;
+  font: 400 14px/1.4 var(--font-ui);
+  color: var(--faint);
+  text-align: center;
+}
+
+/* Rail group headings are a touch smaller and wider-tracked than a body
+   mono-label (design 1b). */
+.rail-group {
+  font-size: 9px;
+  letter-spacing: 0.16em;
 }

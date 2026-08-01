@@ -13,6 +13,7 @@ import { OrgUnitsModule } from "./org-units/org-units.module";
 import { InvitesModule } from "./invites/invites.module";
 import { OrgUsersModule } from "./org-users/org-users.module";
 import { RolesModule } from "./roles/roles.module";
+import { SearchModule } from "./search/search.module";
 import { SlaModule } from "./sla/sla.module";
 import { PanelsModule } from "./panels/panels.module";
 import { PositionsModule } from "./positions/positions.module";
@@ -38,6 +39,7 @@ import { WorklistModule } from "./worklist/worklist.module";
     InvitesModule,
     OrgUsersModule,
     RolesModule,
+    SearchModule,
     SlaModule,
     PositionsModule,
     PanelsModule,
