@@ -53,12 +53,15 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<Overview | null>(null);
   const [dark, setDark] = useState(false);
 
+  // Follow the in-app theme, not the OS: the toggle sets data-theme on <html>,
+  // and reading prefers-color-scheme here would ignore the user's choice.
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    setDark(mq.matches);
-    const fn = (e: MediaQueryListEvent) => setDark(e.matches);
-    mq.addEventListener("change", fn);
-    return () => mq.removeEventListener("change", fn);
+    const root = document.documentElement;
+    const read = () => setDark(root.dataset.theme === "dark");
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {

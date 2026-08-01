@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import type { Worklist } from "@/lib/worklist";
+import { SectionHead } from "@/components/section-head";
 
 interface Me {
   kind: string;
@@ -48,7 +49,7 @@ export default function Dashboard() {
 
       {/* ---- The action queue: the reason to open this page ---- */}
       <section>
-        <h2>Needs your attention</h2>
+        <SectionHead label="Needs your attention" />
         {wl.groups.length === 0 ? (
           <div className="card empty-state">
             <span className="empty-icon">✓</span>
@@ -155,12 +156,10 @@ export default function Dashboard() {
       {/* ---- Recent inbound ---- */}
       {caps.includes("submissions.view") && (
       <section>
-        <div className="row spread">
-          <h2>Latest submissions</h2>
-          <Link href="/pipeline" style={{ fontSize: "0.85rem" }}>
-            All submissions →
-          </Link>
-        </div>
+        <SectionHead
+          label="Latest submissions"
+          action={<Link href="/pipeline">All submissions →</Link>}
+        />
         {wl.recent_submissions.length === 0 ? (
           <p className="muted">No submissions yet.</p>
         ) : (

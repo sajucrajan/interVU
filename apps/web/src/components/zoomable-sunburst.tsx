@@ -42,14 +42,16 @@ function mix(hex: string, withHex: string, t: number): string {
     .join("")}`;
 }
 
+/** Follows the in-app theme toggle (html[data-theme]), not the OS preference. */
 function useDark(): boolean {
   const [dark, setDark] = useState(false);
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    setDark(mq.matches);
-    const fn = (e: MediaQueryListEvent) => setDark(e.matches);
-    mq.addEventListener("change", fn);
-    return () => mq.removeEventListener("change", fn);
+    const root = document.documentElement;
+    const read = () => setDark(root.dataset.theme === "dark");
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
   }, []);
   return dark;
 }

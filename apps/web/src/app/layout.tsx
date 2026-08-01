@@ -1,12 +1,27 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Bricolage_Grotesque } from "next/font/google";
+import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
+/** Comparable numbers — counts, scores, hero figures. */
 const display = Bricolage_Grotesque({
   subsets: ["latin"],
-  variable: "--font-display",
+  variable: "--font-bricolage",
   weight: ["500", "600", "700", "800"],
+});
+
+/** Anything a human wrote. */
+const ui = Instrument_Sans({
+  subsets: ["latin"],
+  variable: "--font-instrument",
+  weight: ["400", "500", "600", "700"],
+});
+
+/** Anything the machine produced — refs, timestamps, labels, column headers. */
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -15,9 +30,22 @@ export const metadata: Metadata = {
     "Open-source interview & vendor-sourced hiring management platform",
 };
 
+/**
+ * Runs before first paint, so a dark-mode user never sees a flash of the light
+ * theme. The stored choice wins; the OS preference is only the default.
+ */
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("intervu-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t}catch(e){}})()`;
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={display.variable}>
+    <html
+      lang="en"
+      className={`${display.variable} ${ui.variable} ${mono.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>{children}</body>
     </html>
   );

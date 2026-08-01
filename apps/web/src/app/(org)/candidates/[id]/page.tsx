@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { SectionHead } from "@/components/section-head";
 
 interface Timeline {
   candidate: {
@@ -71,7 +72,7 @@ export default function CandidateTimelinePage() {
         </div>
       )}
 
-      <h2>Applications</h2>
+      <SectionHead label="Applications" />
       <table className="data">
         <thead>
           <tr>
@@ -95,7 +96,7 @@ export default function CandidateTimelinePage() {
         </tbody>
       </table>
 
-      <h2>History</h2>
+      <SectionHead label="History" />
       {data.events.map((e, i) => (
         <div className="card" key={i} style={{ padding: "0.6rem 1rem", margin: "0.5rem 0" }}>
           <div className="row spread">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { ActionsMenu, Modal } from "@/components/actions-menu";
+import { SectionHead } from "@/components/section-head";
 
 interface Position {
   id: string;
@@ -123,7 +124,7 @@ function PositionTable({
   const now = new Date();
   return (
     <section>
-      <h2>{title}</h2>
+      <SectionHead label={title} />
       <table className="data">
         <thead>
           <tr>

@@ -18,7 +18,8 @@ export interface MenuItem {
  */
 export function ActionsMenu({
   items,
-  label = "Actions",
+  // A bare glyph: in a table the "Actions ▾" label ate a whole column.
+  label = "⋯",
   align = "right",
 }: {
   items: MenuItem[];
@@ -49,11 +50,13 @@ export function ActionsMenu({
       <button
         type="button"
         className="secondary menu-trigger"
+        aria-label={label === "⋯" ? "Actions" : undefined}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        {label} <span aria-hidden>▾</span>
+        {label}
+        {label !== "⋯" && <span aria-hidden> ▾</span>}
       </button>
       {open && (
         <div className={`menu ${align === "left" ? "menu-left" : ""}`} role="menu">
