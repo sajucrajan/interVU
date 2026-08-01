@@ -77,6 +77,20 @@ Two rules keep the surface from undermining the model it edits:
   Otherwise an organization can lock itself out of user and structure
   management with no route back in through the UI.
 
+### Administering the tree (Admin → Teams)
+
+`org.manage_structure` unlocks renaming, moving and deleting units. Because a
+move re-parents a whole subtree — and with it everyone's effective access — the
+operation is guarded rather than a plain update:
+
+- **A unit cannot be moved beneath itself or its own descendants.** That would
+  detach the cycle from the tree entirely, orphaning every position under it.
+- **Teams cannot gain children**, on move as well as on create.
+- **Deletion refuses while anything depends on the node** — child units,
+  positions, access grants, panels or templates — and names what is in the way.
+  Silently reassigning a position's team, or dropping people's grants, would be
+  a data change wearing a structural change's clothes.
+
 ### Invitations
 
 New users are created with no password, in `invited` status, and receive a

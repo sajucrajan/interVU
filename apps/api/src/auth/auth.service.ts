@@ -195,6 +195,21 @@ export class AuthService {
       // A vendor session without an org is from before org-scoping — reject
       // it rather than guess which organization it meant.
       if (!session.organizationId) return null;
+      // The contract is re-checked on every request, not just at login:
+      // suspending or terminating a vendor has to take effect immediately,
+      // otherwise an open session keeps working for up to a week. Individual
+      // vendor queries filter on this too — this is the backstop that covers
+      // any that forget.
+      const contract = await this.prisma.vendorOrg.findUnique({
+        where: {
+          vendorId_organizationId: {
+            vendorId: session.vendorUser.vendorId,
+            organizationId: session.organizationId,
+          },
+        },
+        select: { status: true },
+      });
+      if (!contract || !["active", "invited"].includes(contract.status)) return null;
       return {
         vendor: {
           vendor: session.vendorUser.vendor,
