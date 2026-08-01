@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import type { TenantContext } from "../tenancy/tenant-context";
 import { Access, buildAccess } from "./access";
-import { ROLE_PERMISSIONS, type Permission } from "./permissions";
+import { type Permission } from "./permissions";
 
 @Injectable()
 export class AuthzService {
@@ -18,7 +18,8 @@ export class AuthzService {
     return buildAccess(
       org.memberships.map((m) => ({
         orgUnitId: m.orgUnitId,
-        permissions: ROLE_PERMISSIONS[m.role],
+        // Already resolved from the role row when the context was built.
+        permissions: m.permissions,
       })),
       units,
     );

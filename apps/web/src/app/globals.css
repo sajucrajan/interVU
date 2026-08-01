@@ -1,58 +1,95 @@
-/* InterVU theme — chrome tokens follow the validated dataviz reference
-   palette (docs + packages: charts and app share one visual system). */
+/* InterVU "Ledger" theme.
+
+   Two rules carry the whole system:
+   1. Dark mode is driven by html[data-theme] so the in-app toggle wins;
+      prefers-color-scheme is only the first-paint default.
+   2. Meaning colours (--ok/--warn/--bad) are NEVER derived from --accent, so a
+      red- or green-branded org does not read its own brand as a status. */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
-  /* chrome */
-  --page: #f9f9f7;
-  --bg: #fcfcfb;
-  --fg: #0b0b0b;
-  --muted: #52514e;
-  --faint: #898781;
-  --border: #e1e0d9;
-  --hairline: rgba(11, 11, 11, 0.1);
+  /* surfaces — warm paper, not grey plastic */
+  --page: #f2f0e9;
+  --bg: #faf9f5;
+  --sunk: #eceadf;          /* inset wells, track backgrounds, row hover */
 
-  /* accent = categorical slot 1 */
+  /* ink */
+  --fg: #14130f;
+  --muted: #5c5850;
+  --faint: #8f8b7e;
+
+  /* rules */
+  --border: #dcd8ca;
+  --hairline: rgba(20, 19, 15, 0.1);
+  --hatch: rgba(20, 19, 15, 0.1);   /* blocked/duplicate texture */
+
+  /* brand — the ONLY value an org may override */
   --accent: #2a78d6;
   --accent-ink: #ffffff;
+  --accent-wash: rgba(42, 120, 214, 0.1);
 
-  /* status (fixed, never themed) */
-  --ok: #0ca30c;
-  --warn: #c98500;
-  --bad: #d03b3b;
+  /* status — fixed, never themed */
+  --ok: #2f7d32;
+  --ok-wash: rgba(47, 125, 50, 0.12);
+  --warn: #b0730a;
+  --warn-wash: rgba(176, 115, 10, 0.14);
+  --bad: #c0392b;
+  --bad-wash: rgba(192, 57, 43, 0.12);
 
-  /* chart series (light steps) */
-  --s1: #2a78d6;
+  /* chart series */
+  --s1: var(--accent);
   --s2: #eb6834;
   --s3: #1baf7a;
 
-  --radius: 12px;
-  --shadow: 0 1px 2px rgba(11, 11, 11, 0.05), 0 8px 24px -12px rgba(11, 11, 11, 0.12);
+  /* geometry — cards read as documents, not pills */
+  --radius: 7px;
+  --radius-lg: 10px;
+
+  /* elevation — near-flat. Depth comes from rules and space, not shadow. */
+  --shadow: 0 1px 0 rgba(20, 19, 15, 0.04);
+  --shadow-pop: 0 24px 60px -34px rgba(20, 19, 15, 0.55);
+
+  /* type — three faces, three jobs (see .mono-label / .figure) */
+  --font-display: var(--font-bricolage), system-ui, sans-serif;
+  --font-ui: var(--font-instrument), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* rhythm */
+  --step-1: 4px;
+  --step-2: 8px;
+  --step-3: 14px;
+  --step-4: 22px;
+  --step-5: 34px;
+  --step-6: 56px;
 }
 
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #100f0e;
+  --bg: #1a1917;
+  --sunk: #141312;
+  --fg: #f5f3ec;
+  --muted: #a6a196;
+  --faint: #726e65;
+  --border: #2b2926;
+  --hairline: rgba(245, 243, 236, 0.12);
+  --hatch: rgba(245, 243, 236, 0.12);
+  --accent-wash: rgba(255, 255, 255, 0.06);
+  --ok: #5cbf62;
+  --ok-wash: rgba(92, 191, 98, 0.14);
+  --warn: #e0a33a;
+  --warn-wash: rgba(224, 163, 58, 0.14);
+  --bad: #e8746a;
+  --bad-wash: rgba(232, 116, 106, 0.14);
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+  --shadow-pop: 0 24px 60px -30px rgba(0, 0, 0, 0.8);
+}
+
+/* First-paint fallback, before the toggle's stored value is applied. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --page: #0d0d0d;
-    --bg: #1a1a19;
-    --fg: #ffffff;
-    --muted: #c3c2b7;
-    --faint: #898781;
-    --border: #2c2c2a;
-    --hairline: rgba(255, 255, 255, 0.1);
-
-    --accent: #3987e5;
-    --accent-ink: #ffffff;
-
-    --ok: #0ca30c;
-    --warn: #fab219;
-    --bad: #e66767;
-
-    --s1: #3987e5;
-    --s2: #d95926;
-    --s3: #199e70;
-
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -16px rgba(0, 0, 0, 0.6);
+  html:not([data-theme="light"]) {
+    color-scheme: dark;
   }
 }
 
@@ -66,39 +103,98 @@ body {
   padding: 0;
   background: var(--page);
   color: var(--fg);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
+  font-size: 15px;
   line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
-  background-image: radial-gradient(
-    900px 380px at 18% -8%,
-    color-mix(in oklab, var(--accent) 14%, transparent),
-    transparent 70%
-  );
-  background-repeat: no-repeat;
   min-height: 100vh;
+}
+
+/* Three faces, three jobs.
+
+   Machine-produced values (refs, timestamps, scores, counts, column headers)
+   are mono, uppercase and tracked; anything a human wrote is Instrument Sans
+   at 15px or more; anything meant to be COMPARED is display weight 700 with
+   tabular figures so digits line up column-wise. */
+.mono-label {
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.figure {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Blocked / duplicate / ineligible get a texture, not just a colour — it
+   survives greyscale, colour blindness and an arbitrary brand accent. */
+.hatched {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 5px,
+    var(--hatch) 5px,
+    var(--hatch) 6px
+  );
 }
 
 h1,
 h2,
-h3,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.035em;
+}
+
 .brand {
-  font-family: var(--font-display), system-ui, sans-serif;
-  letter-spacing: -0.025em;
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
 }
 
 h1 {
-  font-size: 2.1rem;
-  font-weight: 800;
-  margin: 1.2rem 0 0.6rem;
+  font-size: 46px;
+  font-weight: 700;
+  line-height: 1.02;
+  margin: 0 0 var(--step-3);
+}
+
+/* Single-task pages (sign in, activate) are a narrow column — the app-page
+   display size overwhelms them. */
+main:not(.wide) h1 {
+  font-size: 34px;
 }
 
 h2 {
-  font-size: 1.15rem;
+  font-size: 20px;
   font-weight: 700;
-  margin: 2rem 0 0.75rem;
+  margin: var(--step-6) 0 var(--step-3);
   color: var(--fg);
+}
+
+/* A section header is a mono label plus a hairline running to the edge —
+   the single primitive most responsible for the editorial feel. */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: var(--step-6) 0 var(--step-4);
+}
+
+.section-head::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.section-head > .section-action {
+  font-size: 13px;
 }
 
 a {
@@ -141,19 +237,240 @@ p.muted {
   color: var(--muted);
 }
 
-/* ---------- top nav ---------- */
+/* ---------- left rail ---------- */
 
-.topnav {
+.org-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.rail {
+  width: 246px;
+  flex: none;
   position: sticky;
   top: 0;
-  z-index: 20;
+  height: 100vh;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+}
+
+.rail-head {
+  padding: 0 20px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rail-head .brand {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--fg);
+}
+
+.rail-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+
+.rail-group {
+  padding: 16px 10px 7px;
+}
+
+.rail-item {
   display: flex;
   align-items: center;
-  gap: 2rem;
-  padding: 0.65rem clamp(1rem, 3vw, 3.5rem);
-  background: color-mix(in oklab, var(--page) 82%, transparent);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--hairline);
+  gap: 11px;
+  padding: 9px 10px;
+  border-radius: 6px;
+  color: var(--muted);
+  border-left: 2px solid transparent;
+  transition: background 0.12s, color 0.12s;
+}
+
+.rail-item:hover {
+  text-decoration: none;
+  color: var(--fg);
+  background: var(--sunk);
+}
+
+.rail-item.active {
+  color: var(--fg);
+  background: var(--accent-wash);
+  border-left-color: var(--accent);
+}
+
+.rail-icon {
+  font: 400 14px/1 var(--font-mono);
+  width: 16px;
+  text-align: center;
+  opacity: 0.75;
+}
+
+.rail-label {
+  font: 500 14px/1 var(--font-ui);
+  flex: 1;
+}
+
+/* The count lives on the item itself: a badge you must open to understand is
+   a badge that gets ignored. */
+.rail-count {
+  font: 600 11px/1 var(--font-mono);
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--sunk);
+}
+
+.rail-count.critical {
+  color: #fff;
+  background: var(--bad);
+}
+
+.rail-foot {
+  position: relative;
+  margin: 0 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rail-avatar {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  font: 700 11px/1 var(--font-mono);
+}
+
+.rail-user {
+  flex: 1;
+  min-width: 0;
+  font: 500 13px/1.2 var(--font-ui);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-toggle,
+.rail-more {
+  font: 600 12px/1 var(--font-mono);
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--sunk);
+  color: var(--muted);
+  cursor: pointer;
+  min-width: 28px;
+}
+
+.theme-toggle:hover,
+.rail-more:hover {
+  color: var(--fg);
+}
+
+.rail-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  padding: 6px;
+  z-index: 40;
+}
+
+.rail-menu button {
+  background: transparent;
+  border: 0;
+  color: var(--fg);
+  width: 100%;
+  text-align: left;
+  padding: 8px 14px;
+  border-radius: 5px;
+}
+
+.rail-menu button:hover {
+  background: var(--sunk);
+}
+
+.org-page {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The rail owns the left edge, so the page region supplies its own gutter
+   rather than centring itself in the viewport. */
+.org-page main.wide {
+  margin: 0;
+  padding: var(--step-5) clamp(1rem, 2.4vw, 2.6rem) var(--step-6);
+  max-width: min(100%, 2200px);
+}
+
+.org-page .subnav {
+  padding: 0 clamp(1rem, 2.4vw, 2.6rem);
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .org-shell {
+    flex-direction: column;
+  }
+
+  .rail {
+    width: 100%;
+    height: auto;
+    position: static;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .rail-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .rail-group {
+    display: none;
+  }
+}
+
+/* ---------- age pill ---------- */
+
+.age-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 11px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.age-pill.age-aging {
+  color: var(--warn);
+}
+
+.age-pill.age-breached {
+  color: var(--bad);
+}
+
+.age-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex: none;
 }
 
 .brand {
@@ -162,22 +479,8 @@ p.muted {
   color: var(--fg);
 }
 
-.brand:hover {
-  text-decoration: none;
-}
-
 .brand-accent {
   color: var(--accent);
-}
-
-.org-chip {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.18rem 0.7rem;
-  margin-left: -1rem;
 }
 
 .suggestion-row {
@@ -203,10 +506,10 @@ p.muted {
 
 .skill-chip {
   display: inline-block;
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 0.05rem 0.5rem;
-  border-radius: 999px;
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.05em;
+  padding: 5px 7px;
+  border-radius: 4px;
   border: 1px solid var(--border);
   color: var(--muted);
   margin: 0 0.2rem 0.15rem 0;
@@ -215,15 +518,12 @@ p.muted {
 /* Human-readable position reference (POS-001) — monospace so it reads as an
    identifier people quote, not prose. */
 .ref-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.76rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--muted);
-  background: color-mix(in oklab, var(--fg) 7%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 0.08rem 0.4rem;
+  font: 600 11px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  background: transparent;
+  border: 0;
+  padding: 0;
   white-space: nowrap;
 }
 
@@ -233,34 +533,16 @@ p.muted {
   margin-right: 0.35rem;
 }
 
+/* Per the design (§2.6): must-have keeps the accent border and wash, with the
+   ★ prefix carrying the distinction when the accent is low-contrast. */
 .skill-chip.must {
   color: var(--accent);
-  border-color: color-mix(in oklab, var(--accent) 50%, transparent);
-  background: color-mix(in oklab, var(--accent) 9%, transparent);
+  border-color: var(--accent);
+  background: var(--accent-wash);
 }
 
-.topnav-links {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.topnav-links a {
-  color: var(--muted);
-  padding: 0.35rem 0.8rem;
-  border-radius: 999px;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.topnav-links a:hover {
-  color: var(--fg);
-  text-decoration: none;
-  background: color-mix(in oklab, var(--fg) 6%, transparent);
-}
-
-.topnav-links a.active {
-  color: var(--accent);
-  background: color-mix(in oklab, var(--accent) 12%, transparent);
+.skill-chip.must::before {
+  content: "\2605\00a0";
 }
 
 /* Second-level tabs inside a section (Admin → People / Teams / Vendors).
@@ -309,24 +591,6 @@ p.muted {
   border-radius: var(--radius);
   padding: 1.1rem 1.3rem;
   margin: 1rem 0;
-  box-shadow: var(--shadow);
-  animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-
-.card:nth-child(2) { animation-delay: 0.04s; }
-.card:nth-child(3) { animation-delay: 0.08s; }
-.card:nth-child(4) { animation-delay: 0.12s; }
-.card:nth-child(5) { animation-delay: 0.16s; }
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -348,21 +612,18 @@ p.muted {
 
 /* ---------- tables ---------- */
 
+/* A table is a ledger, not a card: no wrapper, no fill, no radius. Structure
+   comes from a heavy rule under the head and hairlines between rows. */
 table.data {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.92rem;
-  background: var(--bg);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: var(--shadow);
+  font-size: 15px;
 }
 
 table.data th,
 table.data td {
   text-align: left;
-  padding: 0.55rem 0.8rem;
+  padding: 14px 8px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -370,20 +631,23 @@ table.data tbody tr:last-child td {
   border-bottom: 0;
 }
 
+/* Hover is not a state that means anything, so it must not borrow the accent. */
 table.data tbody tr:hover {
-  background: color-mix(in oklab, var(--accent) 4%, transparent);
+  background: var(--sunk);
 }
 
 table.data th {
-  color: var(--faint);
-  font-weight: 600;
-  font-size: 0.72rem;
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  background: color-mix(in oklab, var(--fg) 3%, transparent);
+  color: var(--faint);
+  background: transparent;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--fg);
 }
 
 td.num {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -393,14 +657,21 @@ td.num {
 input,
 select,
 textarea {
-  background: var(--page);
+  background: var(--sunk);
   color: var(--fg);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem 0.7rem;
-  font: inherit;
+  border-radius: var(--radius);
+  padding: 11px 12px;
+  font: 400 15px/1.4 var(--font-ui);
   width: 100%;
   transition: border-color 0.15s;
+}
+
+input::placeholder,
+textarea::placeholder {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--faint);
 }
 
 input:focus,
@@ -408,7 +679,8 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 label {
@@ -418,27 +690,33 @@ label {
   color: var(--muted);
 }
 
+/* Primary is INK, not accent. The accent is reserved for links and the active
+   nav marker, so a primary button stays legible under any brand colour. */
 button {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border: 0;
-  border-radius: 8px;
-  padding: 0.55rem 1.05rem;
-  font: inherit;
-  font-weight: 600;
+  background: var(--fg);
+  color: var(--page);
+  border: 1px solid var(--fg);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font: 600 14px/1 var(--font-ui);
   cursor: pointer;
-  transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
-}
-
-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px -6px color-mix(in oklab, var(--accent) 60%, transparent);
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 
 button.secondary {
   background: transparent;
-  color: var(--accent);
+  color: var(--fg);
   border: 1px solid var(--border);
+}
+
+button.secondary:hover:not(:disabled) {
+  background: var(--sunk);
+}
+
+button.danger {
+  background: transparent;
+  color: var(--bad);
+  border: 1px solid var(--bad);
 }
 
 button:disabled {
@@ -450,33 +728,36 @@ button:disabled {
 
 /* ---------- badges ---------- */
 
+/* A chip, not a pill: squared, mono, uppercase — it reads as a machine value. */
 .badge {
   display: inline-block;
-  padding: 0.12rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.74rem;
-  font-weight: 600;
-  border: 1px solid var(--border);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  border: 1px solid var(--faint);
   color: var(--muted);
+  background: transparent;
   white-space: nowrap;
 }
 
 .badge.ok {
   color: var(--ok);
-  border-color: color-mix(in oklab, var(--ok) 45%, transparent);
-  background: color-mix(in oklab, var(--ok) 9%, transparent);
+  border-color: var(--ok);
+  background: var(--ok-wash);
 }
 
 .badge.warn {
   color: var(--warn);
-  border-color: color-mix(in oklab, var(--warn) 45%, transparent);
-  background: color-mix(in oklab, var(--warn) 10%, transparent);
+  border-color: var(--warn);
+  background: var(--warn-wash);
 }
 
 .badge.bad {
   color: var(--bad);
-  border-color: color-mix(in oklab, var(--bad) 45%, transparent);
-  background: color-mix(in oklab, var(--bad) 9%, transparent);
+  border-color: var(--bad);
+  background: var(--bad-wash);
 }
 
 .error {
@@ -519,15 +800,7 @@ button:disabled {
   border: 1px solid var(--hairline);
   border-radius: var(--radius);
   padding: 0.9rem 1.1rem;
-  box-shadow: var(--shadow);
-  animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
-
-.tile:nth-child(2) { animation-delay: 0.05s; }
-.tile:nth-child(3) { animation-delay: 0.1s; }
-.tile:nth-child(4) { animation-delay: 0.15s; }
-.tile:nth-child(5) { animation-delay: 0.2s; }
-.tile:nth-child(6) { animation-delay: 0.25s; }
 
 .tile .label {
   font-size: 0.74rem;
@@ -651,146 +924,12 @@ details.table-view summary {
   position: relative;
 }
 
-.bell {
-  position: relative;
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--fg);
-  padding: 0.35rem 0.6rem;
-  font-size: 0.95rem;
-  line-height: 1;
-}
-
-.bell:hover {
-  transform: none;
-  box-shadow: none;
-  background: color-mix(in oklab, var(--fg) 6%, transparent);
-}
-
-.bell-badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  background: var(--bad);
-  color: #fff;
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  display: grid;
-  place-items: center;
-}
-
-.bell-menu {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  right: 0;
-  width: 310px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  z-index: 40;
-  overflow: hidden;
-}
-
-.bell-menu-head {
-  padding: 0.6rem 0.85rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--faint);
-  border-bottom: 1px solid var(--border);
-}
-
-.bell-item {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.6rem 0.85rem;
-  color: var(--fg);
-  border-bottom: 1px solid var(--border);
-  font-size: 0.88rem;
-}
-
-.bell-item:last-child {
-  border-bottom: 0;
-}
-
-.bell-item:hover {
-  text-decoration: none;
-  background: color-mix(in oklab, var(--accent) 8%, transparent);
-}
-
-.bell-item-label {
-  flex: 1;
-}
-
-.bell-item-count {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--muted);
-}
-
-.bell-empty {
-  padding: 0.9rem 0.85rem;
-  margin: 0;
-  font-size: 0.88rem;
-}
-
-.bell-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--faint);
-  flex: none;
-}
-
-.bell-dot.tone-critical {
-  background: var(--bad);
-}
-
-.bell-dot.tone-warning {
-  background: var(--warn);
-}
-
 /* auto-fill, not auto-fit: on a wide desktop the cards keep a readable size
    instead of two items stretching across the whole screen. */
 .work-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 0.85rem;
-}
-
-.work-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  background: var(--bg);
-  border: 1px solid var(--hairline);
-  border-left: 3px solid var(--faint);
-  border-radius: var(--radius);
-  padding: 0.9rem 1.1rem;
-  box-shadow: var(--shadow);
-  color: var(--fg);
-  transition: transform 0.12s, box-shadow 0.12s;
-}
-
-.work-card:hover {
-  text-decoration: none;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px -8px color-mix(in oklab, var(--fg) 35%, transparent);
-}
-
-.work-card.tone-critical {
-  border-left-color: var(--bad);
-}
-
-.work-card.tone-warning {
-  border-left-color: var(--warn);
 }
 
 .work-count {
@@ -897,9 +1036,10 @@ details.table-view summary {
   display: inline-block;
 }
 
+/* In a table the "Actions ▾" label ate a whole column; a bare ⋯ does not. */
 .menu-trigger {
-  font-size: 0.8rem;
-  padding: 0.3rem 0.65rem;
+  font: 600 14px/1 var(--font-mono);
+  padding: 6px 10px;
   white-space: nowrap;
 }
 
@@ -910,8 +1050,9 @@ details.table-view summary {
   min-width: 210px;
   background: var(--bg);
   border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
   border-radius: 10px;
-  box-shadow: var(--shadow);
   z-index: 60;
   padding: 0.3rem;
   overflow: hidden;
@@ -963,7 +1104,9 @@ details.table-view summary {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: color-mix(in oklab, #000 55%, transparent);
+  /* 55% was too heavy against warm paper — the page should still be legible
+     behind the dialog. */
+  background: rgba(0, 0, 0, 0.32);
   backdrop-filter: blur(2px);
   z-index: 100;
   display: grid;
@@ -974,8 +1117,8 @@ details.table-view summary {
 .modal {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
   width: min(100%, 620px);
   max-height: 85vh;
   display: flex;
@@ -987,8 +1130,12 @@ details.table-view summary {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: 0.9rem 1.2rem;
+  padding: var(--step-3) var(--step-4);
   border-bottom: 1px solid var(--border);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
 .modal-close {
@@ -1054,11 +1201,9 @@ details.table-view summary {
   align-items: start;
 }
 
+/* Columns are separated by the header rule and the gutter alone — a tinted
+   panel behind each one competes with the cards it contains. */
 .board-col {
-  background: color-mix(in oklab, var(--fg) 3%, transparent);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: 0.7rem;
   min-height: 120px;
 }
 
@@ -1082,16 +1227,7 @@ details.table-view summary {
   color: var(--accent);
 }
 
-.section-intro {
-  margin-top: 0;
-  max-width: 70ch;
-}
-
 .board-col-count {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0 0.5rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1099,15 +1235,6 @@ details.table-view summary {
   color: var(--faint);
   text-align: center;
   margin: 0.5rem 0;
-}
-
-.board-card {
-  background: var(--bg);
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
-  padding: 0.7rem 0.8rem;
-  margin-bottom: 0.6rem;
-  box-shadow: var(--shadow);
 }
 
 .board-action {
@@ -1128,8 +1255,1072 @@ details.table-view summary {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: var(--shadow);
   padding: 0.45rem 0.7rem;
   font-size: 0.82rem;
   max-width: 260px;
+}
+
+/* ---------- motion ---------- */
+
+/* Nothing in a tool people open forty times a day should animate for effect.
+   Under reduced-motion we keep opacity only. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-property: opacity !important;
+    transition-duration: 0.12s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Inside a ledger the row's own link is the subject, not a destination to be
+   advertised — ink, with the underline carrying the affordance on hover. */
+table.data tbody a {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+table.data tbody a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Machine-generated identifiers read as mono wherever they appear. */
+table.data td .ref-code,
+table.data td time {
+  font-family: var(--font-mono);
+}
+
+/* ---------- dashboard (design option 1a) ---------- */
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 40px;
+  flex-wrap: wrap;
+  padding-bottom: var(--step-4);
+  border-bottom: 2px solid var(--fg);
+}
+
+.head-stats {
+  display: flex;
+  gap: var(--step-5);
+}
+
+.head-stat {
+  min-width: 96px;
+}
+
+.head-stat-value {
+  font-size: 34px;
+  line-height: 1.1;
+  margin-top: 6px;
+}
+
+.head-stat-delta {
+  font: 500 12px/1 var(--font-ui);
+  margin-top: 4px;
+}
+
+/* The queue row. The count is the subject, the SLA chip is the verdict, and
+   the age of the OLDEST item is what actually decides the running order. */
+.queue-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 200px 132px 20px;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 4px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid var(--faint);
+  color: var(--fg);
+}
+
+.queue-row:hover {
+  text-decoration: none;
+  background: var(--sunk);
+}
+
+.queue-n {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.queue-label {
+  display: block;
+  font: 600 17px/1.3 var(--font-ui);
+}
+
+.queue-sub {
+  font: 400 13px/1.4 var(--font-ui);
+  color: var(--muted);
+}
+
+.queue-sla {
+  justify-self: start;
+  font: 500 11px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+.queue-oldest {
+  font: 500 12px/1 var(--font-mono);
+  color: var(--faint);
+}
+
+.queue-go {
+  color: var(--faint);
+  font-size: 16px;
+}
+
+.dash-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 44px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .dash-split {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+/* Time in stage — a count alone cannot distinguish a big queue from a late one. */
+.stage-row {
+  display: grid;
+  grid-template-columns: 118px 1fr 84px;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.stage-name {
+  font: 600 14px/1 var(--font-ui);
+}
+
+.stage-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stage-track {
+  height: 26px;
+  flex: 1;
+  background: var(--sunk);
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+}
+
+/* Breached segments carry a texture as well as a colour, so the state survives
+   greyscale, colour blindness and a red brand accent. */
+.stage-breach {
+  background-color: var(--bad);
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 3px,
+    rgba(255, 255, 255, 0.35) 3px,
+    rgba(255, 255, 255, 0.35) 4px
+  );
+}
+
+.stage-count {
+  font-size: 20px;
+  min-width: 34px;
+  text-align: right;
+}
+
+.stage-median {
+  font: 500 11px/1 var(--font-mono);
+  color: var(--muted);
+  text-align: right;
+}
+
+.stage-legend {
+  display: flex;
+  gap: 18px;
+  margin-top: 14px;
+  font: 500 11px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.stage-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
+/* Next up */
+.next-row {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.date-block {
+  text-align: center;
+}
+
+.date-day {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.next-name {
+  font: 600 15px/1.3 var(--font-ui);
+  color: var(--fg);
+}
+
+.next-meta {
+  font: 400 12px/1.4 var(--font-ui);
+  color: var(--muted);
+}
+
+.next-time {
+  font: 600 13px/1 var(--font-mono);
+}
+
+.next-prep {
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 5px;
+}
+
+/* Match meter on submission rows */
+.match-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.match-track {
+  width: 52px;
+  height: 5px;
+  background: var(--sunk);
+  border-radius: 3px;
+  overflow: hidden;
+  display: block;
+}
+
+.match-track > span {
+  display: block;
+  height: 100%;
+}
+
+.match-score {
+  font: 600 12px/1 var(--font-mono);
+}
+
+/* ---------- command palette (design option 1c) ---------- */
+
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  justify-content: center;
+  padding-top: 88px;
+}
+
+.palette {
+  width: min(100% - 2rem, 560px);
+  max-height: 440px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.palette-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.palette-icon {
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.palette-head input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: 400 16px/1.2 var(--font-ui);
+  color: var(--fg);
+}
+
+.palette-head input:focus {
+  outline: none;
+}
+
+.palette-head input::placeholder {
+  font: 400 16px/1.2 var(--font-ui);
+  color: var(--faint);
+}
+
+.palette-esc {
+  font: 600 10px/1 var(--font-mono);
+  color: var(--faint);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+
+.palette-results {
+  overflow: auto;
+  padding: 8px;
+}
+
+.palette-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.palette-row.selected {
+  background: var(--sunk);
+}
+
+/* The kind sits in its own column so the eye can skip straight to the name. */
+.palette-kind {
+  font: 600 9px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  width: 70px;
+  flex: none;
+}
+
+.palette-label {
+  font: 500 14px/1.3 var(--font-ui);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-hint {
+  font: 400 12px/1 var(--font-mono);
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.palette-empty {
+  padding: 26px 12px;
+  font: 400 14px/1.4 var(--font-ui);
+  color: var(--faint);
+  text-align: center;
+}
+
+/* Rail group headings are a touch smaller and wider-tracked than a body
+   mono-label (design 1b). */
+.rail-group {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+}
+
+/* Secondary line inside a ledger cell (candidate's current title, etc.). */
+.row-sub {
+  display: block;
+  font: 400 12px/1.4 var(--font-ui);
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ---------- hiring performance (design option 1d) ---------- */
+
+.range-chips {
+  display: flex;
+  gap: 8px;
+}
+
+.range-chip {
+  font: 600 11px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.range-chip.active {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--page);
+}
+
+/* Hero figures are divided by rules, not boxed in cards. */
+.hero-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid var(--border);
+}
+
+@media (max-width: 1100px) {
+  .hero-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.hero-stat {
+  padding: var(--step-4) var(--step-4) var(--step-4) 0;
+  border-left: 1px solid var(--border);
+  padding-left: var(--step-4);
+}
+
+.hero-stat:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.hero-value {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.hero-value .figure {
+  font-size: 58px;
+  line-height: 1;
+}
+
+.hero-unit {
+  font: 500 14px/1 var(--font-ui);
+  color: var(--muted);
+}
+
+.hero-delta {
+  font: 600 12px/1 var(--font-mono);
+  margin-top: 8px;
+}
+
+.spark {
+  width: 100%;
+  height: 38px;
+  margin-top: 14px;
+  display: block;
+}
+
+.spark-empty {
+  height: 38px;
+  margin-top: 14px;
+}
+
+.perf-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 44px;
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .perf-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Funnel: the count lives inside the bar, conversion sits beside it. */
+.funnel-row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 0;
+}
+
+.funnel-label {
+  font: 600 15px/1.3 var(--font-ui);
+}
+
+.funnel-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.funnel-bar {
+  display: inline-flex;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  font-size: 26px;
+  min-width: 64px;
+}
+
+.funnel-conv {
+  font: 600 13px/1 var(--font-mono);
+}
+
+.funnel-unknown {
+  font: 400 13px/1 var(--font-ui);
+}
+
+.leak {
+  border-left: 3px solid var(--warn);
+  background: var(--warn-wash);
+  padding: var(--step-3) var(--step-4);
+  margin-top: var(--step-4);
+}
+
+.leak p {
+  margin: 8px 0 0;
+  font-size: 15px;
+}
+
+.quality-track {
+  width: 120px;
+  height: 8px;
+  background: var(--sunk);
+  border-radius: 3px;
+  overflow: hidden;
+  display: block;
+}
+
+.quality-track > span {
+  display: block;
+  height: 100%;
+}
+
+.quality-score {
+  font-size: 20px;
+}
+
+.breach-row {
+  display: grid;
+  grid-template-columns: 1fr auto 40px;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 4px 14px 14px;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid var(--bad);
+  color: var(--fg);
+}
+
+.breach-row:hover {
+  text-decoration: none;
+  background: var(--sunk);
+}
+
+.breach-label {
+  font: 500 15px/1.3 var(--font-ui);
+}
+
+.breach-over {
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bad);
+  border: 1px solid var(--bad);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+.breach-n {
+  font-size: 22px;
+  text-align: right;
+}
+
+/* Demand vs supply: bar is the ask, dashed line is what is actually in play. */
+.demand-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: end;
+}
+
+.demand-plot {
+  position: relative;
+  height: 190px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.demand-bar {
+  width: 100%;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0;
+  min-height: 4px;
+}
+
+.demand-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px dashed;
+}
+
+.demand-name {
+  font: 600 15px/1.3 var(--font-ui);
+  margin-top: 10px;
+}
+
+@media (max-width: 1000px) {
+  .demand-row {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+  }
+
+  .demand-plot {
+    height: 90px;
+  }
+}
+
+/* ---------- pipeline board (design option 1e) ---------- */
+
+.view-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.view-chip {
+  font: 600 11px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.view-chip.active {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--page);
+}
+
+.view-chip.bad:not(.active) {
+  border-color: var(--bad);
+  background: var(--bad-wash);
+  color: var(--bad);
+}
+
+.view-count {
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+/* The bulk bar only exists while something is selected. */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: var(--fg);
+  color: var(--page);
+  border-radius: var(--radius);
+  padding: 12px 18px;
+  margin-bottom: var(--step-3);
+}
+
+.bulk-count {
+  font: 600 11px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.bulk-sep {
+  width: 1px;
+  height: 18px;
+  background: color-mix(in oklab, var(--page) 35%, transparent);
+}
+
+.bulk-action {
+  background: transparent;
+  border: 0;
+  color: var(--page);
+  font: 500 14px/1 var(--font-ui);
+  padding: 4px 2px;
+}
+
+.bulk-action:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.bulk-clear {
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+.board-col-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: var(--step-3);
+  border-bottom: 2px solid var(--fg);
+}
+
+.board-col-count {
+  font-size: 20px;
+}
+
+.board-wip {
+  margin-left: auto;
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Cards carry their age on a left rule, so a stalled candidate is visible
+   from across the room. */
+.pipe-card {
+  position: relative;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--faint);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.pipe-card.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.pipe-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pipe-name {
+  font: 600 15px/1.3 var(--font-ui);
+  color: var(--fg);
+}
+
+.pipe-age {
+  font: 600 12px/1 var(--font-mono);
+  white-space: nowrap;
+}
+
+.pipe-meta {
+  font: 400 13px/1.4 var(--font-ui);
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.pipe-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.pipe-iv,
+.pipe-flag {
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 7px;
+  color: var(--muted);
+}
+
+.pipe-vendor {
+  margin-left: auto;
+  font: 500 11px/1 var(--font-mono);
+  color: var(--faint);
+}
+
+.pipe-open {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: none;
+}
+
+/* ---------- candidate dossier (design option 1f) ---------- */
+
+.dossier-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 40px;
+  flex-wrap: wrap;
+  padding-bottom: var(--step-4);
+  border-bottom: 2px solid var(--fg);
+}
+
+.dossier-id {
+  display: flex;
+  gap: var(--step-4);
+}
+
+.monogram {
+  width: 76px;
+  height: 76px;
+  flex: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  font: 700 26px/1 var(--font-display);
+  letter-spacing: -0.03em;
+}
+
+.dossier-meta {
+  font-size: 17px;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+
+.dossier-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: var(--step-3);
+}
+
+.confidence {
+  min-width: 280px;
+}
+
+.confidence-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.confidence-value .figure {
+  font-size: 52px;
+  line-height: 1;
+}
+
+.feature-row {
+  display: grid;
+  /* minmax(0, …) so a long label shrinks and truncates instead of running
+     straight through the bar beside it. */
+  grid-template-columns: minmax(0, 92px) minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 7px;
+}
+
+.feature-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--step-3);
+  justify-content: flex-end;
+}
+
+.feature-track {
+  height: 6px;
+  background: var(--sunk);
+  border-radius: 3px;
+  overflow: hidden;
+  display: block;
+}
+
+.feature-track > span {
+  display: block;
+  height: 100%;
+}
+
+.feature-pct {
+  font: 600 11px/1 var(--font-mono);
+  text-align: right;
+  color: var(--muted);
+}
+
+.dossier-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .dossier-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Timeline: a date column, a rail with coloured nodes, then the event. */
+.timeline {
+  position: relative;
+}
+
+.tl-row {
+  display: grid;
+  grid-template-columns: 104px 14px 1fr;
+  align-items: start;
+  gap: 14px;
+  padding: 0 0 var(--step-4);
+  position: relative;
+}
+
+.tl-row::before {
+  content: "";
+  position: absolute;
+  left: 122px;
+  top: 16px;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+.tl-row:last-child::before {
+  display: none;
+}
+
+.tl-date {
+  font: 500 12px/1.6 var(--font-mono);
+  color: var(--faint);
+  text-align: right;
+}
+
+.tl-node {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-top: 5px;
+  position: relative;
+  z-index: 1;
+}
+
+.tl-title {
+  font: 600 16px/1.3 var(--font-ui);
+}
+
+.tl-detail {
+  font: 400 13px/1.5 var(--font-ui);
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.source-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0 12px 14px;
+  border-left: 3px solid var(--faint);
+  border-bottom: 1px solid var(--border);
+}
+
+.source-vendor {
+  font: 600 15px/1.3 var(--font-ui);
+}
+
+.identity-row {
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.identity-value {
+  font: 500 14px/1.4 var(--font-mono);
+}
+
+.prior-outcome {
+  border-left: 3px solid var(--bad);
+  background: var(--bad-wash);
+  padding: var(--step-3) var(--step-4);
+  margin-top: var(--step-4);
+}
+
+.prior-outcome p {
+  margin: 8px 0 0;
+  font-size: 15px;
+}
+
+.linklike {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font: 500 13px/1 var(--font-ui);
+  cursor: pointer;
+}
+
+/* A prior outcome is only alarming when it was a rejection. */
+.prior-outcome.tone-ok {
+  border-left-color: var(--ok);
+  background: var(--ok-wash);
+}
+
+.prior-outcome.tone-warn {
+  border-left-color: var(--warn);
+  background: var(--warn-wash);
+}
+
+/* The card's action trigger sits out of the way until the card is hovered. */
+.pipe-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.pipe-card:hover .pipe-actions,
+.pipe-actions:focus-within {
+  opacity: 1;
+}
+
+/* A reference is a machine value first and a link second: mono, so a column
+   of them aligns and two similar refs cannot be confused at a glance. */
+.ref-link {
+  font: 600 12px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.ref-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }

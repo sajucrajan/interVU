@@ -37,7 +37,7 @@ export class OrgUsersController {
       id: u.id,
       name: u.name,
       email: u.email,
-      roles: [...new Set(u.memberships.map((m) => m.role))],
+      roles: [...new Set(u.memberships.map((m) => m.role.name))],
     }));
   }
 

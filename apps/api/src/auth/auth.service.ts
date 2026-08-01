@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { WITH_ROLES, resolveMemberships } from "../entitlements/membership";
 import type { TenantContext } from "../tenancy/tenant-context";
 import { hashPassword, verifyPassword } from "./password";
 
@@ -173,7 +174,7 @@ export class AuthService {
     const session = await this.prisma.session.findUnique({
       where: { tokenHash: sha256(token) },
       include: {
-        orgUser: { include: { memberships: true } },
+        orgUser: { include: WITH_ROLES },
         vendorUser: { include: { vendor: true } },
       },
     });
@@ -184,10 +185,7 @@ export class AuthService {
         org: {
           organizationId: session.orgUser.organizationId,
           user: session.orgUser,
-          memberships: session.orgUser.memberships.map((m) => ({
-            role: m.role,
-            orgUnitId: m.orgUnitId,
-          })),
+          memberships: resolveMemberships(session.orgUser.memberships),
         },
       };
     }

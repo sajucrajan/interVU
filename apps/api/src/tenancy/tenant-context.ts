@@ -1,4 +1,18 @@
-import type { OrgRole, OrgUser, Vendor, VendorUser } from "@prisma/client";
+import type { OrgUser, Vendor, VendorUser } from "@prisma/client";
+import type { Permission } from "../entitlements/permissions";
+
+/**
+ * One `role @ scope` grant, with the role's permissions already resolved.
+ * Roles are rows now, so the permission list travels with the membership
+ * rather than being looked up from a compile-time table.
+ */
+export interface ResolvedMembership {
+  roleId: string;
+  roleKey: string;
+  roleName: string;
+  permissions: Permission[];
+  orgUnitId: string | null;
+}
 
 /**
  * Resolved per-request identity + tenancy scope. Exactly one side is set:
@@ -10,7 +24,7 @@ export interface TenantContext {
   org?: {
     organizationId: string;
     user: OrgUser;
-    memberships: { role: OrgRole; orgUnitId: string | null }[];
+    memberships: ResolvedMembership[];
   };
   /**
    * Vendor sessions are org-scoped: a vendor serving several organizations

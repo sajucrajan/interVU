@@ -7,6 +7,7 @@ import { OrgScope, Tenant } from "../tenancy/scope.decorator";
 import type { TenantContext } from "../tenancy/tenant-context";
 import { CandidatesService } from "./candidates.service";
 import { ErasureService } from "./erasure.service";
+import { DossierService } from "./dossier.service";
 
 @Controller("candidates")
 @OrgScope()
@@ -14,6 +15,7 @@ export class CandidatesController {
   constructor(
     private readonly candidates: CandidatesService,
     private readonly authz: AuthzService,
+    private readonly dossierService: DossierService,
     private readonly erasure: ErasureService,
   ) {}
 
@@ -34,6 +36,12 @@ export class CandidatesController {
       return { ok: false, code: "confirmation_mismatch" };
     }
     return this.erasure.erase(tenant.org!.organizationId, id, tenant.org!.user.id);
+  }
+
+  /** Everything the dossier header and right column need, in one call. */
+  @Get(":id/dossier")
+  async dossier(@Tenant() tenant: TenantContext, @Param("id", ParseUUIDPipe) id: string) {
+    return this.dossierService.dossier(tenant.org!.organizationId, id);
   }
 
   @Get(":id/timeline")

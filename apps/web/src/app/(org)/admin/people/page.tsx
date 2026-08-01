@@ -7,9 +7,17 @@ import { ActionsMenu, Modal } from "@/components/actions-menu";
 
 interface Membership {
   id: string;
-  role: string;
+  role_id: string;
+  role_name: string;
   org_unit_id: string | null;
   org_unit_name: string | null;
+}
+
+interface Role {
+  id: string;
+  name: string;
+  description: string | null;
+  is_system: boolean;
 }
 
 interface Person {
@@ -28,15 +36,6 @@ interface UnitNode {
   children: UnitNode[];
 }
 
-const ROLES = [
-  "org_admin",
-  "recruiter",
-  "hiring_manager",
-  "project_manager",
-  "interviewer",
-] as const;
-
-const nice = (s: string) => s.replaceAll("_", " ");
 
 /** Flatten the unit tree into indented options, so scope reads as a hierarchy. */
 function flatten(nodes: UnitNode[], depth = 0): { id: string; label: string }[] {
@@ -50,6 +49,7 @@ export default function PeopleAdminPage() {
   const router = useRouter();
   const [people, setPeople] = useState<Person[] | null>(null);
   const [units, setUnits] = useState<{ id: string; label: string }[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
   const [granting, setGranting] = useState<Person | null>(null);
@@ -68,6 +68,7 @@ export default function PeopleAdminPage() {
   useEffect(() => {
     load();
     api<UnitNode[]>("/org-units").then((t) => setUnits(flatten(t))).catch(() => undefined);
+    api<Role[]>("/roles").then(setRoles).catch(() => undefined);
   }, [load]);
 
   if (!people) return <main className="wide muted">Loading…</main>;
@@ -144,7 +145,7 @@ export default function PeopleAdminPage() {
                   <div className="row" style={{ flexWrap: "wrap", gap: "0.3rem" }}>
                     {p.memberships.map((m) => (
                       <span key={m.id} className="badge" title={m.org_unit_name ?? "Org-wide"}>
-                        {nice(m.role)} @ {m.org_unit_name ?? "org-wide"}
+                        {m.role_name} @ {m.org_unit_name ?? "org-wide"}
                       </span>
                     ))}
                   </div>
@@ -213,6 +214,7 @@ export default function PeopleAdminPage() {
         <Modal title="Invite someone" onClose={() => setInviting(false)}>
           <InviteForm
             units={units}
+            roles={roles}
             onDone={(invite) => {
               setInviting(false);
               setLink(invite);
@@ -227,6 +229,7 @@ export default function PeopleAdminPage() {
           <GrantEditor
             person={granting}
             units={units}
+            roles={roles}
             onChanged={() => {
               load();
               setGranting(null);
@@ -240,14 +243,16 @@ export default function PeopleAdminPage() {
 
 function InviteForm({
   units,
+  roles,
   onDone,
 }: {
   units: { id: string; label: string }[];
+  roles: Role[];
   onDone: (invite: { name: string; url: string }) => void;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<string>("recruiter");
+  const [roleId, setRoleId] = useState("");
   const [unitId, setUnitId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -261,10 +266,11 @@ function InviteForm({
       <div className="row">
         <div style={{ flex: 1, minWidth: 160 }}>
           <label>Role</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)}>
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {nice(r)}
+          <select value={roleId} onChange={(e) => setRoleId(e.target.value)}>
+            <option value="">Choose a role…</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
               </option>
             ))}
           </select>
@@ -287,7 +293,7 @@ function InviteForm({
       </p>
       <div style={{ marginTop: "1rem" }}>
         <button
-          disabled={busy || !name.trim() || !email.trim()}
+          disabled={busy || !name.trim() || !email.trim() || !roleId}
           onClick={async () => {
             setBusy(true);
             setError(null);
@@ -299,7 +305,7 @@ function InviteForm({
                   body: {
                     name: name.trim(),
                     email: email.trim(),
-                    memberships: [{ role, org_unit_id: unitId || null }],
+                    memberships: [{ role_id: roleId, org_unit_id: unitId || null }],
                   },
                 },
               );
@@ -321,14 +327,16 @@ function InviteForm({
 function GrantEditor({
   person,
   units,
+  roles,
   onChanged,
 }: {
   person: Person;
   units: { id: string; label: string }[];
+  roles: Role[];
   onChanged: () => void;
 }) {
   const [rows, setRows] = useState<Membership[]>(person.memberships);
-  const [role, setRole] = useState<string>("interviewer");
+  const [roleId, setRoleId] = useState("");
   const [unitId, setUnitId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -357,7 +365,7 @@ function GrantEditor({
             {rows.map((m) => (
               <tr key={m.id}>
                 <td>
-                  <strong>{nice(m.role)}</strong>
+                  <strong>{m.role_name}</strong>
                 </td>
                 <td className="muted">{m.org_unit_name ?? "org-wide"}</td>
                 <td className="num">
@@ -384,10 +392,11 @@ function GrantEditor({
 
       <label style={{ marginTop: "1rem" }}>Grant another role</label>
       <div className="row">
-        <select value={role} onChange={(e) => setRole(e.target.value)}>
-          {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {nice(r)}
+        <select value={roleId} onChange={(e) => setRoleId(e.target.value)}>
+          <option value="">Choose a role…</option>
+          {roles.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
             </option>
           ))}
         </select>
@@ -400,22 +409,24 @@ function GrantEditor({
           ))}
         </select>
         <button
-          disabled={busy}
+          disabled={busy || !roleId}
           onClick={() =>
             run(async () => {
               const created = await api<{
                 id: string;
-                role: string;
+                role_id: string;
+                role_name: string;
                 orgUnitId: string | null;
               }>(`/org-users/${person.id}/memberships`, {
                 method: "POST",
-                body: { role, org_unit_id: unitId || null },
+                body: { role_id: roleId, org_unit_id: unitId || null },
               });
               setRows((r) => [
                 ...r,
                 {
                   id: created.id,
-                  role: created.role,
+                  role_id: created.role_id,
+                  role_name: created.role_name,
                   org_unit_id: created.orgUnitId,
                   org_unit_name:
                     units.find((u) => u.id === created.orgUnitId)?.label.replace(/^(— )+/, "") ??

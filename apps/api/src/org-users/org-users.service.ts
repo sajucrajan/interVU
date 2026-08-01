@@ -5,7 +5,6 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { OrgRole } from "@prisma/client";
 import type { MembershipGrant, OrgUserCreate, OrgUserUpdate } from "@intervu/contracts";
 import { PrismaService } from "../prisma/prisma.service";
 import { InvitesService, type Invite } from "../invites/invites.service";
@@ -27,7 +26,12 @@ export class OrgUsersService {
     const users = await this.prisma.orgUser.findMany({
       where: { organizationId },
       include: {
-        memberships: { include: { orgUnit: { select: { id: true, name: true } } } },
+        memberships: {
+          include: {
+            orgUnit: { select: { id: true, name: true } },
+            role: { select: { id: true, name: true, permissions: true } },
+          },
+        },
       },
       orderBy: [{ status: "asc" }, { name: "asc" }],
     });
@@ -41,7 +45,8 @@ export class OrgUsersService {
       createdAt: u.createdAt,
       memberships: u.memberships.map((m) => ({
         id: m.id,
-        role: m.role,
+        role_id: m.role.id,
+        role_name: m.role.name,
         org_unit_id: m.orgUnitId,
         org_unit_name: m.orgUnit?.name ?? null,
       })),
@@ -50,6 +55,7 @@ export class OrgUsersService {
 
   async create(organizationId: string, access: Access, input: OrgUserCreate) {
     for (const g of input.memberships) this.assertCanGrant(access, g);
+    for (const g of input.memberships) await this.assertRoleExists(organizationId, g.role_id);
 
     const email = input.email.trim().toLowerCase();
     const existing = await this.prisma.orgUser.findFirst({
@@ -70,7 +76,7 @@ export class OrgUsersService {
         status: "invited",
         memberships: {
           create: input.memberships.map((g) => ({
-            role: g.role as OrgRole,
+            roleId: g.role_id,
             orgUnitId: g.org_unit_id ?? null,
           })),
         },
@@ -121,22 +127,38 @@ export class OrgUsersService {
       });
       if (!unit) throw new NotFoundException("Org unit not found");
     }
+    await this.assertRoleExists(organizationId, grant.role_id);
 
-    try {
-      return await this.prisma.orgMembership.create({
-        data: {
-          orgUserId: userId,
-          orgUnitId: grant.org_unit_id ?? null,
-          role: grant.role as OrgRole,
-        },
-        select: { id: true, role: true, orgUnitId: true },
-      });
-    } catch {
+    // Checked explicitly rather than left to the unique index: Postgres treats
+    // NULLs as distinct, so the index does not catch a repeated org-wide grant.
+    const duplicate = await this.prisma.orgMembership.findFirst({
+      where: {
+        orgUserId: userId,
+        orgUnitId: grant.org_unit_id ?? null,
+        roleId: grant.role_id,
+      },
+    });
+    if (duplicate) {
       throw new ConflictException({
         code: "grant_exists",
         detail: "That role is already granted at that scope.",
       });
     }
+
+    const created = await this.prisma.orgMembership.create({
+      data: {
+        orgUserId: userId,
+        orgUnitId: grant.org_unit_id ?? null,
+        roleId: grant.role_id,
+      },
+      include: { role: { select: { id: true, name: true } } },
+    });
+    return {
+      id: created.id,
+      role_id: created.role.id,
+      role_name: created.role.name,
+      orgUnitId: created.orgUnitId,
+    };
   }
 
   async removeMembership(
@@ -147,15 +169,21 @@ export class OrgUsersService {
   ) {
     const membership = await this.prisma.orgMembership.findFirst({
       where: { id: membershipId, orgUserId: userId, orgUser: { organizationId } },
+      include: { role: { select: { permissions: true } } },
     });
     if (!membership) throw new NotFoundException("Grant not found");
 
     this.assertCanGrant(access, {
-      role: membership.role,
+      role_id: membership.roleId,
       org_unit_id: membership.orgUnitId,
     });
 
-    if (membership.role === "org_admin" && membership.orgUnitId === null) {
+    // Keyed on the permission, not on a role name: with custom roles, the
+    // thing that must survive is somebody holding org.manage_users org-wide.
+    if (
+      membership.orgUnitId === null &&
+      membership.role.permissions.includes("org.manage_users")
+    ) {
       await this.assertNotLastAdmin(organizationId, { excludeMembershipId: membershipId });
     }
 
@@ -202,15 +230,29 @@ export class OrgUsersService {
     }
   }
 
-  /** Guard the last active org-wide admin against removal or disabling. */
+  private async assertRoleExists(organizationId: string, roleId: string): Promise<void> {
+    const role = await this.prisma.role.findFirst({
+      where: { id: roleId, organizationId },
+      select: { id: true },
+    });
+    if (!role) throw new NotFoundException("Role not found");
+  }
+
+  /**
+   * Guard the last person who can administer the organization.
+   *
+   * Keyed on the org.manage_users permission rather than a role named
+   * "org_admin": once roles are org-defined, the name guarantees nothing and
+   * the permission is the thing that must not reach zero.
+   */
   private async assertNotLastAdmin(
     organizationId: string,
     exclude: { excludeUserId?: string; excludeMembershipId?: string },
   ): Promise<void> {
     const remaining = await this.prisma.orgMembership.count({
       where: {
-        role: "org_admin",
         orgUnitId: null,
+        role: { permissions: { has: "org.manage_users" } },
         orgUser: { organizationId, status: "active" },
         ...(exclude.excludeUserId ? { orgUserId: { not: exclude.excludeUserId } } : {}),
         ...(exclude.excludeMembershipId ? { id: { not: exclude.excludeMembershipId } } : {}),
@@ -220,7 +262,8 @@ export class OrgUsersService {
       throw new BadRequestException({
         code: "last_admin",
         detail:
-          "This is the last organization-wide admin. Grant admin to someone else first.",
+          "This is the last person who can manage people organization-wide. " +
+          "Give someone else that access first.",
       });
     }
   }

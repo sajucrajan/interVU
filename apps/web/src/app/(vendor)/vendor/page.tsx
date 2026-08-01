@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, API_BASE, ApiError, apiErrorMessage } from "@/lib/api";
+import { SectionHead } from "@/components/section-head";
 
 interface Me {
   kind: string;
@@ -92,7 +93,7 @@ export default function VendorHome() {
         </div>
       </div>
 
-      <h2>Open positions</h2>
+      <SectionHead label="Open positions" />
       {positions.length === 0 && (
         <p className="muted">No positions have been released to you yet.</p>
       )}
@@ -153,7 +154,7 @@ export default function VendorHome() {
         </div>
       ))}
 
-      <h2>My submissions</h2>
+      <SectionHead label="My submissions" />
       {submissions.length === 0 ? (
         <p className="muted">No submissions yet.</p>
       ) : (

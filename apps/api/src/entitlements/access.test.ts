@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { buildAccess } from "./access";
+import {
+  ALL_PERMISSIONS,
+  PERMISSION_GROUPS,
+  SYSTEM_ROLES,
+  sanitizePermissions,
+} from "./permissions";
 
 /**
  * The org tree used throughout:
@@ -110,5 +116,83 @@ describe("canGrantAt", () => {
     );
     expect(access.canGrantAt("org.manage_users", null)).toBe(false);
     expect(access.canGrantAt("org.manage_users", "platform")).toBe(false);
+  });
+});
+
+describe("permission catalog", () => {
+  it("lists every permission exactly once, grouped", () => {
+    const flat = PERMISSION_GROUPS.flatMap((g) => g.permissions.map((p) => p.key));
+    expect(new Set(flat).size).toBe(flat.length);
+    expect(ALL_PERMISSIONS.length).toBe(flat.length);
+  });
+
+  it("grants nothing for a permission the code no longer knows", () => {
+    // A role stored before a permission was renamed must not keep granting it.
+    expect(sanitizePermissions(["positions.view", "positions.teleport"])).toEqual([
+      "positions.view",
+    ]);
+    expect(sanitizePermissions(["", "  ", "nonsense"])).toEqual([]);
+  });
+
+  it("de-duplicates", () => {
+    expect(sanitizePermissions(["positions.view", "positions.view"])).toEqual([
+      "positions.view",
+    ]);
+  });
+});
+
+describe("system roles", () => {
+  it("only reference permissions that exist", () => {
+    for (const role of SYSTEM_ROLES) {
+      expect(sanitizePermissions([...role.permissions]).sort()).toEqual(
+        [...role.permissions].sort(),
+      );
+    }
+  });
+
+  it("keeps an admin able to administer, or nobody could grant anything", () => {
+    const admin = SYSTEM_ROLES.find((r) => r.key === "org_admin");
+    expect(admin?.permissions).toContain("org.manage_users");
+    expect(admin?.permissions).toContain("org.manage_structure");
+  });
+
+  it("keeps interviewers assignment-scoped rather than tree-scoped", () => {
+    // docs/09 §4.2: an interviewer's reach comes from panel membership, so the
+    // role itself must not carry any tree-scoped read permission.
+    const interviewer = SYSTEM_ROLES.find((r) => r.key === "interviewer");
+    expect(interviewer?.permissions).toEqual(["scorecards.submit"]);
+  });
+});
+
+describe("custom roles resolve like built-in ones", () => {
+  it("gives a made-up role exactly the permissions it was defined with", () => {
+    // "Release Train Engineer" over three teams that do not share a parent —
+    // the shape the org hierarchy actually takes.
+    const rte = ["positions.view", "submissions.view"] as const;
+    const access = buildAccess(
+      [
+        { orgUnitId: "platform", permissions: [...rte] },
+        { orgUnitId: "product", permissions: [...rte] },
+        { orgUnitId: "sales", permissions: [...rte] },
+      ],
+      UNITS,
+    );
+    expect(access.can("positions.view", "platform-core")).toBe(true);
+    expect(access.can("positions.view", "sales")).toBe(true);
+    expect(access.can("positions.view", "gtm")).toBe(false);
+    expect(access.can("positions.create", "platform")).toBe(false);
+  });
+
+  it("unions a narrow role with a broad one", () => {
+    const access = buildAccess(
+      [
+        { orgUnitId: null, permissions: ["positions.view"] },
+        { orgUnitId: "platform", permissions: ["decisions.record"] },
+      ],
+      UNITS,
+    );
+    expect(access.can("positions.view", "sales")).toBe(true);
+    expect(access.can("decisions.record", "platform-core")).toBe(true);
+    expect(access.can("decisions.record", "sales")).toBe(false);
   });
 });

@@ -109,7 +109,9 @@ export class AuthController {
         organization: { name: org.name, branding },
         capabilities,
         memberships: ctx.org.memberships.map((m) => ({
-          role: m.role,
+          role_id: m.roleId,
+          role: m.roleKey,
+          role_name: m.roleName,
           org_unit_id: m.orgUnitId,
         })),
       };

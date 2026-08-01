@@ -7,6 +7,7 @@ import {
 import { Reflector } from "@nestjs/core";
 import { AuthService, SESSION_COOKIE } from "../auth/auth.service";
 import { readCookie } from "../common/cookies";
+import { WITH_ROLES, resolveMemberships } from "../entitlements/membership";
 import { PrismaService } from "../prisma/prisma.service";
 import { SCOPE_KEY, type RequiredScope } from "./scope.decorator";
 import { TENANT_CONTEXT_KEY, type TenantContext } from "./tenant-context";
@@ -63,17 +64,14 @@ export class AuthGuard implements CanActivate {
       if (!org) return null;
       const user = await this.prisma.orgUser.findUnique({
         where: { organizationId_email: { organizationId: org.id, email: orgEmail } },
-        include: { memberships: true },
+        include: WITH_ROLES,
       });
       if (!user || user.status === "disabled") return null;
       return {
         org: {
           organizationId: org.id,
           user,
-          memberships: user.memberships.map((m) => ({
-            role: m.role,
-            orgUnitId: m.orgUnitId,
-          })),
+          memberships: resolveMemberships(user.memberships),
         },
       };
     }

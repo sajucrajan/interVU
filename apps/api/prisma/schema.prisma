@@ -29,6 +29,8 @@ model Organization {
   candidates   Candidate[]
   auditLogs    AuditLog[]
   inviteTokens InviteToken[]
+  roles        Role[]
+  slaPolicies  SlaPolicy[]
 
   @@map("organization")
 }
@@ -67,14 +69,30 @@ model OrgUnit {
 
 // ---------- Org users & memberships ----------
 
-enum OrgRole {
-  org_admin
-  recruiter
-  hiring_manager
-  project_manager
-  interviewer
+/// An organization-defined bundle of permissions.
+///
+/// Enforcement is always on permissions, never on role names (docs/09 §2), so
+/// an organization can name authority the way it actually does — "Release
+/// Train Engineer", "Program Manager", "Managing Director" — without a code
+/// change or a migration. The five built-ins ship as `isSystem` rows.
+model Role {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  /// Stable slug; system roles keep their historical keys (org_admin, …).
+  key            String
+  name           String
+  description    String?
+  permissions    String[]
+  /// Built-ins can be re-permissioned but never deleted.
+  isSystem       Boolean  @default(false) @map("is_system")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  @@map("org_role")
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  memberships  OrgMembership[]
+
+  @@unique([organizationId, key])
+  @@map("role")
 }
 
 enum UserStatus {
@@ -113,13 +131,17 @@ model OrgMembership {
   id        String   @id @default(uuid()) @db.Uuid
   orgUserId String   @map("org_user_id") @db.Uuid
   orgUnitId String?  @map("org_unit_id") @db.Uuid
-  role      OrgRole
+  roleId    String   @map("role_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
   orgUser OrgUser  @relation(fields: [orgUserId], references: [id])
   orgUnit OrgUnit? @relation(fields: [orgUnitId], references: [id])
+  role    Role     @relation(fields: [roleId], references: [id])
 
-  @@unique([orgUserId, orgUnitId, role])
+  // Postgres treats NULLs as distinct, so this does NOT stop a duplicate
+  // org-wide grant (org_unit_id IS NULL) — the service checks explicitly.
+  @@unique([orgUserId, orgUnitId, roleId])
+  @@index([roleId])
   @@map("org_membership")
 }
 
@@ -190,6 +212,27 @@ model VendorUser {
 
   @@unique([vendorId, email])
   @@map("vendor_user")
+}
+
+/// How long a piece of work may sit before it is late.
+///
+/// One row per (organization, event). `sla_state` is derived, never stored:
+/// ok below 70% of the threshold, aging above it, breached past it — so
+/// changing a threshold re-colours history immediately instead of leaving
+/// stale states behind.
+model SlaPolicy {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  /// first_screen | scorecard_due | decision_due | vendor_ack
+  event          String
+  thresholdHours Int      @map("threshold_hours")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, event])
+  @@map("sla_policy")
 }
 
 /// A single-use activation link for a user who has no password yet.
@@ -439,6 +482,9 @@ enum MatchOutcome {
 model Candidate {
   id              String    @id @default(uuid()) @db.Uuid
   organizationId  String    @map("organization_id") @db.Uuid
+  /// Human-readable master id people quote in conversation (CM-0428), the
+  /// same idea as Position.reference. Assigned per organization.
+  reference       String?
   displayName     String    @map("display_name")
   currentTitle    String?   @map("current_title")
   currentEmployer String?   @map("current_employer")
@@ -457,6 +503,7 @@ model Candidate {
   applications Application[]
   flags        CandidateFlag[]
 
+  @@unique([organizationId, reference])
   @@index([organizationId])
   @@map("candidate")
 }

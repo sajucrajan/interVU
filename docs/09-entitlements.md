@@ -27,7 +27,29 @@ Examples the model must express (all verified in seed/tests):
 
 ## 2. Roles and the permission catalog
 
-Roles are **bundles of permissions**; enforcement is always on permissions, never on role names — so custom roles (M4) slot in without touching call sites.
+Roles are **bundles of permissions**; enforcement is always on permissions, never on role names. That is what lets an organization define its own roles at runtime, without a code change or a migration.
+
+### Roles are rows, not an enum
+
+A `role` row belongs to an organization and carries a permission array. Five ship as `is_system` (below); everything else — **program manager**, **release train engineer**, **managing director** — is created by the organization in **Admin → Roles**, because no fixed list survives contact with a real org chart.
+
+- The permission array is **sanitized on read**: a role still storing a permission the code has since removed grants nothing, rather than throwing.
+- **System roles can be re-permissioned but not deleted**, so there is always something to grant. Their names are fixed because the seed, docs and demo accounts refer to them.
+- **A role cannot be deleted while it is still granted**, and the error counts *grants*, not people — one person may legitimately hold the same role at several scopes.
+- **The last role granting `org.manage_users` org-wide cannot have it removed.** This is the same lockout the last-admin guard prevents, reached from the other direction: strip the permission from the only role that has it and nobody can grant anything ever again.
+
+Note that every guard here is keyed on the **`org.manage_users` permission**, never on a role called "org_admin". Once organizations name their own roles, a name guarantees nothing.
+
+### Expressing a real org chart
+
+The two shapes that matter both fall out of the existing scope rules:
+
+- **A manager of one branch** — grant at that node; the subtree comes along, including teams added later.
+- **A manager of teams that don't share a parent** (an RTE's train, a program spanning verticals) — grant the *same role at each team*. Grants are a union, so a set of teams works as naturally as a subtree. No "group" concept is needed.
+
+
+
+The five built-ins start with these permissions (an organization can change any of them):
 
 | Permission | org_admin | recruiter | hiring_manager | project_manager | interviewer |
 |---|---|---|---|---|---|
@@ -73,9 +95,10 @@ Two rules keep the surface from undermining the model it edits:
   org-wide grant, nor grant sideways into a subtree they don't administer.
   Without this distinction a team-level admin could promote themselves out of
   their own scope in one call.
-- **The last organization-wide `org_admin` cannot be disabled or revoked.**
-  Otherwise an organization can lock itself out of user and structure
-  management with no route back in through the UI.
+- **The last person holding `org.manage_users` org-wide cannot be disabled or
+  revoked.** Otherwise an organization locks itself out of user and structure
+  management with no route back in through the UI. Keyed on the permission
+  rather than a role named "org_admin", since roles are org-defined (§2).
 
 ### Administering the tree (Admin → Teams)
 
@@ -121,7 +144,6 @@ Three flows deliberately cross or narrow the scope model; each is an explicit, d
 
 - **No deny/negative grants.** Union-only keeps effective access explainable ("why can Priya see this?" has a one-query answer). Exclusion = don't grant.
 - **No per-object ACLs.** Confidential positions (M3+) will be a position-level `restricted` flag requiring a direct grant on the position's team — still expressed as a grant, not an ACL list.
-- **No custom roles yet** (M4: org-defined permission bundles; enforcement already permission-keyed so this is additive).
 
 ## 6. Enforcement architecture
 
