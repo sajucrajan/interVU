@@ -43,6 +43,7 @@ function PipelineBoard() {
   const params = useSearchParams();
   const filter = params.get("filter");
   const stageParam = params.get("stage");
+  const positionParam = params.get("position");
 
   const [apps, setApps] = useState<Application[] | null>(null);
   const [subs, setSubs] = useState<Submission[]>([]);
@@ -198,8 +199,10 @@ function PipelineBoard() {
     visible = visible.filter((a) => a.currentStage === "submitted");
   }
   if (stageParam) visible = visible.filter((a) => a.currentStage === stageParam);
+  if (positionParam) visible = visible.filter((a) => a.position.id === positionParam);
 
-  const focused = !!stageParam || filter === "unscreened" || filter === "awaiting_decision";
+  const focused =
+    !!stageParam || !!positionParam || filter === "unscreened" || filter === "awaiting_decision";
   const subtitle = focused
     ? `${visible.length} candidate${visible.length === 1 ? "" : "s"}`
     : `${visible.length} active across ${STAGES.length} stages`;
@@ -207,7 +210,7 @@ function PipelineBoard() {
   return (
     <main className="wide">
       <PipelineHeader
-        active={filter ?? (stageParam ? `stage:${stageParam}` : "all")}
+        active={filter ?? (stageParam ? `stage:${stageParam}` : positionParam ? "position" : "all")}
         subtitle={subtitle}
       />
       {error && <p className="error">{error}</p>}

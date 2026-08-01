@@ -1,5 +1,14 @@
-import { Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post } from "@nestjs/common";
-import { PositionCreate, ReleasePolicy } from "@intervu/contracts";
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+} from "@nestjs/common";
+import { PositionCreate, PositionUpdate, ReleasePolicy } from "@intervu/contracts";
 import { z } from "zod";
 import { parseBody } from "../common/zod";
 import { AuthzService } from "../entitlements/authz.service";
@@ -55,6 +64,23 @@ export class PositionsController {
     const { organizationId, user } = tenant.org!;
     await this.requirePermissionOnPosition(tenant, id, "positions.publish");
     return this.positions.publish(organizationId, id, user.id, policy);
+  }
+
+  /** Edit JD fields and/or pause / close / reopen. */
+  @Patch(":id")
+  async update(
+    @Tenant() tenant: TenantContext,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(PositionUpdate, body);
+    await this.requirePermissionOnPosition(tenant, id, "positions.publish");
+    return this.positions.update(
+      tenant.org!.organizationId,
+      id,
+      tenant.org!.user.id,
+      input,
+    );
   }
 
   /** Clone into a new draft — "another one like this". */

@@ -69,6 +69,35 @@ export const PositionCreate = z.object({
   message: "rate_min must be ≤ rate_max",
 });
 
+/**
+ * Edit a live position. Every field optional — send only what changed.
+ * `status` handles pause/close/reopen; going from draft to open is the
+ * publish endpoint's job, since that needs a release policy.
+ */
+export const PositionUpdate = z
+  .object({
+    title: z.string().min(1).max(200).optional(),
+    description: z.string().max(20_000).optional(),
+    openings: z.number().int().min(1).optional(),
+    seniority: Seniority.nullish(),
+    employment_type: EmploymentType.optional(),
+    location_policy: LocationPolicyEnum.nullish(),
+    location_text: z.string().max(200).nullish(),
+    min_total_years: z.number().int().min(0).max(50).nullish(),
+    rate_min: z.number().int().min(0).nullish(),
+    rate_max: z.number().int().min(0).nullish(),
+    rate_currency: z.string().length(3).optional(),
+    rate_period: RatePeriod.nullish(),
+    must_haves: z.array(z.string().min(1).max(200)).max(20).optional(),
+    skills: z.array(PositionSkillInput).max(30).optional(),
+    status: z.enum(["open", "paused", "closed"]).optional(),
+  })
+  .refine((p) => p.rate_min == null || p.rate_max == null || p.rate_min <= p.rate_max, {
+    message: "rate_min must be ≤ rate_max",
+  });
+
+export type PositionUpdate = z.infer<typeof PositionUpdate>;
+
 export const MatchReviewResolve = z.object({
   action: z.enum(["link", "keep_separate"]),
 });

@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { Position, Prisma } from "@prisma/client";
-import type { PositionCreate, ReleasePolicy } from "@intervu/contracts";
+import type { PositionCreate, PositionUpdate, ReleasePolicy } from "@intervu/contracts";
 import { ReleaseNotifierService } from "../notifications/release-notifier.service";
 import { PanelsService } from "../panels/panels.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -75,6 +75,120 @@ export class PositionsService {
         },
       },
     });
+  }
+
+  /**
+   * Edit a position: JD fields and/or lifecycle status. Pausing hides it from
+   * vendor portals without touching submissions already in flight; closing is
+   * terminal. Reopening a paused role restores the existing releases, since
+   * visibility is evaluated at query time (docs/05 §2).
+   */
+  async update(
+    organizationId: string,
+    id: string,
+    actorId: string,
+    input: PositionUpdate,
+  ) {
+    const position = await this.prisma.position.findFirst({
+      where: { id, organizationId },
+    });
+    if (!position) throw new NotFoundException("Position not found");
+
+    if (input.status && input.status !== position.status) {
+      if (position.status === "draft") {
+        throw new ConflictException({
+          code: "publish_required",
+          detail: "Publish the position to open it — that sets the release policy",
+        });
+      }
+      if (position.status === "closed") {
+        throw new ConflictException({
+          code: "position_closed",
+          detail: "A closed position cannot be reopened; duplicate it instead",
+        });
+      }
+    }
+
+    // Replacing the skill matrix is all-or-nothing, so it stays consistent.
+    let skillData: { skillId: string; level: string; proficiency: string; minYears: number | null }[] | null =
+      null;
+    if (input.skills) {
+      const resolved = await this.panels.upsertSkills(
+        organizationId,
+        input.skills.map((s) => s.name),
+      );
+      const specByNorm = new Map(
+        input.skills.map((s) => [s.name.trim().toLowerCase(), s]),
+      );
+      skillData = resolved.map((s) => {
+        const spec = specByNorm.get(s.nameNorm);
+        return {
+          skillId: s.id,
+          level: spec?.level ?? "good_to_have",
+          proficiency: spec?.proficiency ?? "working",
+          minYears: spec?.min_years ?? null,
+        };
+      });
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (skillData) {
+        await tx.positionSkill.deleteMany({ where: { positionId: id } });
+        await tx.positionSkill.createMany({
+          data: skillData.map((s) => ({
+            positionId: id,
+            skillId: s.skillId,
+            level: s.level as never,
+            proficiency: s.proficiency as never,
+            minYears: s.minYears,
+          })),
+        });
+      }
+      const result = await tx.position.update({
+        where: { id },
+        data: {
+          ...(input.title !== undefined ? { title: input.title } : {}),
+          ...(input.description !== undefined ? { description: input.description } : {}),
+          ...(input.openings !== undefined ? { openings: input.openings } : {}),
+          ...(input.seniority !== undefined ? { seniority: input.seniority } : {}),
+          ...(input.employment_type !== undefined
+            ? { employmentType: input.employment_type }
+            : {}),
+          ...(input.location_policy !== undefined
+            ? { locationPolicy: input.location_policy }
+            : {}),
+          ...(input.location_text !== undefined
+            ? { locationText: input.location_text }
+            : {}),
+          ...(input.min_total_years !== undefined
+            ? { minTotalYears: input.min_total_years }
+            : {}),
+          ...(input.rate_min !== undefined ? { rateMin: input.rate_min } : {}),
+          ...(input.rate_max !== undefined ? { rateMax: input.rate_max } : {}),
+          ...(input.rate_currency !== undefined
+            ? { rateCurrency: input.rate_currency }
+            : {}),
+          ...(input.rate_period !== undefined ? { ratePeriod: input.rate_period } : {}),
+          ...(input.must_haves !== undefined
+            ? { mustHaves: input.must_haves as Prisma.InputJsonValue }
+            : {}),
+          ...(input.status !== undefined ? { status: input.status } : {}),
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          organizationId,
+          actorType: "org_user",
+          actorId,
+          event: input.status ? `position.${input.status}` : "position.updated",
+          entityType: "position",
+          entityId: id,
+          payload: { fields: Object.keys(input) },
+        },
+      });
+      return result;
+    });
+    return updated;
   }
 
   /**

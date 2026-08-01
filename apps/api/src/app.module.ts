@@ -19,6 +19,7 @@ import { SubmissionsModule } from "./submissions/submissions.module";
 import { TemplatesModule } from "./templates/templates.module";
 import { TenancyModule } from "./tenancy/tenancy.module";
 import { VendorPortalModule } from "./vendor-portal/vendor-portal.module";
+import { VendorsModule } from "./vendors/vendors.module";
 import { WorklistModule } from "./worklist/worklist.module";
 
 @Module({
@@ -43,6 +44,7 @@ import { WorklistModule } from "./worklist/worklist.module";
     MatchReviewsModule,
     CandidatesModule,
     VendorPortalModule,
+    VendorsModule,
     WorklistModule,
   ],
 })

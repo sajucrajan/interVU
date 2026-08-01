@@ -50,9 +50,14 @@ export default function TemplatesPage() {
             Standard JDs to start a position from, so you only edit what differs.
           </p>
         </div>
-        <Link href="/positions">
-          <button className="secondary">Positions</button>
-        </Link>
+        <div className="row">
+          <Link href="/templates/new">
+            <button>+ New template</button>
+          </Link>
+          <Link href="/positions">
+            <button className="secondary">Positions</button>
+          </Link>
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -63,8 +68,11 @@ export default function TemplatesPage() {
           <div>
             <strong>No templates yet.</strong>
             <p className="muted" style={{ margin: 0 }}>
-              Open any position and choose <em>Save as template</em> to capture its
-              job description for reuse.
+              Create one from scratch, or open any position and choose{" "}
+              <em>Save as template</em> to capture its job description.
+            </p>
+            <p style={{ margin: "0.5rem 0 0" }}>
+              <Link href="/templates/new">Create a template →</Link>
             </p>
           </div>
         </div>
@@ -73,9 +81,15 @@ export default function TemplatesPage() {
           {templates.map((t) => (
             <div className="card" key={t.id} style={{ margin: 0 }}>
               <div className="row spread">
-                <strong>{t.name}</strong>
+                <Link href={`/templates/${t.id}`}>
+                  <strong>{t.name}</strong>
+                </Link>
                 <ActionsMenu
                   items={[
+                    {
+                      label: "View details",
+                      onSelect: () => router.push(`/templates/${t.id}`),
+                    },
                     {
                       label: "Use for a new position",
                       onSelect: () => router.push(`/positions/new?template=${t.id}`),
@@ -126,7 +140,8 @@ export default function TemplatesPage() {
                   ))}
                 </div>
               )}
-              <p style={{ margin: "0.7rem 0 0" }}>
+              <p style={{ margin: "0.7rem 0 0" }} className="row">
+                <Link href={`/templates/${t.id}`}>View details</Link>
                 <Link href={`/positions/new?template=${t.id}`}>Use this template →</Link>
               </p>
             </div>
