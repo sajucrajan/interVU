@@ -57,6 +57,7 @@ model OrgUnit {
   positions    Position[]
   memberships  OrgMembership[]
   panels       Panel[]
+  templates    PositionTemplate[]
 
   @@unique([organizationId, parentId, name])
   @@index([organizationId, parentId])
@@ -719,6 +720,7 @@ model Skill {
 
   positionSkills PositionSkill[]
   panelSkills    PanelSkill[]
+  templateSkills PositionTemplateSkill[]
 
   @@unique([organizationId, nameNorm])
   @@map("skill")
@@ -748,6 +750,57 @@ model PositionSkill {
 
   @@unique([positionId, skillId])
   @@map("position_skill")
+}
+
+/// A reusable job description. Recruiters start a position from a template
+/// and adjust only what differs, instead of re-entering a standard JD each
+/// time. Templates can be authored directly or captured from a live position.
+model PositionTemplate {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  /// What the template is called in the picker ("Backend Engineer — standard").
+  name           String
+  summary        String          @default("")
+  // ---- Defaults copied onto a new position ----
+  title          String
+  description    String          @default("")
+  seniority      Seniority?
+  employmentType EmploymentType  @default(full_time) @map("employment_type")
+  locationPolicy LocationPolicy? @map("location_policy")
+  locationText   String?         @map("location_text")
+  minTotalYears  Int?            @map("min_total_years")
+  openings       Int             @default(1)
+  rateMin        Int?            @map("rate_min")
+  rateMax        Int?            @map("rate_max")
+  rateCurrency   String          @default("USD") @map("rate_currency")
+  ratePeriod     RatePeriod?     @map("rate_period")
+  mustHaves      Json            @default("[]") @map("must_haves")
+  /// Optional default team; the recruiter can always pick another.
+  orgUnitId      String?         @map("org_unit_id") @db.Uuid
+  createdById    String?         @map("created_by_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  orgUnit OrgUnit?                @relation(fields: [orgUnitId], references: [id])
+  skills  PositionTemplateSkill[]
+
+  @@unique([organizationId, name])
+  @@map("position_template")
+}
+
+model PositionTemplateSkill {
+  id          String           @id @default(uuid()) @db.Uuid
+  templateId  String           @map("template_id") @db.Uuid
+  skillId     String           @map("skill_id") @db.Uuid
+  level       RequirementLevel
+  proficiency Proficiency      @default(working)
+  minYears    Int?             @map("min_years")
+
+  template PositionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  skill    Skill            @relation(fields: [skillId], references: [id])
+
+  @@unique([templateId, skillId])
+  @@map("position_template_skill")
 }
 
 /// A named pool of panelists for a technology/knowledge area. Scope follows

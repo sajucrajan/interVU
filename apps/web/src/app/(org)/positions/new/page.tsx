@@ -1,8 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
+
+interface TemplateSummary {
+  id: string;
+  name: string;
+  summary: string;
+  title: string;
+  orgUnit: { id: string; name: string } | null;
+  skills: { level: string; proficiency: string; minYears: number | null; skill: { name: string } }[];
+}
+
+interface TemplateDetail extends TemplateSummary {
+  description: string;
+  seniority: string | null;
+  employmentType: string;
+  locationPolicy: string | null;
+  locationText: string | null;
+  minTotalYears: number | null;
+  openings: number;
+  rateMin: number | null;
+  rateMax: number | null;
+  rateCurrency: string;
+  ratePeriod: string | null;
+  mustHaves: string[];
+  orgUnitId: string | null;
+}
 
 interface UnitNode {
   id: string;
@@ -35,10 +60,13 @@ function teamOptions(nodes: UnitNode[], path: string[] = []): { id: string; labe
   });
 }
 
-export default function NewPositionPage() {
+function NewPositionForm() {
   const router = useRouter();
+  const params = useSearchParams();
   const [teams, setTeams] = useState<{ id: string; label: string }[]>([]);
   const [knownSkills, setKnownSkills] = useState<string[]>([]);
+  const [templates, setTemplates] = useState<TemplateSummary[]>([]);
+  const [appliedFrom, setAppliedFrom] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -62,6 +90,37 @@ export default function NewPositionPage() {
   const [mustHaveDraft, setMustHaveDraft] = useState("");
   const [release, setRelease] = useState("all_at_once");
 
+  /** Fill the form from a saved template — the whole point of templates. */
+  const applyTemplate = useCallback((t: TemplateDetail) => {
+    setForm({
+      title: t.title,
+      org_unit_id: t.orgUnitId ?? "",
+      seniority: t.seniority ?? "",
+      employment_type: t.employmentType ?? "full_time",
+      openings: t.openings ?? 1,
+      location_policy: t.locationPolicy ?? "",
+      location_text: t.locationText ?? "",
+      min_total_years: t.minTotalYears != null ? String(t.minTotalYears) : "",
+      rate_min: t.rateMin != null ? String(t.rateMin) : "",
+      rate_max: t.rateMax != null ? String(t.rateMax) : "",
+      rate_currency: t.rateCurrency ?? "USD",
+      rate_period: t.ratePeriod ?? "",
+      description: t.description ?? "",
+    });
+    setMustHaves(t.mustHaves ?? []);
+    setSkills(
+      t.skills.length > 0
+        ? t.skills.map((s) => ({
+            name: s.skill.name,
+            level: s.level as SkillRow["level"],
+            proficiency: s.proficiency as SkillRow["proficiency"],
+            min_years: s.minYears != null ? String(s.minYears) : "",
+          }))
+        : [emptySkill()],
+    );
+    setAppliedFrom(t.name);
+  }, []);
+
   useEffect(() => {
     api<UnitNode[]>("/org-units")
       .then((tree) => setTeams(teamOptions(tree)))
@@ -69,7 +128,18 @@ export default function NewPositionPage() {
     api<{ name: string }[]>("/skills")
       .then((s) => setKnownSkills(s.map((x) => x.name)))
       .catch(() => undefined);
-  }, [router]);
+    api<TemplateSummary[]>("/position-templates")
+      .then(setTemplates)
+      .catch(() => undefined);
+
+    // Arriving from "use this template" preloads the form.
+    const templateId = params.get("template");
+    if (templateId) {
+      api<TemplateDetail>(`/position-templates/${templateId}`)
+        .then(applyTemplate)
+        .catch(() => undefined);
+    }
+  }, [router, params, applyTemplate]);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm({ ...form, [k]: e.target.value });
@@ -148,6 +218,38 @@ export default function NewPositionPage() {
           Cancel
         </button>
       </div>
+      {templates.length > 0 && (
+        <div className="card">
+          <p className="chart-title">Start from a template</p>
+          <p className="chart-sub">
+            Load a standard job description, then change only what differs for
+            this opening.
+          </p>
+          <div className="row">
+            <select
+              style={{ maxWidth: 420 }}
+              value=""
+              onChange={(e) => {
+                if (!e.target.value) return;
+                api<TemplateDetail>(`/position-templates/${e.target.value}`)
+                  .then(applyTemplate)
+                  .catch(() => setError("Could not load that template."));
+              }}
+            >
+              <option value="">Choose a template…</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            {appliedFrom && (
+              <span className="badge ok">loaded &ldquo;{appliedFrom}&rdquo;</span>
+            )}
+          </div>
+        </div>
+      )}
+
       <form onSubmit={submit}>
         <div className="card">
           <p className="chart-title">Role</p>
@@ -351,5 +453,13 @@ export default function NewPositionPage() {
         </div>
       </form>
     </main>
+  );
+}
+
+export default function NewPositionPage() {
+  return (
+    <Suspense fallback={<main className="wide muted">Loading…</main>}>
+      <NewPositionForm />
+    </Suspense>
   );
 }

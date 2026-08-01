@@ -57,6 +57,26 @@ export class PositionsController {
     return this.positions.publish(organizationId, id, user.id, policy);
   }
 
+  /** Clone into a new draft — "another one like this". */
+  @Post(":id/duplicate")
+  async duplicate(
+    @Tenant() tenant: TenantContext,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    const source = await this.prisma.position.findFirst({
+      where: { id, organizationId: tenant.org!.organizationId },
+      select: { orgUnitId: true },
+    });
+    if (!source) throw new NotFoundException("Position not found");
+    const access = await this.authz.access(tenant);
+    this.authz.require(access, "positions.create", source.orgUnitId);
+    return this.positions.duplicate(
+      tenant.org!.organizationId,
+      id,
+      tenant.org!.user.id,
+    );
+  }
+
   @Post(":id/releases")
   async release(
     @Tenant() tenant: TenantContext,

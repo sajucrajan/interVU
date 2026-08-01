@@ -360,6 +360,114 @@ async function main() {
     console.log("Seeded skills + 3 panels (2 vertical-scoped, 1 org-wide)");
   }
 
+  // --- Starter JD templates (guarded), so the picker isn't empty on a fresh
+  // install and the "start from a template" flow is discoverable.
+  const templateCount = await prisma.positionTemplate.count({
+    where: { organizationId: org.id },
+  });
+  if (templateCount === 0) {
+    const skillId = async (name: string) => {
+      const norm = name.toLowerCase();
+      const existing = await prisma.skill.findFirst({
+        where: { organizationId: org.id, nameNorm: norm },
+      });
+      return (
+        existing ??
+        (await prisma.skill.create({
+          data: { organizationId: org.id, name, nameNorm: norm },
+        }))
+      ).id;
+    };
+    const mkTemplate = async (
+      name: string,
+      summary: string,
+      data: Record<string, unknown>,
+      skills: [string, "must_have" | "good_to_have", string][],
+    ) => {
+      const rows = await Promise.all(
+        skills.map(async ([n, level, proficiency]) => ({
+          skillId: await skillId(n),
+          level,
+          proficiency,
+        })),
+      );
+      await prisma.positionTemplate.create({
+        data: {
+          organizationId: org.id,
+          name,
+          summary,
+          createdById: admin.id,
+          ...data,
+          skills: { create: rows as never },
+        } as never,
+      });
+    };
+
+    await mkTemplate(
+      "Backend Engineer — standard",
+      "Server-side product engineering; adjust seniority and rate per opening.",
+      {
+        title: "Backend Engineer",
+        description:
+          "Design, build and operate backend services. Partner with product on API design, own reliability of what you ship.",
+        seniority: "mid",
+        employmentType: "full_time",
+        locationPolicy: "hybrid",
+        minTotalYears: 3,
+        mustHaves: ["Eligible to work without sponsorship"],
+      },
+      [
+        ["Java", "must_have", "proficient"],
+        ["Spring Boot", "must_have", "working"],
+        ["SQL", "must_have", "working"],
+        ["Kubernetes", "good_to_have", "awareness"],
+      ],
+    );
+
+    await mkTemplate(
+      "Data Engineer — standard",
+      "Pipelines and warehouse modelling; commonly opened as a contract role.",
+      {
+        title: "Data Engineer",
+        description:
+          "Build and operate batch and streaming pipelines feeding the analytics warehouse.",
+        seniority: "mid",
+        employmentType: "contract",
+        locationPolicy: "remote",
+        minTotalYears: 3,
+        rateMin: 70,
+        rateMax: 95,
+        rateCurrency: "USD",
+        ratePeriod: "hourly",
+      },
+      [
+        ["Spark", "must_have", "proficient"],
+        ["Airflow", "must_have", "working"],
+        ["Snowflake", "good_to_have", "working"],
+        ["Python", "must_have", "proficient"],
+      ],
+    );
+
+    await mkTemplate(
+      "Frontend Engineer — standard",
+      "Product UI engineering against the design system.",
+      {
+        title: "Frontend Engineer",
+        description: "Build accessible, fast product surfaces with React and TypeScript.",
+        seniority: "mid",
+        employmentType: "full_time",
+        locationPolicy: "remote",
+        minTotalYears: 3,
+      },
+      [
+        ["React", "must_have", "proficient"],
+        ["TypeScript", "must_have", "proficient"],
+        ["Design Systems", "good_to_have", "working"],
+      ],
+    );
+    console.log("Seeded 3 job-description templates");
+  }
+
   // --- Role posting metadata (guarded: only if no position has it yet)
   const withMeta = await prisma.position.count({
     where: { organizationId: org.id, NOT: { seniority: null } },

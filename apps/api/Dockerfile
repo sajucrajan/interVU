@@ -34,6 +34,10 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY --from=build /app/apps/api/prisma ./apps/api/prisma
+# The seed script imports helpers from src, so ship it too — this is what
+# makes `docker compose exec api ./node_modules/.bin/tsx prisma/seed.ts` work.
+COPY --from=build /app/apps/api/src ./apps/api/src
+COPY --from=build /app/apps/api/tsconfig.json ./apps/api/tsconfig.json
 COPY --from=build /app/apps/api/package.json ./apps/api/package.json
 WORKDIR /app/apps/api
 EXPOSE 4000

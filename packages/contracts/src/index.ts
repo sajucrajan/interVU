@@ -73,6 +73,33 @@ export const MatchReviewResolve = z.object({
   action: z.enum(["link", "keep_separate"]),
 });
 
+// --- Reusable job-description templates
+
+/** Author a template directly, or capture one from an existing position. */
+export const PositionTemplateCreate = z.object({
+  name: z.string().min(1).max(120),
+  summary: z.string().max(500).default(""),
+  /** Capture every JD field from this position instead of supplying them. */
+  from_position_id: z.string().uuid().optional(),
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(20_000).optional(),
+  seniority: Seniority.nullish(),
+  employment_type: EmploymentType.optional(),
+  location_policy: LocationPolicyEnum.nullish(),
+  location_text: z.string().max(200).nullish(),
+  min_total_years: z.number().int().min(0).max(50).nullish(),
+  openings: z.number().int().min(1).optional(),
+  rate_min: z.number().int().min(0).nullish(),
+  rate_max: z.number().int().min(0).nullish(),
+  rate_currency: z.string().length(3).optional(),
+  rate_period: RatePeriod.nullish(),
+  must_haves: z.array(z.string().min(1).max(200)).max(20).optional(),
+  org_unit_id: z.string().uuid().nullish(),
+  skills: z.array(PositionSkillInput).max(30).optional(),
+});
+
+export type PositionTemplateCreate = z.infer<typeof PositionTemplateCreate>;
+
 // --- Interview panels (skill-tagged panelist pools; scope = org-unit pattern)
 
 export const PanelCreate = z.object({

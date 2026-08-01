@@ -16,6 +16,7 @@ import { PositionsModule } from "./positions/positions.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { SettingsModule } from "./settings/settings.module";
 import { SubmissionsModule } from "./submissions/submissions.module";
+import { TemplatesModule } from "./templates/templates.module";
 import { TenancyModule } from "./tenancy/tenancy.module";
 import { VendorPortalModule } from "./vendor-portal/vendor-portal.module";
 import { WorklistModule } from "./worklist/worklist.module";
@@ -35,6 +36,7 @@ import { WorklistModule } from "./worklist/worklist.module";
     PanelsModule,
     SettingsModule,
     SubmissionsModule,
+    TemplatesModule,
     ApplicationsModule,
     AnalyticsModule,
     InterviewsModule,

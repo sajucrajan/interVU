@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { Position } from "@prisma/client";
+import type { Position, Prisma } from "@prisma/client";
 import type { PositionCreate, ReleasePolicy } from "@intervu/contracts";
 import { ReleaseNotifierService } from "../notifications/release-notifier.service";
 import { PanelsService } from "../panels/panels.service";
@@ -72,6 +72,50 @@ export class PositionsService {
               minYears: spec?.min_years ?? null,
             };
           }),
+        },
+      },
+    });
+  }
+
+  /**
+   * Clone a position into a fresh draft — same JD, new reference, no releases
+   * or submissions. The starting point for "another one like this".
+   */
+  async duplicate(organizationId: string, sourceId: string, createdById: string) {
+    const source = await this.prisma.position.findFirst({
+      where: { id: sourceId, organizationId },
+      include: { skills: true },
+    });
+    if (!source) throw new NotFoundException("Position not found");
+
+    const reference = await this.nextReference(organizationId);
+    return this.prisma.position.create({
+      data: {
+        organizationId,
+        orgUnitId: source.orgUnitId,
+        reference,
+        title: `${source.title} (copy)`,
+        description: source.description,
+        openings: source.openings,
+        seniority: source.seniority,
+        employmentType: source.employmentType,
+        locationPolicy: source.locationPolicy,
+        locationText: source.locationText,
+        minTotalYears: source.minTotalYears,
+        rateMin: source.rateMin,
+        rateMax: source.rateMax,
+        rateCurrency: source.rateCurrency,
+        ratePeriod: source.ratePeriod,
+        mustHaves: source.mustHaves as Prisma.InputJsonValue,
+        createdById,
+        // status defaults to draft: a copy is never silently live.
+        skills: {
+          create: source.skills.map((s) => ({
+            skillId: s.skillId,
+            level: s.level,
+            proficiency: s.proficiency,
+            minYears: s.minYears,
+          })),
         },
       },
     });
