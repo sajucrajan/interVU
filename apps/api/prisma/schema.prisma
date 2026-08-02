@@ -566,6 +566,12 @@ model Application {
   sourceSubmissionId String            @map("source_submission_id") @db.Uuid
   currentStage       String            @default("submitted") @map("current_stage")
   status             ApplicationStatus @default(active)
+  /// The candidate left the process rather than being rejected — withdrew,
+  /// went unresponsive, or declined an offer. `dropoutAtStage` records where,
+  /// because a dropout at offer means something different from one at screening.
+  dropoutKind        DropoutKind?      @map("dropout_kind")
+  dropoutAtStage     String?           @map("dropout_at_stage")
+  dropoutAt          DateTime?         @map("dropout_at")
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
 
@@ -575,6 +581,7 @@ model Application {
   stageTransitions StageTransition[]
   decision         Decision?
   debrief          Debrief?
+  offer            Offer?
 
   @@unique([positionId, candidateId])
   @@index([organizationId, status])
@@ -1121,4 +1128,63 @@ model FeedbackPacket {
   debrief Debrief @relation(fields: [debriefId], references: [id], onDelete: Cascade)
 
   @@map("feedback_packet")
+}
+
+// ---------- Offers & dropout (docs/05 §7, handoff items #16 / #7) ----------
+
+enum RateBandFit {
+  below
+  in
+  above
+
+  @@map("rate_band_fit")
+}
+
+enum DeclineReason {
+  compensation
+  counter_offer
+  competing_offer
+  role_scope
+  location
+  timing
+  other
+
+  @@map("decline_reason")
+}
+
+/// An offer extended for an application, and what became of it.
+///
+/// Separate from Decision because an offer has its own life after the
+/// decision is recorded: it is extended, then accepted or declined, often
+/// days later. Acceptance is what makes "time to hire" and "offer accept
+/// rate" real rather than estimated.
+model Offer {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  applicationId  String        @unique @map("application_id") @db.Uuid
+  amount         Decimal?      @db.Decimal(12, 2)
+  currency       String        @default("EUR")
+  /// Where the offer sits against the position's advertised band — drives the
+  /// "above band" flag on the pipeline card.
+  vsRateBand     RateBandFit?  @map("vs_rate_band")
+  extendedAt     DateTime      @default(now()) @map("extended_at")
+  acceptedAt     DateTime?     @map("accepted_at")
+  declinedAt     DateTime?     @map("declined_at")
+  declinedReason DeclineReason? @map("declined_reason")
+  declinedNote   String        @default("") @map("declined_note")
+  createdById    String?       @map("created_by_id") @db.Uuid
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@index([organizationId, acceptedAt])
+  @@map("offer")
+}
+
+enum DropoutKind {
+  withdrew
+  unresponsive
+  declined_offer
+
+  @@map("dropout_kind")
 }

@@ -84,6 +84,7 @@ export class PerformanceController {
             sourceSubmissionId: true,
             position: { select: { orgUnitId: true } },
             decision: { select: { outcome: true, decidedAt: true } },
+            dropoutKind: true,
             interviews: { select: { status: true } },
             stageTransitions: {
               orderBy: { at: "asc" },
@@ -128,6 +129,18 @@ export class PerformanceController {
           select: { id: true, name: true, kind: true },
         }),
       ]);
+
+    // Offers and dropouts now exist, so the four figures that used to be
+    // blank are measured rather than estimated.
+    const offerRows = await this.prisma.offer.findMany({
+      where: { organizationId, application: { ...byPosition } },
+      select: {
+        extendedAt: true,
+        acceptedAt: true,
+        declinedAt: true,
+        applicationId: true,
+      },
+    });
 
     const vendorOrgs = await this.prisma.vendorOrg.findMany({
       where: { organizationId },
@@ -205,8 +218,11 @@ export class PerformanceController {
         median_dwell_hours: median(dwell),
       };
     });
-    // Hired needs an accepted offer, which is not modelled — see the class note.
-    funnel.push({ stage: "hired", count: -1, median_dwell_hours: null });
+    funnel.push({
+      stage: "hired",
+      count: offerRows.filter((o) => o.acceptedAt).length,
+      median_dwell_hours: null,
+    });
 
     const worstLeak = funnel
       .slice(1, 4)
@@ -228,6 +244,8 @@ export class PerformanceController {
           .filter(Boolean) as (typeof applications)[number][];
         const interviewed = apps.filter((a) => reached(a, "interviewing")).length;
         const offered = apps.filter((a) => a.decision?.outcome === "offer").length;
+        const droppedOut = apps.filter((a) => a.dropoutKind !== null).length;
+        const dropoutRate = apps.length ? droppedOut / apps.length : 0;
         const acceptRate = subs.length ? accepted.length / subs.length : 0;
         const interviewRate = accepted.length ? interviewed / accepted.length : 0;
         const offerRate = interviewed ? offered / interviewed : 0;
@@ -239,9 +257,12 @@ export class PerformanceController {
           submissions: subs.length,
           /** accept × interview × offer. NOT dropout-penalised: dropout is
            *  not modelled, so the design's penalty term cannot be applied. */
-          quality: Math.round(acceptRate * interviewRate * offerRate * 100),
+          // Now dropout-penalised, as the design specifies.
+          quality: Math.round(
+            acceptRate * interviewRate * offerRate * (1 - dropoutRate) * 100,
+          ),
           offer_rate: subs.length ? offered / subs.length : 0,
-          dropout_rate: null as number | null,
+          dropout_rate: dropoutRate,
         };
       })
       .sort((a, b) => b.quality - a.quality);
@@ -328,8 +349,16 @@ export class PerformanceController {
           now,
           (b) => median(b.map((r) => r.days)),
         ),
-        /** Needs offer acceptance (item #16). Null, not a guess. */
-        offer_accept_rate: null,
+        offer_accept_rate: (() => {
+          // Closed offers only: one still open is not yet a decline.
+          const closed = offerRows.filter(
+            (o) => (o.acceptedAt ?? o.declinedAt) && (o.acceptedAt ?? o.declinedAt)! >= new Date(from),
+          );
+          if (closed.length === 0) return null;
+          return Math.round(
+            (closed.filter((o) => o.acceptedAt).length / closed.length) * 100,
+          );
+        })(),
         offer_accept_rate_delta: null,
         duplicates_blocked: dupNow,
         duplicates_blocked_delta: dupNow - dupPrior,

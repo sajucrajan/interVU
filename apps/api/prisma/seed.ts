@@ -99,13 +99,24 @@ async function main() {
   await orgUser("interviewer2@acme.test", "Ivan Interviewer", "interviewer", null);
 
   // --- Vendors: TalentBridge (tier 1), HireWorks (tier 2), StaffPro (tier 2)
-  async function vendor(name: string, tier: number, userEmail: string) {
+  async function vendor(
+    name: string,
+    tier: number,
+    userEmail: string,
+    contractStart: Date,
+  ) {
     let v = await prisma.vendor.findFirst({ where: { name } });
     v ??= await prisma.vendor.create({ data: { name } });
     const vo = await prisma.vendorOrg.upsert({
       where: { vendorId_organizationId: { vendorId: v.id, organizationId: org.id } },
-      update: { tier, status: "active" },
-      create: { vendorId: v.id, organizationId: org.id, tier, status: "active" },
+      update: { tier, status: "active", contractStart },
+      create: {
+        vendorId: v.id,
+        organizationId: org.id,
+        tier,
+        status: "active",
+        contractStart,
+      },
     });
     await prisma.vendorUser.upsert({
       where: { vendorId_email: { vendorId: v.id, email: userEmail } },
@@ -114,9 +125,14 @@ async function main() {
     });
     return vo;
   }
-  const talentBridge = await vendor("TalentBridge", 1, "recruiter@talentbridge.test");
-  const hireWorks = await vendor("HireWorks", 2, "recruiter@hireworks.test");
-  await vendor("StaffPro", 2, "recruiter@staffpro.test");
+  // Contract dates make "tier 1 · since 2023" real on the vendor screens.
+  const talentBridge = await vendor(
+    "TalentBridge", 1, "recruiter@talentbridge.test", new Date("2023-03-01"),
+  );
+  const hireWorks = await vendor(
+    "HireWorks", 2, "recruiter@hireworks.test", new Date("2024-07-15"),
+  );
+  await vendor("StaffPro", 2, "recruiter@staffpro.test", new Date("2025-01-20"));
 
   // --- Positions (idempotent: skip if org already has positions)
   const existingPositions = await prisma.position.count({ where: { organizationId: org.id } });
@@ -564,6 +580,74 @@ Outside production, dev header auth also works instead of a session:
   org:    -H "x-intervu-org: acme" -H "x-intervu-user: <email>"
   vendor: -H "x-intervu-org: acme" -H "x-intervu-vendor-user: <email>"
 `);
+
+  // --- Demonstrable states: without these the board is all green and the
+  // aging, breached and hatched treatments never appear.
+  const DAY = 86_400_000;
+  const active = await prisma.application.findMany({
+    where: { organizationId: org.id, status: "active" },
+    orderBy: { createdAt: "asc" },
+    take: 6,
+    select: { id: true, currentStage: true },
+  });
+
+  // Backdate a few so they sit well past the 48h first-screen SLA.
+  for (const [i, a] of active.slice(0, 3).entries()) {
+    const at = new Date(Date.now() - (4 + i * 3) * DAY);
+    await prisma.application.update({ where: { id: a.id }, data: { createdAt: at } });
+    await prisma.stageTransition.updateMany({
+      where: { applicationId: a.id },
+      data: { at },
+    });
+  }
+
+  // One accepted offer above band: lights up offer accept rate, the funnel's
+  // Hired row, and the "above band" flag on the board.
+  // Guard on the whole set, not on one row: picking a row without an order
+  // returns a different application each run, so a re-run would add a second
+  // offer instead of finding the first.
+  const offerCount = await prisma.offer.count({ where: { organizationId: org.id } });
+  const offered = await prisma.application.findFirst({
+    where: { organizationId: org.id, decision: { outcome: "offer" } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  if (offered && offerCount === 0) {
+    {
+      await prisma.offer.create({
+        data: {
+          organizationId: org.id,
+          applicationId: offered.id,
+          amount: 98000,
+          currency: "EUR",
+          vsRateBand: "above",
+          extendedAt: new Date(Date.now() - 9 * DAY),
+          acceptedAt: new Date(Date.now() - 2 * DAY),
+        },
+      });
+      await prisma.application.update({
+        where: { id: offered.id },
+        data: { status: "hired" },
+      });
+    }
+  }
+
+  // One dropout, so vendor quality is penalised by something real.
+  const droppedAlready = await prisma.application.count({
+    where: { organizationId: org.id, dropoutKind: { not: null } },
+  });
+  const dropper = active.at(-1);
+  if (dropper && droppedAlready === 0) {
+    await prisma.application.updateMany({
+      where: { id: dropper.id, dropoutKind: null },
+      data: {
+        dropoutKind: "unresponsive",
+        dropoutAtStage: dropper.currentStage,
+        dropoutAt: new Date(Date.now() - 3 * DAY),
+        status: "withdrawn",
+      },
+    });
+  }
 
   void hireWorks; // referenced in docs above
 }

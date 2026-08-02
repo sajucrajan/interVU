@@ -193,12 +193,12 @@ export function HiringPerformance() {
         />
         <Hero
           label="Offer accept rate"
-          value="—"
+          value={d.hero.offer_accept_rate?.toString() ?? "—"}
           unit="%"
           delta={null}
           color="var(--ok)"
-          unavailable
-          note="Needs offer acceptance to be recorded (handoff item #16). Left blank rather than estimated."
+          unavailable={d.hero.offer_accept_rate === null}
+          note="Accepted ÷ closed offers. An offer still open is not yet a decline."
         />
         <Hero
           label="Duplicates blocked"
@@ -231,9 +231,7 @@ export function HiringPerformance() {
                 </div>
                 <div className="funnel-bar-wrap">
                   {unknown ? (
-                    <span className="muted funnel-unknown">
-                      not tracked — needs offer acceptance
-                    </span>
+                    <span className="muted funnel-unknown">not tracked</span>
                   ) : (
                     <span
                       className="funnel-bar figure"
@@ -281,7 +279,9 @@ export function HiringPerformance() {
         <div>
           <SectionHead
             label="Vendor quality index"
-            action={<span className="mono-label">accept × interview × offer</span>}
+            action={
+              <span className="mono-label">accept × interview × offer, dropout-penalised</span>
+            }
           />
           <table className="data">
             <thead>
@@ -317,8 +317,10 @@ export function HiringPerformance() {
                       </span>
                     </td>
                     <td className="num">{(v.offer_rate * 100).toFixed(1)}%</td>
-                    <td className="num muted" title="Needs dropout tracking (item #7)">
-                      —
+                    <td className="num">
+                      {v.dropout_rate === null
+                        ? "—"
+                        : `${(v.dropout_rate * 100).toFixed(0)}%`}
                     </td>
                   </tr>
                 );
