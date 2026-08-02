@@ -2402,3 +2402,69 @@ table.data td time {
   padding: 26px 16px;
   margin-bottom: var(--step-3);
 }
+
+/* ---------- vendor feedback packet (design option 2b) ---------- */
+
+.feedback-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 4px 0 var(--step-4);
+}
+
+.feedback-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--fg);
+  color: var(--page);
+  padding: 14px 18px;
+}
+
+.feedback-head .mono-label {
+  color: color-mix(in oklab, var(--page) 70%, transparent);
+}
+
+.feedback-outcome {
+  margin-left: auto;
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid color-mix(in oklab, var(--page) 45%, transparent);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+.feedback-body {
+  padding: var(--step-4);
+  background: var(--bg);
+}
+
+.feedback-summary {
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 72ch;
+  margin: 10px 0 var(--step-4);
+}
+
+.feedback-tags {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--step-4);
+}
+
+@media (max-width: 800px) {
+  .feedback-tags {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The line that tells a vendor what to send next. */
+.reconsider {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-wash);
+  padding: var(--step-3) var(--step-4);
+  margin-top: var(--step-4);
+  font-size: 15px;
+}
