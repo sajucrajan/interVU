@@ -78,25 +78,66 @@ export class InterviewsService {
         application: {
           include: {
             candidate: { select: { id: true, displayName: true } },
-            position: { select: { title: true } },
+            position: {
+              select: {
+                title: true,
+                reference: true,
+                skills: {
+                  select: {
+                    level: true,
+                    skill: { select: { id: true, name: true } },
+                  },
+                  orderBy: { level: "asc" },
+                },
+              },
+            },
           },
         },
-        scorecards: { where: { orgUserId }, select: { id: true } },
+        panelists: { select: { orgUserId: true } },
+        // Every panelist's filing STATE, never their content: the
+        // hide-until-submitted policy (docs/01 §2.3) is about not seeing a
+        // colleague's rating before you write your own. Knowing you are the
+        // last one outstanding reveals nothing and is the useful nudge.
+        scorecards: { select: { orgUserId: true } },
       },
       orderBy: { scheduledAt: "desc" },
     });
-    return interviews.map((i) => ({
-      id: i.id,
-      round_name: i.roundName,
-      scheduled_at: i.scheduledAt,
-      duration_min: i.durationMin,
-      location_or_link: i.locationOrLink,
-      status: i.status,
-      candidate: i.application.candidate,
-      position_title: i.application.position.title,
-      application_id: i.applicationId,
-      my_scorecard_submitted: i.scorecards.length > 0,
-    }));
+    const now = Date.now();
+    return interviews.map((i) => {
+      const endsAt = new Date(i.scheduledAt.getTime() + i.durationMin * 60_000);
+      const mine = i.scorecards.some((s) => s.orgUserId === orgUserId);
+      return {
+        id: i.id,
+        round_name: i.roundName,
+        scheduled_at: i.scheduledAt,
+        ends_at: endsAt,
+        duration_min: i.durationMin,
+        location_or_link: i.locationOrLink,
+        status: i.status,
+        candidate: i.application.candidate,
+        position_title: i.application.position.title,
+        position_reference: i.application.position.reference,
+        application_id: i.applicationId,
+        my_scorecard_submitted: mine,
+        /**
+         * The rows the debrief matrix is built from. Sending the POSITION's
+         * skill matrix means the scorecard and the job description cannot
+         * drift apart, and it is why a real interview now produces the same
+         * per-competency data the seed does.
+         */
+        competencies: i.application.position.skills.map((ps) => ({
+          skill_id: ps.skill.id,
+          name: ps.skill.name,
+          must_have: ps.level === "must_have",
+        })),
+        panel_size: i.panelists.length,
+        panel_filed: i.scorecards.length,
+        /** Interview end → now. The turnaround the debrief later reports. */
+        hours_since_end: mine
+          ? null
+          : Math.max(0, (now - endsAt.getTime()) / 3_600_000),
+      };
+    });
   }
 
   /**
