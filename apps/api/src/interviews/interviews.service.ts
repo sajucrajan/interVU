@@ -136,6 +136,20 @@ export class InterviewsService {
           notes: input.notes,
         },
       });
+      // Replace the competency ratings wholesale: an edited scorecard should
+      // not leave last version's rows behind.
+      if (input.competencies.length > 0) {
+        await tx.scorecardCompetency.deleteMany({
+          where: { scorecardId: scorecard.id },
+        });
+        await tx.scorecardCompetency.createMany({
+          data: input.competencies.map((c) => ({
+            scorecardId: scorecard.id,
+            skillId: c.skill_id,
+            rating: c.rating,
+          })),
+        });
+      }
       await tx.auditLog.create({
         data: {
           organizationId,
