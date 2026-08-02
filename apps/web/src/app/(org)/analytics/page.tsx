@@ -1,5 +1,6 @@
 "use client";
 
+import { ChannelComparison } from "./channels";
 import { HiringPerformance } from "./performance";
 
 /**
@@ -11,6 +12,7 @@ export default function AnalyticsPage() {
   return (
     <main className="wide">
       <HiringPerformance />
+      <ChannelComparison />
     </main>
   );
 }

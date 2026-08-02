@@ -43,7 +43,18 @@ export class VendorPortalService {
       where: {
         visibleFrom: { lte: now },
         vendorOrg: { vendorId, organizationId, status: "active" },
-        position: { status: "open", organizationId },
+        position: {
+          status: "open",
+          organizationId,
+          // A direct-only role is never listed to a vendor, and a hybrid one
+          // only once its vendor window has opened.
+          sourcingMode: { in: ["vendor", "hybrid"] },
+          OR: [
+            { sourcingMode: "vendor" },
+            { vendorOpensAt: null },
+            { vendorOpensAt: { lte: new Date() } },
+          ],
+        },
       },
       include: {
         position: {

@@ -181,6 +181,8 @@ model VendorOrg {
   organizationId String       @map("organization_id") @db.Uuid
   tier           Int          @default(1)
   status         VendorStatus @default(invited)
+  /// Percentage of first-year salary. Feeds cost per hire.
+  feePercent     Decimal?     @db.Decimal(5, 2) @map("fee_percent")
   contractStart  DateTime?    @map("contract_start")
   contractEnd    DateTime?    @map("contract_end")
   createdAt      DateTime     @default(now()) @map("created_at")
@@ -348,6 +350,12 @@ enum ReleaseSource {
 model Position {
   id             String         @id @default(uuid()) @db.Uuid
   organizationId String         @map("organization_id") @db.Uuid
+  /// How this role is sourced. `vendor` is the default because it reproduces
+  /// the behaviour every existing position already had.
+  sourcingMode   SourcingMode   @default(vendor) @map("sourcing_mode")
+  /// Hybrid only: vendors are held off until this moment — a delay, modelled
+  /// exactly like the tiered release ladder rather than a second scheduler.
+  vendorOpensAt  DateTime?      @map("vendor_opens_at")
   orgUnitId      String         @map("org_unit_id") @db.Uuid
   /// Human-readable identifier (POS-001) — what people actually quote in
   /// conversation, emails and vendor threads. Unique per organization.
@@ -563,12 +571,21 @@ model Application {
   organizationId     String            @map("organization_id") @db.Uuid
   positionId         String            @map("position_id") @db.Uuid
   candidateId        String            @map("candidate_id") @db.Uuid
-  sourceSubmissionId String            @map("source_submission_id") @db.Uuid
+  /// Null for a DIRECT applicant. A careers-site or referral candidate has no
+  /// vendor submission, and inventing one would hand an agency an ownership
+  /// claim — and an invoice — for someone who applied on their own.
+  sourceSubmissionId String?           @map("source_submission_id") @db.Uuid
   currentStage       String            @default("submitted") @map("current_stage")
   status             ApplicationStatus @default(active)
   /// The candidate left the process rather than being rejected — withdrew,
   /// went unresponsive, or declined an offer. `dropoutAtStage` records where,
   /// because a dropout at offer means something different from one at screening.
+  /// Where this candidate actually came from. Vendor-sourced rows keep the
+  /// submission as the source of truth; direct rows have no submission and no
+  /// vendor at all, and must not be given a fake one.
+  sourceChannel      SourceChannel     @default(vendor) @map("source_channel")
+  sourceDetail       String?           @map("source_detail")
+  referrerOrgUserId  String?           @map("referrer_org_user_id") @db.Uuid
   dropoutKind        DropoutKind?      @map("dropout_kind")
   dropoutAtStage     String?           @map("dropout_at_stage")
   dropoutAt          DateTime?         @map("dropout_at")
@@ -1172,6 +1189,9 @@ model Offer {
   declinedAt     DateTime?     @map("declined_at")
   declinedReason DeclineReason? @map("declined_reason")
   declinedNote   String        @default("") @map("declined_note")
+  /// Retention: the only metric that says whether a fast hire was a good one.
+  startDate      DateTime?     @map("start_date")
+  retained90d    Boolean?      @map("retained_90d")
   createdById    String?       @map("created_by_id") @db.Uuid
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
@@ -1187,4 +1207,24 @@ enum DropoutKind {
   declined_offer
 
   @@map("dropout_kind")
+}
+
+// ---------- Sourcing channel (docs/05 §8) ----------
+
+enum SourcingMode {
+  direct
+  vendor
+  hybrid
+
+  @@map("sourcing_mode")
+}
+
+enum SourceChannel {
+  careers
+  referral
+  vendor
+  internal
+  import
+
+  @@map("source_channel")
 }

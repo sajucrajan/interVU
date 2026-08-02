@@ -12,6 +12,8 @@ export interface BoardCard {
   candidate: { id: string; displayName: string };
   position_reference: string | null;
   position_title: string;
+  source: string;
+  source_channel: string;
   position_id: string;
   age_hours: number;
   age_state: "ok" | "aging" | "breached";
@@ -337,6 +339,15 @@ export function PipelineBoard({
                     {c.position_title}
                   </div>
                   <div className="pipe-foot">
+                    {/* Where they came from. A direct applicant has no vendor,
+                        so the channel is what belongs on the card. */}
+                    <span
+                      className={`channel-chip ${
+                        c.source_channel === "vendor" ? "" : "direct"
+                      }`}
+                    >
+                      {c.source_channel === "vendor" ? c.vendor : c.source}
+                    </span>
                     <span className="pipe-iv">{c.interviews_label}</span>
                     {c.flags.map((f) => (
                       <span

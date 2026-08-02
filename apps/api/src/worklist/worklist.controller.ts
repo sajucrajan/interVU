@@ -186,7 +186,7 @@ export class WorklistController {
     const [sourceSubs, priorRejects] = await Promise.all([
       unscreenedRows.length
         ? this.prisma.submission.findMany({
-            where: { id: { in: unscreenedRows.map((a) => a.sourceSubmissionId) } },
+            where: { id: { in: unscreenedRows.map((a) => a.sourceSubmissionId).filter((id): id is string => id !== null) } },
             select: { id: true, vendorOrg: { select: { tier: true } } },
           })
         : [],

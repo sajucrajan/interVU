@@ -172,3 +172,60 @@ UTC — formatting them in the viewer's local zone would show `2026-01-01` as
 - Vendor directory: tiers, contract windows, submission volume, conversion stats (submissions → interviews → hires) — this data quietly answers "which vendors are worth tier 1?"
 - Per-position release panel: which vendors can see it, when each tier unlocks, manual release/early-release buttons, release history (audited).
 - Duplicate arbitration inbox: contested (candidate, position) pairs with evidence timeline.
+
+## 8. Sourcing channel — direct vs vendor
+
+Not every candidate arrives through an agency, and a system that assumes they
+do cannot answer the one question a head of talent actually has: *what did each
+channel cost us, and did those hires stay?*
+
+**Channel is a property of the role, not a place in the navigation.** It is
+decided when the position is opened, so it lives on `position.sourcing_mode`
+and shows as a column in the positions list — there is no "Channels" screen.
+
+| Mode | Behaviour |
+|---|---|
+| `direct` | Never released to vendors; the portal does not list it at all |
+| `vendor` | Today's behaviour — agencies only |
+| `hybrid` | Sourced in-house first; vendors join at `vendor_opens_at` |
+
+Hybrid is modelled as a **delay**, exactly like the tiered release ladder
+(§2), rather than a second scheduler. The same DB-is-truth predicate applies:
+visibility is evaluated at query time, so a lost job delays a notification,
+never the access itself.
+
+### Applications record where they came from
+
+`application.source_channel` is one of `careers · referral · internal ·
+vendor · import`, with an optional `source_detail` and, for referrals, the
+`referrer_org_user_id`.
+
+- **`source_submission_id` is nullable.** A careers-site applicant has no
+  vendor submission. Synthesising one so the column stays non-null would hand
+  an agency an ownership claim — and an invoice — for someone who applied on
+  their own.
+- **A vendor cannot claim a candidate who is already in process directly.**
+  The submission flow rejects it with `already_direct`, a distinct code from
+  the ordinary duplicate so the portal can explain the difference without
+  naming the other source. This is the rule that makes hybrid safe: without
+  it, an agency can watch a careers page and invoice for its traffic.
+
+### Migration safety
+
+`sourcing_mode` and `source_channel` both default to `vendor`. Every position
+and application that existed before this change therefore behaves exactly as
+it did, and an organization opts into direct sourcing role by role.
+
+### What is deliberately not computed
+
+The channel comparison table (Analytics → *Where hires come from*) leaves two
+columns empty rather than approximating them, because both would be used to
+move budget:
+
+- **Cost per hire** needs `vendor_org.fee_percent` against the offer amount.
+  Where only some hires have a fee on file, the table says so instead of
+  averaging over the ones that do. A *direct* channel shows €0, which is a
+  real zero — no placement fee — and is the entire point of the comparison.
+- **90-day retention** needs `offer.start_date` and `offer.retained_90d`, and
+  can only speak for hires whose 90 days have actually elapsed. Until then it
+  reports the basis ("no hire has reached 90 days yet"), not a number.
