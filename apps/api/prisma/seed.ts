@@ -649,6 +649,44 @@ Outside production, dev header auth also works instead of a session:
     });
   }
 
+  // --- Per-competency ratings on the seeded scorecards, so the debrief has a
+  // matrix to show and one row where the panel genuinely disagrees.
+  const seededCards = await prisma.scorecard.findMany({
+    where: { organizationId: org.id },
+    orderBy: { submittedAt: "asc" },
+    select: { id: true, interview: { select: { applicationId: true } } },
+  });
+  // Position WITHIN the panel, not a hash of the id: hashing happened to give
+  // every panelist the same answer, so nothing diverged.
+  const seatByApplication = new Map<string, number>();
+  for (const card of seededCards) {
+    const appId = card.interview.applicationId;
+    const seat = seatByApplication.get(appId) ?? 0;
+    seatByApplication.set(appId, seat + 1);
+    const existing = await prisma.scorecardCompetency.count({
+      where: { scorecardId: card.id },
+    });
+    if (existing > 0) continue;
+    const app = await prisma.application.findUnique({
+      where: { id: card.interview.applicationId },
+      select: { position: { select: { skills: { select: { skillId: true } } } } },
+    });
+    const skills = app?.position.skills ?? [];
+    if (skills.length === 0) continue;
+    await prisma.scorecardCompetency.createMany({
+      data: skills.map((sk, i) => ({
+        scorecardId: card.id,
+        skillId: sk.skillId,
+        // Deterministic, and deliberately split on the second competency so
+        // the divergence callout has something real to point at.
+        // Second competency splits the panel: seat 0 scores it 5, seat 1
+        // scores it 2, against the same rubric. That is the conversation the
+        // divergence callout exists to start.
+        rating: i === 1 ? (seat === 0 ? 5 : 2) : 4,
+      })),
+    });
+  }
+
   void hireWorks; // referenced in docs above
 }
 

@@ -105,6 +105,12 @@ function PipelineBoard() {
       if (!a.decision) {
         items.push(
           { label: "Decision", heading: true },
+          // Where a LOOP resolves. The one-click actions below stay for the
+          // pre-interview case, which needs no panel to reconcile.
+          {
+            label: "Open debrief…",
+            onSelect: () => router.push(`/applications/${a.id}/debrief`),
+          },
           {
             label: "Record offer",
             tone: "primary",
