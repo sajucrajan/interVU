@@ -192,6 +192,29 @@ export class SubmissionsService {
         return { submission: this.toVendorDto(updated, position.title), idempotent: true };
       }
 
+      // A candidate already in process DIRECTLY cannot be claimed by a vendor.
+      // This is the rule that makes hybrid sourcing safe: without it, an
+      // agency can submit someone who applied through the careers page and
+      // invoice for them. Distinct 409 code so the portal can explain it.
+      if (matchedCandidateId) {
+        const direct = await this.prisma.application.findFirst({
+          where: {
+            organizationId: position.organizationId,
+            candidateId: matchedCandidateId,
+            positionId: position.id,
+            sourceChannel: { in: ["careers", "referral", "internal"] },
+          },
+          select: { id: true },
+        });
+        if (direct) {
+          throw new ConflictException({
+            code: "already_direct",
+            detail:
+              "This candidate is already in process directly for this role.",
+          });
+        }
+      }
+
       // A released feedback packet may explicitly invite a resubmission after
       // a date. Honouring it is the whole point of telling the vendor — the
       // alternative is inviting them back and then blocking them as a

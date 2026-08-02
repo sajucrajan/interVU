@@ -24,6 +24,15 @@ const BulkTransition = z.object({
   note: z.string().max(500).optional(),
 });
 
+/** Vendor-sourced cards still show the agency; the rest name their channel. */
+const SOURCE_LABEL: Record<string, string> = {
+  careers: "Careers site",
+  referral: "Referral",
+  internal: "Internal",
+  vendor: "Vendor",
+  import: "Import",
+};
+
 /**
  * Everything the pipeline board renders, in one call: the cards with their
  * age and flags, the saved-view counts, and the per-stage WIP caps.
@@ -59,6 +68,7 @@ export class BoardController {
           createdAt: true,
           candidateId: true,
           sourceSubmissionId: true,
+          sourceChannel: true,
           candidate: { select: { id: true, displayName: true } },
           position: { select: { id: true, title: true, reference: true } },
           interviews: { select: { status: true } },
@@ -76,7 +86,7 @@ export class BoardController {
     ]);
 
     const submissions = await this.prisma.submission.findMany({
-      where: { id: { in: rows.map((r) => r.sourceSubmissionId) } },
+      where: { id: { in: rows.map((r) => r.sourceSubmissionId).filter((id): id is string => id !== null) } },
       select: {
         id: true,
         ownershipStatus: true,
@@ -100,7 +110,7 @@ export class BoardController {
       const ageHours = SlaService.hoursSince(enteredAt, now);
       const threshold = thresholds[STAGE_SLA[r.currentStage as keyof typeof STAGE_SLA]];
       const ageState = SlaService.state(ageHours, threshold);
-      const sub = subById.get(r.sourceSubmissionId);
+      const sub = r.sourceSubmissionId ? subById.get(r.sourceSubmissionId) : undefined;
       const done = r.interviews.filter((i) => i.status === "completed").length;
       const total = r.interviews.length;
       const decisionDue = total > 0 && done === total && !r.decision;
@@ -130,6 +140,11 @@ export class BoardController {
         age_state: ageState,
         interviews_label: total === 0 ? "not scheduled" : `${done}/${total} interviews`,
         vendor: sub?.vendorOrg.vendor.name ?? "—",
+        // The SOURCE column reads the channel, not the vendor: a direct
+        // applicant has no vendor, and rendering "—" there loses the fact
+        // that they came through the careers site at all.
+        source_channel: r.sourceChannel,
+        source: SOURCE_LABEL[r.sourceChannel] ?? r.sourceChannel,
         flags,
         /** Blocked or late work carries a texture, not only a colour. */
         hatched: ageState === "breached" || sub?.ownershipStatus === "duplicate",

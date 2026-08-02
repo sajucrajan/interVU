@@ -17,6 +17,8 @@ interface Position {
   employmentType: string;
   orgUnit: { name: string };
   skills: { level: string; skill: { name: string } }[];
+  sourcingMode: "direct" | "vendor" | "hybrid";
+  vendorOpensAt: string | null;
   releasePolicy?: { mode: string } | null;
   releases: { visibleFrom: string }[];
 }
@@ -132,6 +134,7 @@ function PositionTable({
             <th>Role</th>
             <th>Team</th>
             <th>Status</th>
+            <th>Channel</th>
             <th>Release</th>
             <th>Vendors</th>
             <th style={{ width: 120 }}></th>
@@ -169,6 +172,20 @@ function PositionTable({
               <td>{p.orgUnit.name}</td>
               <td>
                 <span className={`badge ${p.status === "open" ? "ok" : ""}`}>{p.status}</span>
+              </td>
+              <td>
+                {/* Channel is a property of the ROLE, not a place in the nav:
+                    it is decided when the position is opened. */}
+                <span
+                  className={`channel-chip ${p.sourcingMode}`}
+                  title={
+                    p.sourcingMode === "hybrid" && p.vendorOpensAt
+                      ? `Vendors join ${new Date(p.vendorOpensAt).toLocaleDateString()}`
+                      : undefined
+                  }
+                >
+                  {p.sourcingMode}
+                </span>
               </td>
               <td className="muted">{p.releasePolicy?.mode.replaceAll("_", " ") ?? "—"}</td>
               <td className="muted">

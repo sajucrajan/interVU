@@ -35,6 +35,8 @@ export class ApplicationsService {
       },
     });
     if (!application) return;
+    // A direct applicant has no owning vendor, so there is nobody to notify.
+    if (!application.sourceSubmissionId) return;
     const owning = await this.prisma.submission.findUnique({
       where: { id: application.sourceSubmissionId },
       include: { vendorOrg: true },

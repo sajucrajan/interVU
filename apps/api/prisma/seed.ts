@@ -109,13 +109,16 @@ async function main() {
     v ??= await prisma.vendor.create({ data: { name } });
     const vo = await prisma.vendorOrg.upsert({
       where: { vendorId_organizationId: { vendorId: v.id, organizationId: org.id } },
-      update: { tier, status: "active", contractStart },
+      // Fee percent is what makes cost-per-hire computable at all; a tier-1
+      // agency charging more than a tier-2 is the whole argument.
+      update: { tier, status: "active", contractStart, feePercent: tier === 1 ? 22 : 18 },
       create: {
         vendorId: v.id,
         organizationId: org.id,
         tier,
         status: "active",
         contractStart,
+        feePercent: tier === 1 ? 22 : 18,
       },
     });
     await prisma.vendorUser.upsert({
@@ -623,6 +626,10 @@ Outside production, dev header auth also works instead of a session:
           vsRateBand: "above",
           extendedAt: new Date(Date.now() - 9 * DAY),
           acceptedAt: new Date(Date.now() - 2 * DAY),
+          // Start date is recorded at acceptance; retained_90d stays null
+          // until those 90 days have actually elapsed. The channel table
+          // says so rather than guessing.
+          startDate: new Date(Date.now() + 26 * DAY),
         },
       });
       await prisma.application.update({
@@ -630,6 +637,54 @@ Outside production, dev header auth also works instead of a session:
         data: { status: "hired" },
       });
     }
+  }
+
+  // --- Sourcing channel (docs/05 §8). Everything above this line is
+  // vendor-sourced by default, which is exactly what the migration
+  // guarantees for existing data; these rows give the comparison a
+  // second and third column to argue with.
+  const openPositions = await prisma.position.findMany({
+    where: { organizationId: org.id },
+    orderBy: { reference: "asc" },
+    select: { id: true },
+  });
+  // One role sourced in-house only, one hybrid where vendors join a week
+  // late — the delay that makes hybrid different from "all of the above".
+  if (openPositions[0]) {
+    await prisma.position.update({
+      where: { id: openPositions[0].id },
+      data: { sourcingMode: "direct", vendorOpensAt: null },
+    });
+  }
+  if (openPositions[1]) {
+    await prisma.position.update({
+      where: { id: openPositions[1].id },
+      data: {
+        sourcingMode: "hybrid",
+        vendorOpensAt: new Date(Date.now() + 3 * DAY),
+      },
+    });
+  }
+  // A handful of direct applicants. These deliberately keep
+  // source_submission_id null: a direct applicant has no vendor, and giving
+  // them a fake one is precisely the invoice fraud the ownership rule blocks.
+  const directable = await prisma.application.findMany({
+    where: { organizationId: org.id, sourceChannel: "vendor" },
+    orderBy: { createdAt: "desc" },
+    take: 4,
+    select: { id: true },
+  });
+  const CHANNELS = ["careers", "referral", "careers", "internal"] as const;
+  for (const [i, a] of directable.entries()) {
+    await prisma.application.update({
+      where: { id: a.id },
+      data: {
+        sourceChannel: CHANNELS[i]!,
+        sourceDetail:
+          CHANNELS[i] === "referral" ? "Referred by an engineer on the team" : null,
+        sourceSubmissionId: null,
+      },
+    });
   }
 
   // One dropout, so vendor quality is penalised by something real.

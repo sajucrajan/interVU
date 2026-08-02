@@ -2609,3 +2609,124 @@ table.data td time {
   font-size: 14px;
   color: var(--muted);
 }
+
+/* ---- Channel comparison (design option 2c) ---------------------------- */
+
+.channel-block {
+  margin-top: var(--step-7);
+}
+
+.section-head-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--step-4);
+}
+.section-head-row .section-head {
+  flex: 1;
+}
+
+/* The intake mix is the denominator for every rate in the table below, so it
+   sits above the table rather than inside it. */
+.mix-bar {
+  display: flex;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-top: var(--step-3);
+}
+.mix-seg {
+  background: var(--sunk);
+  border-right: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 11px/1 var(--font-mono), monospace;
+  color: var(--muted);
+  min-width: 0;
+}
+.mix-seg:last-child {
+  border-right: 0;
+}
+.mix-seg.vendor {
+  background: var(--accent-wash);
+  color: var(--fg);
+}
+.mix-legend {
+  margin-top: 6px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  margin-top: var(--step-4);
+}
+
+.channel-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+.channel-table th {
+  font: 600 11px/1.2 var(--font-mono), monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  padding: 0 12px 8px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.channel-table th.num,
+.channel-table td.num {
+  text-align: right;
+}
+.channel-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line-soft, var(--line));
+  vertical-align: baseline;
+}
+.channel-table tr:last-child td {
+  border-bottom: 0;
+}
+.channel-name {
+  font-weight: 600;
+  margin-right: 8px;
+}
+.figure-cell {
+  font: 600 15px/1 var(--font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+}
+/* Why a cell is empty, said in place rather than in a footnote nobody reads. */
+.basis {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.channel-note {
+  font-size: 13px;
+  margin-top: var(--step-3);
+  max-width: 68ch;
+}
+
+/* ---- Sourcing channel on positions and the board --------------------- */
+
+.channel-chip {
+  font: 600 10px/1 var(--font-mono), monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+.channel-chip.direct {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+.channel-chip.hybrid {
+  background: var(--accent-wash);
+  color: var(--fg);
+}
