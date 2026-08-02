@@ -192,7 +192,30 @@ export class SubmissionsService {
         return { submission: this.toVendorDto(updated, position.title), idempotent: true };
       }
 
-      if (owning && owning.vendorOrgId !== vendorOrg.id) {
+      // A released feedback packet may explicitly invite a resubmission after
+      // a date. Honouring it is the whole point of telling the vendor — the
+      // alternative is inviting them back and then blocking them as a
+      // duplicate.
+      let resubmitInvited = false;
+      if (owning && matchedCandidateId) {
+        const invite = await this.prisma.feedbackPacket.findFirst({
+          where: {
+            visibility: "vendor",
+            resubmitAfter: { not: null, lte: new Date() },
+            debrief: {
+              releasedAt: { not: null },
+              application: {
+                organizationId: position.organizationId,
+                candidateId: matchedCandidateId,
+              },
+            },
+          },
+          select: { id: true },
+        });
+        resubmitInvited = invite !== null;
+      }
+
+      if (owning && owning.vendorOrgId !== vendorOrg.id && !resubmitInvited) {
         // Another vendor owns this candidate (this position, or org-wide per
         // scope). Record the duplicate — the org sees the full contest — but
         // reveal nothing about the source to the submitting vendor.
@@ -347,10 +370,71 @@ export class SubmissionsService {
   async listForVendor(vendorId: string, organizationId: string) {
     const submissions = await this.prisma.submission.findMany({
       where: { organizationId, vendorOrg: { vendorId, organizationId } },
-      include: { position: { select: { title: true } } },
+      include: { position: { select: { title: true, reference: true } } },
       orderBy: { receivedAt: "desc" },
     });
-    return submissions.map((s) => this.toVendorDto(s, s.position.title));
+
+    // Released feedback for these candidates. Selected field by field from
+    // feedback_packet ONLY — the packet holds no panelist, no rating and no
+    // internal reason, so there is nothing here to redact.
+    const candidateIds = submissions
+      .map((s) => s.candidateId)
+      .filter((id): id is string => id !== null);
+    const packets = candidateIds.length
+      ? await this.prisma.feedbackPacket.findMany({
+          where: {
+            visibility: "vendor",
+            debrief: {
+              releasedAt: { not: null },
+              application: {
+                organizationId,
+                candidateId: { in: candidateIds },
+              },
+            },
+          },
+          select: {
+            headline: true,
+            summary: true,
+            strengths: true,
+            gaps: true,
+            reconsiderFor: true,
+            resubmitAfter: true,
+            acknowledgedAt: true,
+            debrief: {
+              select: {
+                releasedAt: true,
+                application: { select: { candidateId: true, positionId: true } },
+              },
+            },
+          },
+        })
+      : [];
+    const packetFor = new Map(
+      packets.map((p) => [
+        `${p.debrief.application.candidateId}:${p.debrief.application.positionId}`,
+        p,
+      ]),
+    );
+
+    return submissions.map((s) => {
+      const p = packetFor.get(`${s.candidateId}:${s.positionId}`);
+      return {
+        ...this.toVendorDto(s, s.position.title),
+        position_reference: s.position.reference,
+        feedback: p
+          ? {
+              headline: p.headline,
+              summary: p.summary,
+              strengths: p.strengths,
+              gaps: p.gaps,
+              reconsider_for: p.reconsiderFor,
+              resubmit_after: p.resubmitAfter,
+              released_at: p.debrief.releasedAt,
+              acknowledged_at: p.acknowledgedAt,
+            }
+          : null,
+      };
+    });
   }
 
   /** Org view: everything, scoped by viewable units, vendor names included. */

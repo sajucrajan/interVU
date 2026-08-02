@@ -311,6 +311,19 @@ export const ScorecardCreate = z.object({
   overall_rating: z.number().int().min(1).max(5),
   recommendation: z.enum(["strong_yes", "yes", "no", "strong_no"]),
   notes: z.string().max(10_000).default(""),
+  /**
+   * Per-competency ratings, keyed by the position's own skills. A null rating
+   * means "not assessed in my round" — a real answer, and different from a
+   * low score. Rows the panelist leaves blank simply do not appear.
+   */
+  competencies: z
+    .array(
+      z.object({
+        skill_id: z.string().uuid(),
+        rating: z.number().int().min(1).max(5).nullable(),
+      }),
+    )
+    .default([]),
 });
 
 export const FlagCreate = z.object({
@@ -375,3 +388,31 @@ export type DropoutKindEnum = z.infer<typeof DropoutKindEnum>;
 export type OfferRecord = z.infer<typeof OfferRecord>;
 export type OfferOutcome = z.infer<typeof OfferOutcome>;
 export type DropoutRecord = z.infer<typeof DropoutRecord>;
+
+// --- Panel debrief & feedback packet (docs/05 §7)
+
+export const FeedbackVisibilityEnum = z.enum(["vendor", "candidate", "none"]);
+
+/**
+ * What leaves the building. Competency NAMES only — never a score, never a
+ * panelist. `is_draft` false is the human saying "I have read this".
+ */
+export const FeedbackPacketUpsert = z.object({
+  visibility: FeedbackVisibilityEnum.default("vendor"),
+  headline: z.string().max(120).default(""),
+  summary: z.string().max(4000).default(""),
+  strengths: z.array(z.string().max(80)).max(12).default([]),
+  gaps: z.array(z.string().max(80)).max(12).default([]),
+  reconsider_for: z.string().max(160).nullish(),
+  /** Suppresses duplicate flagging for a resubmission after this date. */
+  resubmit_after: z.coerce.date().nullish(),
+  is_draft: z.boolean().default(true),
+});
+
+export const DebriefUpdate = z.object({
+  internal_reason: z.string().max(4000).optional(),
+});
+
+export type FeedbackVisibilityEnum = z.infer<typeof FeedbackVisibilityEnum>;
+export type FeedbackPacketUpsert = z.infer<typeof FeedbackPacketUpsert>;
+export type DebriefUpdate = z.infer<typeof DebriefUpdate>;
