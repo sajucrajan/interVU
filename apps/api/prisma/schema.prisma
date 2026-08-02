@@ -574,6 +574,7 @@ model Application {
   interviews       Interview[]
   stageTransitions StageTransition[]
   decision         Decision?
+  debrief          Debrief?
 
   @@unique([positionId, candidateId])
   @@index([organizationId, status])
@@ -723,8 +724,9 @@ model Scorecard {
   notes          String         @default("")
   submittedAt    DateTime       @default(now()) @map("submitted_at")
 
-  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  orgUser   OrgUser   @relation(fields: [orgUserId], references: [id])
+  interview    Interview             @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  orgUser      OrgUser               @relation(fields: [orgUserId], references: [id])
+  competencies ScorecardCompetency[]
 
   @@unique([interviewId, orgUserId])
   @@map("scorecard")
@@ -798,6 +800,7 @@ model Skill {
   positionSkills PositionSkill[]
   panelSkills    PanelSkill[]
   templateSkills PositionTemplateSkill[]
+  scorecardRatings ScorecardCompetency[]
 
   @@unique([organizationId, nameNorm])
   @@map("skill")
@@ -1023,4 +1026,99 @@ model AuditLog {
 
   @@index([organizationId, entityType, entityId])
   @@map("audit_log")
+}
+
+// ---------- Panel debrief & vendor feedback (docs/05 §7) ----------
+
+/// One panelist's rating of ONE competency, so a loop resolves into a matrix
+/// rather than four unrelated numbers. Rows follow the position's skill matrix
+/// (PositionSkill), which is what stops the debrief and the JD drifting apart.
+model ScorecardCompetency {
+  id          String   @id @default(uuid()) @db.Uuid
+  scorecardId String   @map("scorecard_id") @db.Uuid
+  skillId     String   @map("skill_id") @db.Uuid
+  /// 1..5, or null for "not assessed in my round".
+  rating      Int?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  scorecard Scorecard @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
+  skill     Skill     @relation(fields: [skillId], references: [id])
+
+  @@unique([scorecardId, skillId])
+  @@map("scorecard_competency")
+}
+
+enum DebriefStatus {
+  open
+  resolved
+
+  @@map("debrief_status")
+}
+
+/// Where a loop resolves into one verdict. Panel mean, divergence and the
+/// consensus row are DERIVED from the scorecards at query time, never stored,
+/// so re-opening a scorecard cannot leave a stale summary behind.
+model Debrief {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  applicationId  String        @unique @map("application_id") @db.Uuid
+  status         DebriefStatus @default(open)
+  /// Never leaves the organization.
+  internalReason String        @default("") @map("internal_reason")
+  resolvedById   String?       @map("resolved_by_id") @db.Uuid
+  resolvedAt     DateTime?     @map("resolved_at")
+  /// Releasing is a separate, audited event from deciding — a legal or HR
+  /// review may sit between the two.
+  releasedById   String?       @map("released_by_id") @db.Uuid
+  releasedAt     DateTime?     @map("released_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  application Application     @relation(fields: [applicationId], references: [id])
+  packet      FeedbackPacket?
+
+  @@index([organizationId, status])
+  @@map("debrief")
+}
+
+enum FeedbackVisibility {
+  vendor
+  candidate
+  none
+
+  @@map("feedback_visibility")
+}
+
+/// What actually leaves the building.
+///
+/// Redaction is a SCHEMA property here, not a UI convention: there is
+/// deliberately no foreign key to scorecard, interview or org_user, and no
+/// numeric rating anywhere. The vendor-facing serializer has nothing to
+/// redact because the row never held it. Strengths and gaps name competencies,
+/// never scores.
+model FeedbackPacket {
+  id         String             @id @default(uuid()) @db.Uuid
+  debriefId  String             @unique @map("debrief_id") @db.Uuid
+  visibility FeedbackVisibility @default(none)
+  /// Outcome label shown externally ("Not selected"), not the internal enum.
+  headline   String             @default("")
+  summary    String             @default("")
+  strengths  String[]
+  gaps       String[]
+  /// "Would consider for…" — the highest-value field for a vendor, because it
+  /// tells them what to send next.
+  reconsiderFor String?         @map("reconsider_for")
+  /// Feeds the duplicate engine: a resubmission after this date for a
+  /// different role is not flagged as a duplicate.
+  resubmitAfter DateTime?       @map("resubmit_after")
+  /// Auto-drafted text stays a draft until a human edits or confirms it; an
+  /// unreviewed draft can never be released.
+  isDraft        Boolean        @default(true) @map("is_draft")
+  acknowledgedAt DateTime?      @map("acknowledged_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  debrief Debrief @relation(fields: [debriefId], references: [id], onDelete: Cascade)
+
+  @@map("feedback_packet")
 }
