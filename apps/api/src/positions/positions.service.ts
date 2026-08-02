@@ -61,6 +61,12 @@ export class PositionsService {
         rateCurrency: input.rate_currency,
         ratePeriod: input.rate_period ?? null,
         mustHaves: input.must_haves,
+        // Channel is decided when the role is opened. Omitting it keeps the
+        // `vendor` default, which is what every position did before.
+        ...(input.sourcing_mode ? { sourcingMode: input.sourcing_mode } : {}),
+        ...(input.sourcing_mode === "hybrid" && input.vendor_opens_at
+          ? { vendorOpensAt: new Date(input.vendor_opens_at) }
+          : {}),
         createdById,
         skills: {
           create: skills.map((s) => {
@@ -107,6 +113,47 @@ export class PositionsService {
           detail: "A closed position cannot be reopened; duplicate it instead",
         });
       }
+    }
+
+    // Sourcing mode. Vendors gaining visibility is monotonic elsewhere
+    // (docs/05 §2) and it stays monotonic here: narrowing a live position to
+    // `direct` would revoke visibility from agencies that already have
+    // candidates in flight, so it is refused rather than silently applied.
+    const nextMode = input.sourcing_mode ?? position.sourcingMode;
+    if (
+      input.sourcing_mode &&
+      input.sourcing_mode !== position.sourcingMode &&
+      input.sourcing_mode === "direct" &&
+      position.status !== "draft"
+    ) {
+      const live = await this.prisma.application.count({
+        where: {
+          positionId: id,
+          status: "active",
+          sourceChannel: "vendor",
+        },
+      });
+      if (live > 0) {
+        throw new ConflictException({
+          code: "vendor_candidates_in_flight",
+          detail: `${live} vendor-sourced candidate${live === 1 ? " is" : "s are"} still active on this role. Close them out before making it direct-only.`,
+        });
+      }
+    }
+    // A stale unlock date must not survive a change of mind.
+    const vendorOpensAt =
+      nextMode === "hybrid"
+        ? input.vendor_opens_at === undefined
+          ? undefined
+          : input.vendor_opens_at === null
+            ? null
+            : new Date(input.vendor_opens_at)
+        : null;
+    if (nextMode !== "hybrid" && input.vendor_opens_at) {
+      throw new ConflictException({
+        code: "not_hybrid",
+        detail: "A vendor unlock date only applies to hybrid sourcing",
+      });
     }
 
     // Replacing the skill matrix is all-or-nothing, so it stays consistent.
@@ -173,6 +220,10 @@ export class PositionsService {
             ? { mustHaves: input.must_haves as Prisma.InputJsonValue }
             : {}),
           ...(input.status !== undefined ? { status: input.status } : {}),
+          ...(input.sourcing_mode !== undefined
+            ? { sourcingMode: input.sourcing_mode }
+            : {}),
+          ...(vendorOpensAt !== undefined ? { vendorOpensAt } : {}),
         },
       });
       await tx.auditLog.create({

@@ -210,6 +210,25 @@ vendor · import`, with an optional `source_detail` and, for referrals, the
   naming the other source. This is the rule that makes hybrid safe: without
   it, an agency can watch a careers page and invoice for its traffic.
 
+### Changing a role's channel
+
+Channel is set when the position is created (**Positions → New**) and changed
+afterwards from the position itself (**Positions → the role → Sourcing
+channel**). Two rules keep the change from breaking something already in
+motion:
+
+- **Narrowing a live role to `direct` is refused while vendor-sourced
+  candidates are still active.** Visibility is monotonic everywhere else in
+  this document (§2); making it non-monotonic here would strip agencies of
+  roles they have people in flight on. The error names the count, so the
+  recruiter knows what to close out first.
+- **A stale unlock date cannot survive a change of mind.** Leaving hybrid
+  clears `vendor_opens_at`, and setting one on a non-hybrid role is rejected
+  rather than stored to take effect on some later switch nobody remembers
+  making.
+
+Draft positions are exempt from the first rule — nothing is in flight yet.
+
 ### Migration safety
 
 `sourcing_mode` and `source_channel` both default to `vendor`. Every position

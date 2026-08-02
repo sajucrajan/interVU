@@ -145,7 +145,28 @@ export const PositionSkillInput = z.object({
   min_years: z.number().int().min(0).max(40).nullish(),
 });
 
+export const SourcingMode = z.enum(["direct", "vendor", "hybrid"]);
+
+/**
+ * How a role is sourced. Hybrid holds vendors off until `vendor_opens_at`,
+ * which is meaningless — and rejected — in the other two modes, so a stale
+ * date cannot sit on a position that has changed its mind.
+ */
+const sourcingFields = {
+  sourcing_mode: SourcingMode.optional(),
+  vendor_opens_at: z.string().datetime().nullish(),
+};
+
+const refineSourcing = <T extends { sourcing_mode?: string; vendor_opens_at?: unknown }>(
+  p: T,
+) => p.sourcing_mode === "hybrid" || p.vendor_opens_at == null;
+const sourcingMessage = {
+  message: "vendor_opens_at only applies to hybrid sourcing",
+  path: ["vendor_opens_at"],
+};
+
 export const PositionCreate = z.object({
+  ...sourcingFields,
   org_unit_id: z.string().uuid(),
   title: z.string().min(1).max(200),
   description: z.string().max(20_000).default(""),
@@ -162,9 +183,11 @@ export const PositionCreate = z.object({
   /** Non-skill screening requirements: certifications, visa, languages… */
   must_haves: z.array(z.string().min(1).max(200)).max(20).default([]),
   skills: z.array(PositionSkillInput).max(30).default([]),
-}).refine((p) => p.rate_min == null || p.rate_max == null || p.rate_min <= p.rate_max, {
-  message: "rate_min must be ≤ rate_max",
-});
+})
+  .refine((p) => p.rate_min == null || p.rate_max == null || p.rate_min <= p.rate_max, {
+    message: "rate_min must be ≤ rate_max",
+  })
+  .refine(refineSourcing, sourcingMessage);
 
 /**
  * Edit a live position. Every field optional — send only what changed.
@@ -173,6 +196,7 @@ export const PositionCreate = z.object({
  */
 export const PositionUpdate = z
   .object({
+    ...sourcingFields,
     title: z.string().min(1).max(200).optional(),
     description: z.string().max(20_000).optional(),
     openings: z.number().int().min(1).optional(),
