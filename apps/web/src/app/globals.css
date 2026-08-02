@@ -2730,3 +2730,98 @@ table.data td time {
   background: var(--accent-wash);
   color: var(--fg);
 }
+
+/* ---- My interviews --------------------------------------------------- */
+
+.iv-row {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--step-4);
+  margin-bottom: var(--step-3);
+}
+
+.iv-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--step-4);
+  flex-wrap: wrap;
+}
+.iv-who {
+  min-width: 0;
+}
+.iv-name {
+  font-weight: 600;
+  font-size: 17px;
+}
+.iv-meta {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.iv-when {
+  margin-top: 6px;
+}
+.iv-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.iv-form {
+  margin-top: var(--step-4);
+  padding-top: var(--step-4);
+  border-top: 1px solid var(--line);
+}
+.iv-hint {
+  font-size: 13px;
+  max-width: 64ch;
+  margin: 6px 0 var(--step-3);
+}
+
+.iv-matrix {
+  display: grid;
+  gap: 8px;
+}
+.iv-comp {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--step-4);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.iv-comp:last-child {
+  border-bottom: 0;
+}
+
+/* A 1–5 scale with no default selection: blank means "not assessed", and a
+   pre-selected middle value would manufacture agreement nobody expressed. */
+.iv-scale {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.iv-dot {
+  width: 34px;
+  height: 30px;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font: 600 13px/1 var(--font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.iv-dot:hover {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+.iv-dot.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}

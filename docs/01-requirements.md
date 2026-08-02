@@ -84,6 +84,28 @@ Roles attach at a **scope** — the whole org or any node of the unit hierarchy 
 ### Interviews & history
 - As a **hiring manager**, before any interview I open the candidate's timeline: every past submission (which vendor, which position, when), every interview round, scorecards, outcomes, and flags.
 - As an **interviewer**, I get my assignment, see the candidate packet (resume + history per policy), and submit a structured scorecard.
+
+### The interviewer's screen (`/interviews`)
+
+Grouped by what the viewer must **do** — *Waiting on you* / *Upcoming* /
+*Filed* — rather than by date. An unfiled scorecard blocks a whole panel's
+debrief, so burying it under next week's calendar is how it stays unfiled. The
+three groups partition the list: filing early for a future round is legitimate,
+and that row belongs under *Filed* only.
+
+The scorecard collects **per-competency ratings against the position's own
+skill matrix**, which is what the debrief's competency matrix is built from —
+scorecard and job description cannot drift apart, because both read the same
+rows.
+
+- **Nothing is pre-selected, and blank stays blank.** A competency the round
+  did not probe is recorded as *not assessed*, which the debrief renders
+  differently from a low score. Defaulting the scale to its midpoint would
+  manufacture agreement nobody expressed.
+- **Panel filing state is visible; panel content is not.** The row shows
+  `2/3 filed` — knowing you are the last one outstanding is useful pressure
+  and reveals nothing. Seeing a colleague's *rating* before you write your own
+  is what hide-until-submitted exists to prevent.
 - As a **recruiter**, I move candidates through pipeline stages and record decisions; vendors see only the coarse status mapping.
 
 ### Vendor experience
