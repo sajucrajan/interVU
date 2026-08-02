@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, API_BASE, ApiError, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
@@ -33,6 +33,20 @@ interface VendorSubmission {
   candidate_name: string;
   status: string;
   submitted_at: string;
+  position_reference: string | null;
+  feedback: VendorFeedback | null;
+}
+
+/** Exactly the fields the packet carries — nothing else exists to show. */
+interface VendorFeedback {
+  headline: string;
+  summary: string;
+  strengths: string[];
+  gaps: string[];
+  reconsider_for: string | null;
+  resubmit_after: string | null;
+  released_at: string;
+  acknowledged_at: string | null;
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -161,24 +175,48 @@ export default function VendorHome() {
         <table className="data">
           <thead>
             <tr>
+              <th>Ref</th>
               <th>Candidate</th>
               <th>Position</th>
               <th>Status</th>
-              <th>Submitted</th>
+              <th className="num">Submitted</th>
             </tr>
           </thead>
           <tbody>
             {submissions.map((s) => (
-              <tr key={s.id}>
-                <td>{s.candidate_name}</td>
-                <td>{s.position_title}</td>
-                <td>
-                  <span className={`badge ${STATUS_BADGE[s.status] ?? ""}`}>
-                    {s.status.replaceAll("_", " ")}
-                  </span>
-                </td>
-                <td className="muted">{new Date(s.submitted_at).toLocaleDateString()}</td>
-              </tr>
+              <Fragment key={s.id}>
+                <tr>
+                  <td>
+                    <span className="ref-code">{s.position_reference ?? "—"}</span>
+                  </td>
+                  <td>{s.candidate_name}</td>
+                  <td>{s.position_title}</td>
+                  <td>
+                    <span className={`badge ${STATUS_BADGE[s.status] ?? ""}`}>
+                      {s.status.replaceAll("_", " ")}
+                    </span>
+                  </td>
+                  <td className="num muted">
+                    {new Date(s.submitted_at).toLocaleDateString()}
+                  </td>
+                </tr>
+                {/* A released packet expands the row it belongs to, rather
+                    than living somewhere the vendor has to go and find. */}
+                {s.feedback && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: 0 }}>
+                      <FeedbackBlock
+                        submissionId={s.id}
+                        candidate={s.candidate_name}
+                        position={s.position_title}
+                        reference={s.position_reference}
+                        feedback={s.feedback}
+                        onAcknowledged={refresh}
+                      />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>
@@ -301,5 +339,126 @@ function SubmitForm({
       </div>
       {error && <p className="error">{error}</p>}
     </form>
+  );
+}
+
+/**
+ * A released feedback packet, as the vendor sees it (design option 2b).
+ *
+ * Everything rendered here comes from the packet, which structurally cannot
+ * hold an interviewer, a rating or the internal reason — so the footnote is a
+ * statement of fact about the data, not a promise about this component.
+ */
+function FeedbackBlock({
+  submissionId,
+  candidate,
+  position,
+  reference,
+  feedback,
+  onAcknowledged,
+}: {
+  submissionId: string;
+  candidate: string;
+  position: string;
+  reference: string | null;
+  feedback: VendorFeedback;
+  onAcknowledged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  const acknowledge = async () => {
+    setBusy(true);
+    try {
+      await api(`/vendor/submissions/${submissionId}/acknowledge`, { method: "POST" });
+      onAcknowledged();
+    } catch {
+      // Acknowledging twice is harmless; the row simply reloads.
+      onAcknowledged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="feedback-block">
+      <div className="feedback-head">
+        <strong>{candidate}</strong>
+        <span className="mono-label">
+          {reference ? `${reference} · ` : ""}
+          {position}
+        </span>
+        <span className="feedback-outcome">{feedback.headline || "Decision"}</span>
+      </div>
+
+      <div className="feedback-body">
+        <div className="mono-label">
+          Feedback released {new Date(feedback.released_at).toLocaleDateString()}
+        </div>
+        <p className="feedback-summary">{feedback.summary}</p>
+
+        <div className="feedback-tags">
+          {feedback.strengths.length > 0 && (
+            <div>
+              <div className="mono-label" style={{ color: "var(--ok)" }}>
+                Strengths
+              </div>
+              <div className="row" style={{ gap: 6, marginTop: 6 }}>
+                {feedback.strengths.map((t) => (
+                  <span key={t} className="badge ok">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {feedback.gaps.length > 0 && (
+            <div>
+              <div className="mono-label" style={{ color: "var(--warn)" }}>
+                Gaps
+              </div>
+              <div className="row" style={{ gap: 6, marginTop: 6 }}>
+                {feedback.gaps.map((t) => (
+                  <span key={t} className="badge warn">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* The highest-value line for a vendor: it says what to send next. */}
+        {feedback.reconsider_for && (
+          <div className="reconsider">
+            Would consider for <strong>{feedback.reconsider_for}</strong>.
+            {feedback.resubmit_after && (
+              <>
+                {" "}
+                Resubmission welcome after{" "}
+                {new Date(feedback.resubmit_after).toLocaleDateString()} — it will
+                not be treated as a duplicate.
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="row spread" style={{ marginTop: "var(--step-4)" }}>
+          <div className="row">
+            {feedback.acknowledged_at ? (
+              <span className="badge ok">
+                Acknowledged {new Date(feedback.acknowledged_at).toLocaleDateString()}
+              </span>
+            ) : (
+              <button type="button" className="secondary" disabled={busy} onClick={acknowledge}>
+                {busy ? "Saving…" : "Acknowledge"}
+              </button>
+            )}
+          </div>
+          <span className="muted" style={{ fontSize: 13 }}>
+            Interviewer names, ratings and internal notes are never shared.
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -437,6 +437,38 @@ export class SubmissionsService {
     });
   }
 
+  /**
+   * Mark a released packet as read. Resolved through the vendor's OWN
+   * submission, so acknowledging someone else's feedback is not expressible.
+   */
+  async acknowledgeFeedback(vendorId: string, organizationId: string, submissionId: string) {
+    const submission = await this.prisma.submission.findFirst({
+      where: { id: submissionId, organizationId, vendorOrg: { vendorId, organizationId } },
+      select: { candidateId: true, positionId: true },
+    });
+    if (!submission?.candidateId) throw new NotFoundException("Submission not found");
+    const packet = await this.prisma.feedbackPacket.findFirst({
+      where: {
+        visibility: "vendor",
+        debrief: {
+          releasedAt: { not: null },
+          application: {
+            organizationId,
+            candidateId: submission.candidateId,
+            positionId: submission.positionId,
+          },
+        },
+      },
+      select: { id: true },
+    });
+    if (!packet) throw new NotFoundException("No released feedback for this submission");
+    await this.prisma.feedbackPacket.update({
+      where: { id: packet.id },
+      data: { acknowledgedAt: new Date() },
+    });
+    return { ok: true };
+  }
+
   /** Org view: everything, scoped by viewable units, vendor names included. */
   async listForOrg(
     organizationId: string,

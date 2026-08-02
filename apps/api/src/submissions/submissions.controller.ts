@@ -30,6 +30,23 @@ export class VendorSubmissionsController {
     );
   }
 
+  /**
+   * The vendor confirms they have read the feedback. Scoped through the
+   * submission, so a vendor can only acknowledge a packet on a candidate they
+   * themselves submitted.
+   */
+  @Post("submissions/:id/acknowledge")
+  async acknowledge(
+    @Tenant() tenant: TenantContext,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.submissions.acknowledgeFeedback(
+      tenant.vendor!.vendor.id,
+      tenant.vendor!.organizationId,
+      id,
+    );
+  }
+
   @Get("submissions")
   list(@Tenant() tenant: TenantContext) {
     return this.submissions.listForVendor(
@@ -57,4 +74,5 @@ export class OrgSubmissionsController {
       positionId,
     );
   }
+
 }
