@@ -4,12 +4,14 @@ import {
   InterviewCreate,
   StageTransitionCreate,
 } from "@intervu/contracts";
+import { DropoutRecord, OfferOutcome, OfferRecord } from "@intervu/contracts";
 import { parseBody } from "../common/zod";
 import { AuthzService } from "../entitlements/authz.service";
 import { InterviewsService } from "../interviews/interviews.service";
 import { OrgScope, Tenant } from "../tenancy/scope.decorator";
 import type { TenantContext } from "../tenancy/tenant-context";
 import { ApplicationsService } from "./applications.service";
+import { OffersService } from "./offers.service";
 
 @Controller("applications")
 @OrgScope()
@@ -18,6 +20,7 @@ export class ApplicationsController {
     private readonly applications: ApplicationsService,
     private readonly interviews: InterviewsService,
     private readonly authz: AuthzService,
+    private readonly offers: OffersService,
   ) {}
 
   @Get()
@@ -88,5 +91,50 @@ export class ApplicationsController {
       id,
       tenant.org!.user.id,
     );
+  }
+
+  /** Extend or amend the offer on an application. */
+  @Post(":id/offer")
+  async offer(
+    @Tenant() tenant: TenantContext,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(OfferRecord, body);
+    const access = await this.authz.access(tenant);
+    await this.applications.requireOnUnit(
+      tenant.org!.organizationId, id, access, "decisions.record",
+    );
+    return this.offers.record(tenant.org!.organizationId, id, tenant.org!.user.id, input);
+  }
+
+  /** Accept or decline it — the event that makes time-to-hire measurable. */
+  @Post(":id/offer/close")
+  async closeOffer(
+    @Tenant() tenant: TenantContext,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(OfferOutcome, body);
+    const access = await this.authz.access(tenant);
+    await this.applications.requireOnUnit(
+      tenant.org!.organizationId, id, access, "decisions.record",
+    );
+    return this.offers.close(tenant.org!.organizationId, id, input);
+  }
+
+  /** The candidate left the process, which is not the same as a rejection. */
+  @Post(":id/dropout")
+  async dropout(
+    @Tenant() tenant: TenantContext,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(DropoutRecord, body);
+    const access = await this.authz.access(tenant);
+    await this.applications.requireOnUnit(
+      tenant.org!.organizationId, id, access, "applications.transition",
+    );
+    return this.offers.dropout(tenant.org!.organizationId, id, input);
   }
 }

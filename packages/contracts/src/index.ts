@@ -331,3 +331,47 @@ export type DecisionCreate = z.infer<typeof DecisionCreate>;
 export type InterviewCreate = z.infer<typeof InterviewCreate>;
 export type ScorecardCreate = z.infer<typeof ScorecardCreate>;
 export type FlagCreate = z.infer<typeof FlagCreate>;
+
+// --- Offers & dropout (docs/05 §7)
+
+export const RateBandFitEnum = z.enum(["below", "in", "above"]);
+export const DeclineReasonEnum = z.enum([
+  "compensation",
+  "counter_offer",
+  "competing_offer",
+  "role_scope",
+  "location",
+  "timing",
+  "other",
+]);
+export const DropoutKindEnum = z.enum(["withdrew", "unresponsive", "declined_offer"]);
+
+/** Extending an offer. Amount is optional: not every org records it. */
+export const OfferRecord = z.object({
+  amount: z.number().nonnegative().nullish(),
+  currency: z.string().length(3).default("EUR"),
+  vs_rate_band: RateBandFitEnum.nullish(),
+});
+
+/** Closing an offer out. Acceptance is what makes time-to-hire real. */
+export const OfferOutcome = z.discriminatedUnion("outcome", [
+  z.object({ outcome: z.literal("accepted") }),
+  z.object({
+    outcome: z.literal("declined"),
+    reason: DeclineReasonEnum,
+    note: z.string().max(500).default(""),
+  }),
+]);
+
+/** The candidate left the process — distinct from being rejected. */
+export const DropoutRecord = z.object({
+  kind: DropoutKindEnum,
+  note: z.string().max(500).default(""),
+});
+
+export type RateBandFitEnum = z.infer<typeof RateBandFitEnum>;
+export type DeclineReasonEnum = z.infer<typeof DeclineReasonEnum>;
+export type DropoutKindEnum = z.infer<typeof DropoutKindEnum>;
+export type OfferRecord = z.infer<typeof OfferRecord>;
+export type OfferOutcome = z.infer<typeof OfferOutcome>;
+export type DropoutRecord = z.infer<typeof DropoutRecord>;

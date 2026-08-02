@@ -533,12 +533,17 @@ p.muted {
   margin-right: 0.35rem;
 }
 
-/* Per the design (§2.6): must-have keeps the accent border and wash, with the
-   ★ prefix carrying the distinction when the accent is low-contrast. */
+/* Must-have is INK plus the ★, not the accent.
+
+   §2.6 tints these with --accent, but that fails the §6 acceptance test: under
+   an oxblood brand every must-have chip reads as an error, under amber as a
+   warning. Importance is a kind of quality, and §1.5 already bars the accent
+   from encoding quality. Confirmed on /design by cycling the swatches. */
 .skill-chip.must {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--accent-wash);
+  color: var(--fg);
+  border-color: var(--fg);
+  background: var(--sunk);
+  font-weight: 600;
 }
 
 .skill-chip.must::before {

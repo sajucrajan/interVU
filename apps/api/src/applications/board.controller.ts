@@ -63,6 +63,7 @@ export class BoardController {
           position: { select: { id: true, title: true, reference: true } },
           interviews: { select: { status: true } },
           decision: { select: { outcome: true } },
+          offer: { select: { vsRateBand: true } },
           stageTransitions: { orderBy: { at: "desc" }, take: 1, select: { at: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -108,6 +109,11 @@ export class BoardController {
       if (ageState === "breached") flags.push({ label: "SLA breached", tone: "bad" });
       if (sub?.ownershipStatus === "duplicate") flags.push({ label: "Duplicate", tone: "warn" });
       if (decisionDue) flags.push({ label: "Decision due", tone: "bad" });
+      // An offer above the advertised band is a fact a hiring manager should
+      // see on the card, not discover in a spreadsheet later.
+      if (r.offer?.vsRateBand === "above") {
+        flags.push({ label: "Above band", tone: "warn" });
+      }
       if ((appsPerCandidate.get(r.candidateId) ?? 1) > 1) {
         flags.push({ label: "Re-applicant", tone: "warn" });
       }
