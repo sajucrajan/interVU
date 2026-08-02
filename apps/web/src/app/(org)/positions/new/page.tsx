@@ -69,6 +69,8 @@ function NewPositionForm() {
     org_unit_id: "",
     seniority: "",
     employment_type: "full_time",
+    sourcing_mode: "vendor",
+    vendor_opens_at: "",
     openings: 1,
     location_policy: "",
     location_text: "",
@@ -85,7 +87,8 @@ function NewPositionForm() {
 
   /** Fill the form from a saved template — the whole point of templates. */
   const applyTemplate = useCallback((t: TemplateDetail) => {
-    setForm({
+    setForm((prev) => ({
+      ...prev,
       title: t.title,
       org_unit_id: t.orgUnitId ?? "",
       seniority: t.seniority ?? "",
@@ -99,7 +102,9 @@ function NewPositionForm() {
       rate_currency: t.rateCurrency ?? "USD",
       rate_period: t.ratePeriod ?? "",
       description: t.description ?? "",
-    });
+      // Templates predate sourcing mode and say nothing about channel, so
+      // applying one must not silently reset the choice already made.
+    }));
     setMustHaves(t.mustHaves ?? []);
     setSkills(
       t.skills.length > 0
@@ -146,6 +151,10 @@ function NewPositionForm() {
         openings: Number(form.openings) || 1,
         seniority: form.seniority || null,
         employment_type: form.employment_type,
+        sourcing_mode: form.sourcing_mode,
+        ...(form.sourcing_mode === "hybrid" && form.vendor_opens_at
+          ? { vendor_opens_at: new Date(form.vendor_opens_at).toISOString() }
+          : {}),
         location_policy: form.location_policy || null,
         location_text: form.location_text || null,
         min_total_years: form.min_total_years ? Number(form.min_total_years) : null,
@@ -268,6 +277,36 @@ function NewPositionForm() {
               <label>Openings</label>
               <input type="number" min={1} value={form.openings} onChange={set("openings")} />
             </div>
+          </div>
+
+          {/* Channel is decided here, when the role is opened — it is a
+              property of the role, not a separate screen. */}
+          <div className="row">
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <label>Sourcing channel</label>
+              <select value={form.sourcing_mode} onChange={set("sourcing_mode")}>
+                <option value="vendor">Vendors only</option>
+                <option value="direct">Direct only — never released to vendors</option>
+                <option value="hybrid">Hybrid — direct first, vendors later</option>
+              </select>
+              <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+                {form.sourcing_mode === "direct"
+                  ? "Agencies never see this role, and cannot submit to it."
+                  : form.sourcing_mode === "hybrid"
+                    ? "Sourced in-house first. Agencies join on the date below."
+                    : "Released to agencies under the policy you set at publish."}
+              </p>
+            </div>
+            {form.sourcing_mode === "hybrid" && (
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <label>Vendors join on</label>
+                <input
+                  type="date"
+                  value={form.vendor_opens_at}
+                  onChange={set("vendor_opens_at")}
+                />
+              </div>
+            )}
           </div>
           <div className="row">
             <div style={{ flex: 1, minWidth: 140 }}>

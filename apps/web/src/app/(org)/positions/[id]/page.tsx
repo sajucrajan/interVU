@@ -34,6 +34,8 @@ interface Detail {
   orgUnitId: string;
   orgUnit: { name: string };
   skills: { level: string; proficiency: string; minYears: number | null; skill: { name: string } }[];
+  sourcingMode: "direct" | "vendor" | "hybrid";
+  vendorOpensAt: string | null;
   releasePolicy: { mode: string } | null;
   releases: {
     visibleFrom: string;
@@ -268,6 +270,71 @@ export default function PositionDetailPage() {
                 ))}
               </ul>
             </>
+          )}
+        </div>
+
+        {/* Channel sits directly above the release panel, because changing it
+            is what decides whether that panel means anything at all. */}
+        <div className="card">
+          <p className="chart-title">Sourcing channel</p>
+          <p className="chart-sub">
+            {p.sourcingMode === "direct"
+              ? "Direct only — agencies never see this role."
+              : p.sourcingMode === "hybrid"
+                ? p.vendorOpensAt
+                  ? `Hybrid — agencies join ${new Date(p.vendorOpensAt).toLocaleDateString(undefined, { timeZone: "UTC" })}.`
+                  : "Hybrid — no unlock date set, so agencies can see it now."
+                : "Vendors — released to agencies under the policy below."}
+          </p>
+          <div className="row" style={{ gap: 8 }}>
+            {(["vendor", "hybrid", "direct"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={mode === p.sourcingMode ? "" : "secondary"}
+                disabled={mode === p.sourcingMode}
+                onClick={() =>
+                  act(() =>
+                    api(`/positions/${p.id}`, {
+                      method: "PATCH",
+                      body: {
+                        sourcing_mode: mode,
+                        // Switching away from hybrid clears the stale date;
+                        // switching to it leaves the date to be set here.
+                        ...(mode === "hybrid" ? {} : { vendor_opens_at: null }),
+                      },
+                    }),
+                  )
+                }
+              >
+                {mode === "vendor"
+                  ? "Vendors"
+                  : mode === "hybrid"
+                    ? "Hybrid"
+                    : "Direct only"}
+              </button>
+            ))}
+          </div>
+          {p.sourcingMode === "hybrid" && (
+            <div style={{ marginTop: "0.75rem", maxWidth: 220 }}>
+              <label>Vendors join on</label>
+              <input
+                type="date"
+                defaultValue={p.vendorOpensAt ? p.vendorOpensAt.slice(0, 10) : ""}
+                onChange={(e) =>
+                  act(() =>
+                    api(`/positions/${p.id}`, {
+                      method: "PATCH",
+                      body: {
+                        vendor_opens_at: e.target.value
+                          ? new Date(`${e.target.value}T00:00:00Z`).toISOString()
+                          : null,
+                      },
+                    }),
+                  )
+                }
+              />
+            </div>
           )}
         </div>
 
