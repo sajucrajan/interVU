@@ -63,13 +63,37 @@ Migrations need no step of their own: the image's `CMD` runs
 Dockerfile `apps/web/Dockerfile`, context the repo root, port `3000`.
 
 ```
-build arg:  NEXT_PUBLIC_API_URL = /api/v1
-env:        API_PROXY_TARGET    = https://<api-service>.koyeb.app
+build args: NEXT_PUBLIC_API_URL      = /api/v1
+            NEXT_PUBLIC_DEMO_MODE    = true
+            NEXT_PUBLIC_DEMO_ORG     = acme
+            NEXT_PUBLIC_DEMO_PASSWORD = intervu-demo
+env:        API_PROXY_TARGET         = https://<api-service>.koyeb.app
 ```
 
-`NEXT_PUBLIC_API_URL` is baked in at **build** time (it is inlined into the
-client bundle), so it must be set as a build argument, not a runtime variable.
-A *relative* value is what puts the browser on the web origin.
+Every `NEXT_PUBLIC_*` value is inlined into the client bundle at **build**
+time, so all four must be build arguments. Setting them as runtime variables
+leaves the browser calling `localhost:4000` and the guide page dark. A
+*relative* `NEXT_PUBLIC_API_URL` is what puts the browser on the web origin.
+
+## The guide page (`/demo`)
+
+`NEXT_PUBLIC_DEMO_MODE=true` publishes a landing page that explains what the
+product is, offers **one-click sign-in** for six personas, and suggests what to
+look at. Without the flag the route 404s and the home page does not link it —
+a self-hosted production install must never publish working credentials.
+
+**The org_admin account is deliberately absent.** That is presentation, not
+security: the seed and its password are in a public repository, so anyone
+determined can find it. What omitting it buys is a demo that stays
+demonstrable — nothing invites a visitor into org settings, vendor contracts
+or GDPR erasure, which are the operations that would quietly wreck the tour for
+whoever arrives next. The nightly reset is the actual safety net.
+
+The six personas are chosen to make the invisible parts visible: a recruiter
+(the widest view), a hiring manager (the same product with a smaller world), a
+read-only project manager (scope isolation from the other side), an
+interviewer (assignment *is* the grant), and two vendors at different tiers —
+whose different views of the same day are the tiered release ladder.
 
 ## 4. Seed the demo
 
