@@ -8,12 +8,16 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { S3Service } from "./s3.service";
+import * as mammoth from "mammoth";
 
 const MAX_BYTES = 10 * 1024 * 1024;
+const ALLOWED_DOCX =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
 const ALLOWED = new Map<string, string>([
   ["application/pdf", ".pdf"],
   ["text/plain", ".txt"],
-  ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"],
+  [ALLOWED_DOCX, ".docx"],
 ]);
 
 export interface UploadedResume {
@@ -86,7 +90,7 @@ export class FilesService {
       throw new BadRequestException({
         code: "text_not_extractable",
         detail:
-          "This deployment does not retain uploaded files, and no text could be read from this one. Upload a PDF or plain text file.",
+          "This deployment does not retain uploaded files, and no text could be read from this one — it may be an empty or image-only document.",
       });
     }
 
@@ -149,6 +153,12 @@ export class FilesService {
       const parsed = await pdfParse(file.buffer);
       return parsed.text.slice(0, 100_000);
     }
-    return null; // docx extraction: later increment
+    if (file.mimetype === ALLOWED_DOCX) {
+      // `extractRawText` rather than the HTML converter: the matcher reads
+      // words, and markup would only be noise in the feature extractor.
+      const { value } = await mammoth.extractRawText({ buffer: file.buffer });
+      return value.slice(0, 100_000);
+    }
+    return null
   }
 }

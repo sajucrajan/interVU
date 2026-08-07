@@ -134,10 +134,10 @@ What it costs:
   `bytes_not_retained` and says so. No screen calls that endpoint today, so
   nothing visibly breaks — but a real install would be giving up the reviewer
   and interviewer download.
-- **PDF and plain text only.** DOCX text extraction is not implemented, and
-  with no bytes retained an unextractable upload would leave a row recording
-  that a resume once existed while holding none of it. Those uploads are
-  refused with `text_not_extractable` rather than accepted emptily.
+- **Text has to be readable.** PDF, DOCX and plain text all extract. What
+  cannot be read — an empty document, or a scan with no text layer — is
+  refused with `text_not_extractable`, because with no bytes retained such a
+  row would record that a resume once existed while holding none of it.
 
 It is opt-in for that reason: a production install that silently stopped
 keeping CVs because a variable was unset would be a much worse failure than an
