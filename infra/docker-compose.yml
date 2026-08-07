@@ -75,6 +75,9 @@ services:
       S3_ACCESS_KEY: intervu
       S3_SECRET_KEY: intervu-dev-secret
       S3_BUCKET: intervu-files
+      # `extract_only` reads the resume, keeps the text, discards the file —
+      # for deployments with no durable storage (docs/11). Unset = keep bytes.
+      RESUME_STORAGE: ${RESUME_STORAGE:-}
       # SMTP_HOST/SMTP_PORT: set to enable outbound mail (see .env.example)
     ports:
       - "4000:4000"
@@ -89,6 +92,11 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+        # Off by default. `DEMO_MODE=true docker compose --profile app build web`
+        # publishes /demo locally, the same way the deployment does (docs/11).
+        # It is a BUILD arg because Next inlines NEXT_PUBLIC_* at build time —
+        # setting it at runtime does nothing.
+        NEXT_PUBLIC_DEMO_MODE: ${DEMO_MODE:-false}
     ports:
       - "3000:3000"
     depends_on:

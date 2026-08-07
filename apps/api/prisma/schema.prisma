@@ -953,7 +953,9 @@ model PanelMember {
 
 // ---------- Files (docs/03 §2: attachments) ----------
 
-/// Resume/document storage metadata; bytes live in S3-compatible storage.
+/// Resume/document metadata. Bytes normally live in S3-compatible storage;
+/// `s3_key` is NULL where the deployment runs RESUME_STORAGE=extract_only and
+/// discarded the file after reading it (docs/11).
 /// parsed_text feeds the matching engine's resume features (docs/04, M4).
 model Attachment {
   id             String   @id @default(uuid()) @db.Uuid
@@ -961,7 +963,7 @@ model Attachment {
   kind           String   @default("resume")
   ownerType      String   @map("owner_type") // submission | candidate
   ownerId        String   @map("owner_id") @db.Uuid
-  s3Key          String   @map("s3_key")
+  s3Key          String?  @map("s3_key")
   filename       String
   contentType    String   @map("content_type")
   size           Int

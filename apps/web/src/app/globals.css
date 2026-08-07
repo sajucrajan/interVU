@@ -422,27 +422,95 @@ p.muted {
   margin-top: 0;
 }
 
+/* The toggle only exists on narrow viewports; the rail is always open above. */
+.rail-toggle {
+  display: none;
+}
+
+.rail-brand {
+  min-width: 0;
+}
+
 @media (max-width: 900px) {
   .org-shell {
     flex-direction: column;
   }
 
+  /* A bar, not a block. Ten wrapped links ate most of a phone screen before
+     any content; collapsed, the rail costs one row and stays reachable while
+     the page scrolls. */
   .rail {
     width: 100%;
     height: auto;
-    position: static;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    padding: 0;
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
 
-  .rail-nav {
+  .rail-head {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 0;
   }
 
-  .rail-group {
+  /* One line. The org name plus role wrapped to two rows and made the bar
+     taller than the content it was making room for. */
+  .rail-brand {
+    overflow: hidden;
+  }
+  .rail-brand .mono-label {
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .rail-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    padding: 8px 12px;
+    font-size: 16px;
+    line-height: 1;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .rail-toggle:hover {
+    background: var(--sunk);
+  }
+
+  /* Closed by default. Opening reveals the same grouped list as desktop —
+     the groups are what make ten destinations scannable, so they stay. */
+  .rail-nav,
+  .rail-foot {
     display: none;
+  }
+
+  .rail.open .rail-nav {
+    display: block;
+    max-height: min(60vh, 420px);
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+  }
+
+  .rail.open .rail-foot {
+    display: flex;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Touch targets: 9px padding is fine for a mouse, tight for a thumb. */
+  .rail-item {
+    padding: 12px 10px;
   }
 }
 
@@ -2824,4 +2892,107 @@ table.data td time {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
+}
+
+/* ---- Demo guide (docs/11) -------------------------------------------- */
+
+.demo-page {
+  max-width: 1040px;
+}
+.demo-lede {
+  font-size: 18px;
+  max-width: 62ch;
+  margin-top: var(--step-3);
+}
+.demo-sub {
+  max-width: 62ch;
+  font-size: 14px;
+}
+
+.demo-doors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--step-4);
+}
+.demo-door {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--step-4);
+}
+.demo-door h3 {
+  margin: 8px 0;
+}
+.demo-door p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.demo-hint {
+  font-size: 14px;
+  margin-bottom: var(--step-3);
+}
+
+.demo-personas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--step-3);
+}
+.demo-persona {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--step-4);
+}
+/* The vendor cards carry the same left mark the portal uses, so the wall is
+   legible before you have signed in as either side. */
+.demo-persona.vendor {
+  border-left: 3px solid var(--accent);
+}
+.demo-persona-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--step-3);
+}
+.demo-notice {
+  font-size: 14px;
+  margin: var(--step-3) 0 10px;
+}
+.demo-email {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.demo-tour {
+  padding-left: 1.1rem;
+  max-width: 72ch;
+}
+.demo-tour li {
+  margin-bottom: var(--step-4);
+}
+.demo-tour-where {
+  font-weight: 600;
+}
+.demo-tour p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.demo-limits {
+  padding-left: 1.1rem;
+  max-width: 72ch;
+}
+.demo-limits li {
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.demo-foot {
+  margin-top: var(--step-6);
+  padding-top: var(--step-4);
+  border-top: 1px solid var(--line);
+  font-size: 14px;
 }

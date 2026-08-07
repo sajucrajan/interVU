@@ -17,8 +17,17 @@ COPY tsconfig.base.json turbo.json ./
 COPY packages packages
 COPY apps/web apps/web
 # Baked at build time — point it at your API's public URL.
+# Every NEXT_PUBLIC_* value is inlined into the client bundle at BUILD time,
+# so each one has to be declared here — passing it as a runtime variable does
+# nothing. Defaults keep a plain `docker build` behaving like local dev.
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_DEMO_MODE=false
+ENV NEXT_PUBLIC_DEMO_MODE=$NEXT_PUBLIC_DEMO_MODE
+ARG NEXT_PUBLIC_DEMO_ORG=acme
+ENV NEXT_PUBLIC_DEMO_ORG=$NEXT_PUBLIC_DEMO_ORG
+ARG NEXT_PUBLIC_DEMO_PASSWORD=intervu-demo
+ENV NEXT_PUBLIC_DEMO_PASSWORD=$NEXT_PUBLIC_DEMO_PASSWORD
 RUN pnpm --filter @intervu/web build
 
 FROM base AS runtime

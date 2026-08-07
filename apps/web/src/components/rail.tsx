@@ -132,6 +132,9 @@ export function OrgRail() {
   const [caps, setCaps] = useState<string[] | null>(null);
   const [wl, setWl] = useState<Worklist | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Narrow viewports collapse the rail to a bar; the nav becomes a drawer.
+  // Desktop ignores this entirely — the media query never shows the toggle.
+  const [navOpen, setNavOpen] = useState(false);
   const footRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -170,6 +173,17 @@ export function OrgRail() {
   }, [refresh, pathname]);
 
   useEffect(() => {
+    setNavOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setNavOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [navOpen]);
+
+  useEffect(() => {
     if (!menuOpen) return;
     const onDown = (e: MouseEvent) => {
       if (footRef.current && !footRef.current.contains(e.target as Node)) {
@@ -199,6 +213,10 @@ export function OrgRail() {
     return { total, critical: matched.some((g) => g.tone === "critical") };
   };
 
+  const pending = wl
+    ? wl.groups.reduce((n, g) => n + g.count, 0)
+    : 0;
+
   const org = me?.organization;
   // The rail states who you are as well as where you are (design 1b).
   const role = wl?.user.roles[0];
@@ -206,20 +224,39 @@ export function OrgRail() {
   return (
     <>
       <CommandPalette capabilities={caps ?? []} />
-      <aside className="rail">
+      <aside className={`rail${navOpen ? " open" : ""}`}>
       <div className="rail-head">
-        <Link href="/dashboard" className="brand">
-          Inter<span className="brand-accent">/</span>VU
-        </Link>
-        {org && (
-          <div className="mono-label" style={{ marginTop: 8 }}>
-            {org.branding?.product_label ?? org.name}
-            {role && ` · ${role}`}
-          </div>
-        )}
+        <div className="rail-brand">
+          <Link href="/dashboard" className="brand">
+            Inter<span className="brand-accent">/</span>VU
+          </Link>
+          {org && (
+            <div className="mono-label" style={{ marginTop: 8 }}>
+              {org.branding?.product_label ?? org.name}
+              {role && ` · ${role}`}
+            </div>
+          )}
+        </div>
+        {/* Mobile only. The count rides on the toggle so collapsing the nav
+            never hides the fact that work is waiting. */}
+        <button
+          type="button"
+          className="rail-toggle"
+          aria-expanded={navOpen}
+          aria-controls="rail-nav"
+          aria-label={navOpen ? "Close navigation" : "Open navigation"}
+          onClick={() => setNavOpen((v) => !v)}
+        >
+          <span aria-hidden>{navOpen ? "✕" : "☰"}</span>
+          {!navOpen && pending > 0 && (
+            <span className="rail-count critical">
+              {pending > 99 ? "99+" : pending}
+            </span>
+          )}
+        </button>
       </div>
 
-      <nav className="rail-nav">
+      <nav className="rail-nav" id="rail-nav">
         {groups.map((group) => (
           <div key={group}>
             <div className="rail-group mono-label">{group}</div>
