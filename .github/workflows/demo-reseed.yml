@@ -46,9 +46,7 @@ jobs:
             echo "::error::DEMO_DATABASE_URL is not set — nothing was reset."
             exit 1
           fi
-          # Two explicit steps: `migrate reset` does NOT run the seed unless
-          # prisma.seed is configured in package.json, and it is not — reset
-          # on its own would leave a schema with no demo data in it.
-          pnpm --filter @intervu/api exec prisma migrate reset --force --skip-generate --skip-seed
-          pnpm --filter @intervu/api db:generate
-          pnpm --filter @intervu/api db:seed
+          # Same script you can run locally (`pnpm demo:reset`), so the
+          # nightly job and a local reset cannot drift into meaning
+          # different things.
+          pnpm --filter @intervu/api demo:reset

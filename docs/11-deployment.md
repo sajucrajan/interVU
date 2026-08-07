@@ -112,9 +112,29 @@ Set the repository secret **`DEMO_DATABASE_URL`** to the Neon connection
 string. Without it the job fails loudly rather than appearing to succeed
 against nothing.
 
-Note it runs `migrate reset` and then the seed as two explicit steps. Re-running
-the seed alone would not do: it upserts, so it restores what was deleted but
-cannot undo what was edited or added.
+It runs one script — `pnpm --filter @intervu/api demo:reset` — which is the
+same thing you can run locally, so the nightly job and a local reset cannot
+drift into meaning different things. The script does `migrate reset` and then
+the seed as separate steps: reset does not run the seed unless `prisma.seed`
+is configured in package.json, and it is not, so reset alone would leave an
+empty schema. Re-running the seed *without* a reset would not do either — it
+upserts, so it restores what was deleted but cannot undo what was edited.
+
+### Running it locally
+
+```
+pnpm --filter @intervu/api demo:reset
+```
+
+Worth doing before you show the app to anyone. The seed backdates rows
+relative to seed time, so a database left alone for a week or two drifts until
+every card on the pipeline board reads `SLA breached` — which buries the aging
+design under a wall of red. A fresh reset puts it back to a couple of
+deliberate breaches against a healthy board.
+
+**It destroys the database it points at.** Prisma will refuse to run it
+non-interactively without explicit consent, which is the behaviour you want:
+check `DATABASE_URL` before answering.
 
 ## Resumes without object storage
 
