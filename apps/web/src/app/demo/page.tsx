@@ -13,12 +13,16 @@ import { SectionHead } from "@/components/section-head";
  * production install must never publish a page of working credentials. On a
  * real deployment this route 404s and the landing page does not link it.
  *
+ * The artwork is inline SVG and CSS built from the SAME tokens as the product
+ * — not screenshots. Screenshots of a UI still under active design go stale
+ * silently and start lying about what the app looks like; these re-read the
+ * theme, so they follow the accent and dark mode for free.
+ *
  * The org_admin account is deliberately absent. That is presentation, not
- * security — the seed and its password are in a public repository, so anyone
- * determined can find it. What omitting it buys is a demo that stays
- * demonstrable: nothing here invites a visitor into settings, vendor contracts
- * or GDPR erasure, which are the operations that would quietly wreck the tour
- * for the next person.
+ * security — the seed and its password are in a public repository — but it
+ * keeps the demo demonstrable: nothing here invites a visitor into settings,
+ * vendor contracts or GDPR erasure, the operations that would quietly wreck
+ * the tour for whoever arrives next.
  */
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
@@ -30,20 +34,20 @@ interface Persona {
   name: string;
   role: string;
   scope: string;
-  /** What this persona is *for* — the thing you cannot see as anyone else. */
   notice: string;
   vendor?: boolean;
   landing: string;
 }
 
-const PERSONAS: Persona[] = [
+/** Internal staff. Ordered widest scope first — the natural place to start. */
+const ORG_PERSONAS: Persona[] = [
   {
     email: "recruiter@acme.test",
     name: "Riley Recruiter",
     role: "Recruiter",
     scope: "Whole organization",
     notice:
-      "The main workflow, and the widest view. Screen submissions, arbitrate duplicate claims, move candidates, record decisions. Start here.",
+      "The main workflow and the widest view. Screen submissions, arbitrate duplicate claims, move candidates, record decisions.",
     landing: "/dashboard",
   },
   {
@@ -52,7 +56,7 @@ const PERSONAS: Persona[] = [
     role: "Hiring manager",
     scope: "Engineering only",
     notice:
-      "The same product with a smaller world. GTM roles are not hidden behind a permission error — they do not exist for this account at all.",
+      "The same product with a smaller world. GTM roles are not hidden behind a permission error — they do not exist for this account.",
     landing: "/pipeline",
   },
   {
@@ -61,7 +65,7 @@ const PERSONAS: Persona[] = [
     role: "Project manager",
     scope: "GTM only",
     notice:
-      "Read-only by design: funnel visibility for the teams they run, no hiring actions, and the mirror image of the hiring manager's scope.",
+      "Read-only by design: funnel visibility for the teams they run, no hiring actions. The mirror image of Morgan's scope.",
     landing: "/positions",
   },
   {
@@ -73,23 +77,37 @@ const PERSONAS: Persona[] = [
       "No positions, no pipeline — being on a panel IS the grant. One scorecard is overdue; file it and watch the debrief unseal.",
     landing: "/interviews",
   },
+];
+
+/** External agencies. The tier difference is the point of having two. */
+const VENDOR_PERSONAS: Persona[] = [
   {
     email: "recruiter@talentbridge.test",
     name: "TalentBridge",
-    role: "Vendor · tier 1",
+    role: "Agency · tier 1",
     scope: "Own submissions",
     notice:
-      "The other side of the wall. Sees released roles immediately, its own candidates only, and coarse statuses — never a stage name, an interviewer or a scorecard.",
+      "Sees released roles immediately, its own candidates only, and coarse statuses — never a stage name, an interviewer or a scorecard.",
     vendor: true,
     landing: "/vendor",
   },
   {
     email: "recruiter@hireworks.test",
     name: "HireWorks",
-    role: "Vendor · tier 2",
+    role: "Agency · tier 2",
     scope: "Own submissions",
     notice:
-      "Fewer roles than TalentBridge on the same day. Tiered release is invisible to vendors — a tier-2 agency simply has less to work with, and cannot tell why.",
+      "Fewer roles than TalentBridge on the same day. Tiers are invisible to vendors — a tier-2 agency simply has less to work with.",
+    vendor: true,
+    landing: "/vendor",
+  },
+  {
+    email: "recruiter@staffpro.test",
+    name: "StaffPro",
+    role: "Agency · tier 2",
+    scope: "Own submissions",
+    notice:
+      "The third agency in the duplicate contests. Two vendors claiming the same person is what ownership arbitration exists to settle.",
     vendor: true,
     landing: "/vendor",
   },
@@ -98,30 +116,159 @@ const PERSONAS: Persona[] = [
 const TOUR = [
   {
     where: "Analytics → bottom of the page",
-    as: "Riley (recruiter)",
-    what: "Where hires come from. Cost per hire and 90-day retention say why a cell is empty instead of showing an invented number.",
+    as: "Riley",
+    what: "Where hires come from. Cost per hire and 90-day retention say why a cell is empty instead of inventing a number.",
   },
   {
     where: "Pipeline → the Duplicates view",
-    as: "Riley (recruiter)",
-    what: "Two agencies claiming the same person, with both timestamps. The system builds the evidence trail; a human decides.",
+    as: "Riley",
+    what: "Two agencies claiming the same person, with both timestamps. The system builds the evidence; a human decides.",
   },
   {
     where: "Positions → POS-001 → Sourcing channel",
-    as: "Riley (recruiter)",
+    as: "Riley",
     what: "Try switching it to Direct only. It refuses, and names the vendor-sourced candidates still in flight.",
   },
   {
     where: "My interviews → the overdue scorecard",
-    as: "Ingrid (interviewer)",
-    what: "Rate some competencies and leave one blank. Blank records as “not assessed”, which the debrief renders differently from a low score.",
+    as: "Ingrid",
+    what: "Rate some competencies, leave one blank. Blank records as “not assessed”, which the debrief renders differently from a low score.",
   },
   {
-    where: "Any open role",
+    where: "The same open role, twice",
     as: "TalentBridge, then HireWorks",
     what: "Sign in as each in turn. The difference in what they can see is the tiered release ladder.",
   },
 ];
+
+/**
+ * The core mechanic, drawn. Two agencies introduce the same candidate; the
+ * system decides who owns the introduction, because that is what an agency
+ * invoices for. Prose took a paragraph and still lost people.
+ */
+function OwnershipDiagram() {
+  return (
+    <svg
+      className="demo-diagram"
+      viewBox="0 0 720 210"
+      role="img"
+      aria-label="Two agencies submit the same candidate; the earlier submission wins ownership, the later one is flagged as a duplicate."
+    >
+      <defs>
+        <pattern id="hatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+          <line x1="0" y1="0" x2="0" y2="6" stroke="var(--warn)" strokeWidth="1.4" opacity="0.5" />
+        </pattern>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)" />
+        </marker>
+      </defs>
+
+      {/* Two agencies, same candidate */}
+      <g className="d-box">
+        <rect x="4" y="18" width="176" height="56" rx="7" />
+        <text x="20" y="42" className="d-title">TalentBridge</text>
+        <text x="20" y="60" className="d-meta">submits Jane · 09:14</text>
+      </g>
+      <g className="d-box">
+        <rect x="4" y="118" width="176" height="56" rx="7" />
+        <text x="20" y="142" className="d-title">StaffPro</text>
+        <text x="20" y="160" className="d-meta">submits Jane · 14:02</text>
+      </g>
+
+      <path d="M186 46 L250 46 L250 88 L292 88" className="d-line" markerEnd="url(#arrow)" />
+      <path d="M186 146 L250 146 L250 108 L292 108" className="d-line" markerEnd="url(#arrow)" />
+
+      {/* Arbitration */}
+      <g className="d-box accent">
+        <rect x="298" y="66" width="150" height="64" rx="7" />
+        <text x="373" y="92" className="d-title mid">Ownership</text>
+        <text x="373" y="110" className="d-meta mid">earliest valid wins</text>
+      </g>
+
+      <path d="M454 84 L516 62" className="d-line" markerEnd="url(#arrow)" />
+      <path d="M454 112 L516 134" className="d-line" markerEnd="url(#arrow)" />
+
+      {/* Outcomes */}
+      <g className="d-box ok">
+        <rect x="522" y="28" width="194" height="56" rx="7" />
+        <text x="540" y="52" className="d-title">Owned · TalentBridge</text>
+        <text x="540" y="70" className="d-meta">enters the pipeline</text>
+      </g>
+      <g className="d-box warn">
+        <rect x="522" y="112" width="194" height="56" rx="7" fill="url(#hatch)" />
+        <rect x="522" y="112" width="194" height="56" rx="7" fill="none" />
+        <text x="540" y="136" className="d-title">Duplicate · StaffPro</text>
+        <text x="540" y="154" className="d-meta">flagged with evidence</text>
+      </g>
+    </svg>
+  );
+}
+
+/** Abstractions of three real screens, drawn with the product's own tokens. */
+function ScreenPreviews() {
+  return (
+    <div className="demo-screens">
+      <figure className="demo-screen">
+        <div className="demo-screen-art board">
+          {[
+            { h: [70, 44, 58], tone: "" },
+            { h: [52, 66], tone: "warn" },
+            { h: [60, 38, 48, 30], tone: "" },
+            { h: [46], tone: "bad" },
+          ].map((col, i) => (
+            <div key={i} className="mini-col">
+              <span className="mini-head" />
+              {col.h.map((h, j) => (
+                <span key={j} className={`mini-card ${col.tone}`} style={{ height: h }} />
+              ))}
+            </div>
+          ))}
+        </div>
+        <figcaption>
+          <strong>Pipeline</strong> — candidates by stage, aging in view, WIP caps
+          per column.
+        </figcaption>
+      </figure>
+
+      <figure className="demo-screen">
+        <div className="demo-screen-art chart">
+          {[86, 62, 71, 40, 55, 33, 78].map((h, i) => (
+            <span key={i} className="mini-bar" style={{ height: `${h}%` }} />
+          ))}
+        </div>
+        <figcaption>
+          <strong>Analytics</strong> — time to offer, the biggest leak in the
+          funnel, and what each channel costs.
+        </figcaption>
+      </figure>
+
+      <figure className="demo-screen">
+        <div className="demo-screen-art matrix">
+          {[
+            [4, 4, 3],
+            [5, 2, 4],
+            [3, 3, 3],
+            [4, 5, 4],
+          ].map((row, i) => (
+            <div key={i} className="mini-row">
+              <span className="mini-label" />
+              {row.map((v, j) => (
+                <span
+                  key={j}
+                  className={`mini-dot v${v}${i === 1 ? " diverged" : ""}`}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+        <figcaption>
+          <strong>Panel debrief</strong> — every panelist against every
+          competency, with the disagreements called out.
+        </figcaption>
+      </figure>
+    </div>
+  );
+}
 
 export default function DemoPage() {
   const router = useRouter();
@@ -157,79 +304,84 @@ export default function DemoPage() {
     }
   }
 
+  const card = (p: Persona) => (
+    <div key={p.email} className="demo-persona">
+      <div className="demo-persona-head">
+        <div>
+          <strong>{p.name}</strong>
+          <div className="mono-label" style={{ marginTop: 4 }}>
+            {p.role} · {p.scope}
+          </div>
+        </div>
+        <button type="button" disabled={busy !== null} onClick={() => signIn(p)}>
+          {busy === p.email ? "…" : "Sign in"}
+        </button>
+      </div>
+      <p className="demo-notice">{p.notice}</p>
+      <code className="demo-email">{p.email}</code>
+    </div>
+  );
+
   return (
     <main className="wide demo-page">
-      <header className="page-head">
-        <div>
-          <div className="mono-label">Live demo · resets nightly</div>
-          <h1 style={{ marginTop: 12 }}>
-            Inter<span className="brand-accent">/</span>VU
-          </h1>
-          <p className="demo-lede">
-            An interview and vendor-sourced hiring platform. Organizations post
-            roles, staffing agencies submit candidates against them, and the
-            system arbitrates who introduced whom — which is what agencies get
-            paid on.
-          </p>
-          <p className="muted demo-sub">
-            Everything below is fabricated data. Change it freely: the database
-            is rebuilt from scratch every night at 03:00 UTC.
-          </p>
-        </div>
+      <header className="demo-hero">
+        <div className="mono-label">Live demo · rebuilt nightly</div>
+        <h1>
+          Two sides of the
+          <br />
+          same hire.
+        </h1>
+        <p className="demo-lede">
+          Organizations post roles. Staffing agencies submit candidates against
+          them. InterVU runs both sides of that wall — and settles who
+          introduced whom, which is what agencies get paid on.
+        </p>
+        <p className="muted demo-sub">
+          Everything here is fabricated. Change it freely: the database is
+          rebuilt from scratch every night at 03:00&nbsp;UTC.
+        </p>
       </header>
 
-      <SectionHead label="Two doors, one system" />
-      <div className="demo-doors">
-        <div className="demo-door">
-          <div className="mono-label">Internal</div>
-          <h3>Organization workspace</h3>
-          <p>
-            Recruiters, hiring managers and interviewers. Sees everything about
-            its own hiring — including which agency introduced a candidate, and
-            when.
-          </p>
-        </div>
-        <div className="demo-door">
-          <div className="mono-label">External</div>
-          <h3>Vendor portal</h3>
-          <p>
-            Staffing agencies. Sees only its own submissions and a coarse status
-            vocabulary. Never a stage name, an interviewer, a scorecard, or
-            another agency&rsquo;s existence.
-          </p>
-        </div>
-      </div>
+      <SectionHead label="The mechanic everything hangs off" />
+      <OwnershipDiagram />
 
-      <SectionHead label="Sign in as" />
+      <SectionHead label="Pick a side, and sign in" />
       <p className="muted demo-hint">
         One click — no password to type. Every account uses{" "}
-        <code>{PASSWORD}</code> if you would rather sign in by hand.
+        <code>{PASSWORD}</code> if you would rather type it yourself.
       </p>
       {error && <p className="error">{error}</p>}
 
-      <div className="demo-personas">
-        {PERSONAS.map((p) => (
-          <div key={p.email} className={`demo-persona${p.vendor ? " vendor" : ""}`}>
-            <div className="demo-persona-head">
-              <div>
-                <strong>{p.name}</strong>
-                <div className="mono-label" style={{ marginTop: 4 }}>
-                  {p.role} · {p.scope}
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={busy !== null}
-                onClick={() => signIn(p)}
-              >
-                {busy === p.email ? "Signing in…" : "Sign in"}
-              </button>
-            </div>
-            <p className="demo-notice">{p.notice}</p>
-            <code className="demo-email">{p.email}</code>
+      <div className="demo-sides">
+        <section className="demo-side">
+          <div className="demo-side-head">
+            <div className="mono-label">Internal</div>
+            <h2>Organization workspace</h2>
+            <p>
+              Recruiters, hiring managers and interviewers. Sees everything
+              about its own hiring — including which agency introduced a
+              candidate, and when.
+            </p>
           </div>
-        ))}
+          {ORG_PERSONAS.map(card)}
+        </section>
+
+        <section className="demo-side vendor">
+          <div className="demo-side-head">
+            <div className="mono-label">External</div>
+            <h2>Vendor portal</h2>
+            <p>
+              Staffing agencies. Sees only its own submissions and a coarse
+              status vocabulary. Never a stage name, an interviewer, a
+              scorecard, or another agency&rsquo;s existence.
+            </p>
+          </div>
+          {VENDOR_PERSONAS.map(card)}
+        </section>
       </div>
+
+      <SectionHead label="What you are looking at" />
+      <ScreenPreviews />
 
       <SectionHead label="Worth clicking" />
       <ol className="demo-tour">
@@ -250,12 +402,13 @@ export default function DemoPage() {
           to wake. It is not broken.
         </li>
         <li>
-          <strong>Resume upload is disabled.</strong> No file storage is
-          attached; the API says so plainly rather than failing.
+          <strong>Resumes are read, then discarded.</strong> There is no file
+          storage attached, so uploads are parsed for the matcher and the
+          original is not kept.
         </li>
         <li>
-          <strong>No email leaves the building.</strong> Notifications are
-          visible in the portal, not delivered.
+          <strong>No email leaves the building.</strong> Notifications appear in
+          the portal rather than being delivered.
         </li>
         <li>
           <strong>Administration is not part of the tour.</strong> Org settings,
