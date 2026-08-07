@@ -479,8 +479,8 @@ p.muted {
     padding: 8px 12px;
     font-size: 16px;
     line-height: 1;
-    background: var(--surface);
-    border: 1px solid var(--line);
+    background: var(--bg);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     color: var(--fg);
     cursor: pointer;
@@ -2699,14 +2699,14 @@ table.data td time {
 .mix-bar {
   display: flex;
   height: 26px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
   margin-top: var(--step-3);
 }
 .mix-seg {
   background: var(--sunk);
-  border-right: 1px solid var(--line);
+  border-right: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2742,7 +2742,7 @@ table.data td time {
   color: var(--muted);
   text-align: left;
   padding: 0 12px 8px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 .channel-table th.num,
@@ -2751,7 +2751,7 @@ table.data td time {
 }
 .channel-table td {
   padding: 12px;
-  border-bottom: 1px solid var(--line-soft, var(--line));
+  border-bottom: 1px solid var(--line-soft, var(--border));
   vertical-align: baseline;
 }
 .channel-table tr:last-child td {
@@ -2786,7 +2786,7 @@ table.data td time {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 4px 6px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--muted);
 }
@@ -2802,9 +2802,9 @@ table.data td time {
 /* ---- My interviews --------------------------------------------------- */
 
 .iv-row {
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--bg);
   padding: var(--step-4);
   margin-bottom: var(--step-3);
 }
@@ -2841,7 +2841,7 @@ table.data td time {
 .iv-form {
   margin-top: var(--step-4);
   padding-top: var(--step-4);
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--border);
 }
 .iv-hint {
   font-size: 13px;
@@ -2859,7 +2859,7 @@ table.data td time {
   justify-content: space-between;
   gap: var(--step-4);
   padding: 6px 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border);
 }
 .iv-comp:last-child {
   border-bottom: 0;
@@ -2876,8 +2876,8 @@ table.data td time {
   width: 34px;
   height: 30px;
   padding: 0;
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--muted);
   font: 600 13px/1 var(--font-mono), monospace;
@@ -2894,60 +2894,117 @@ table.data td time {
   color: var(--accent-ink);
 }
 
-/* ---- Demo guide (docs/11) -------------------------------------------- */
+/* ---- Demo guide (docs/11) --------------------------------------------
+   Artwork here is drawn with the product's own tokens rather than
+   screenshotted, so it follows the accent and dark mode instead of going
+   quietly stale. ---------------------------------------------------------- */
 
 .demo-page {
-  max-width: 1040px;
+  max-width: 1120px;
+}
+
+.demo-hero {
+  padding: var(--step-6) 0 var(--step-5);
+}
+.demo-hero h1 {
+  font-size: clamp(2.6rem, 6.5vw, 4.6rem);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  margin: 14px 0 0;
 }
 .demo-lede {
   font-size: 18px;
-  max-width: 62ch;
-  margin-top: var(--step-3);
+  max-width: 58ch;
+  margin-top: var(--step-4);
 }
 .demo-sub {
-  max-width: 62ch;
+  max-width: 58ch;
   font-size: 14px;
 }
 
-.demo-doors {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--step-4);
+/* --- ownership diagram --- */
+.demo-diagram {
+  width: 100%;
+  height: auto;
+  max-width: 780px;
+  margin-top: var(--step-3);
 }
-.demo-door {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  padding: var(--step-4);
+.demo-diagram .d-box rect {
+  fill: var(--bg);
+  stroke: var(--border);
+  stroke-width: 1;
 }
-.demo-door h3 {
-  margin: 8px 0;
+.demo-diagram .d-box.accent rect {
+  stroke: var(--accent);
+  fill: var(--accent-wash);
 }
-.demo-door p {
-  margin: 0;
-  font-size: 14px;
-  color: var(--muted);
+.demo-diagram .d-box.ok rect {
+  stroke: var(--ok);
+}
+.demo-diagram .d-box.warn rect {
+  stroke: var(--warn);
+}
+.demo-diagram .d-title {
+  font: 600 14px/1 var(--font-ui), sans-serif;
+  fill: var(--fg);
+}
+.demo-diagram .d-meta {
+  font: 500 11px/1 var(--font-mono), monospace;
+  fill: var(--muted);
+  letter-spacing: 0.04em;
+}
+.demo-diagram .mid {
+  text-anchor: middle;
+}
+.demo-diagram .d-line {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.5;
 }
 
 .demo-hint {
   font-size: 14px;
-  margin-bottom: var(--step-3);
+  margin-bottom: var(--step-4);
 }
 
-.demo-personas {
+/* --- two sides, matching the two doors --- */
+.demo-sides {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: var(--step-5);
+  align-items: start;
+}
+.demo-side {
+  display: flex;
+  flex-direction: column;
   gap: var(--step-3);
 }
+.demo-side-head {
+  padding-bottom: var(--step-3);
+  border-bottom: 2px solid var(--fg);
+}
+/* The external column carries the accent edge the vendor portal uses, so the
+   wall is legible before you have signed in as either side. */
+.demo-side.vendor .demo-side-head {
+  border-bottom-color: var(--accent);
+}
+.demo-side-head h2 {
+  margin: 8px 0;
+}
+.demo-side-head p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 46ch;
+}
+
 .demo-persona {
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--bg);
   padding: var(--step-4);
 }
-/* The vendor cards carry the same left mark the portal uses, so the wall is
-   legible before you have signed in as either side. */
-.demo-persona.vendor {
+.demo-side.vendor .demo-persona {
   border-left: 3px solid var(--accent);
 }
 .demo-persona-head {
@@ -2963,6 +3020,109 @@ table.data td time {
 .demo-email {
   font-size: 12px;
   color: var(--muted);
+}
+
+/* --- screen abstractions --- */
+.demo-screens {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--step-4);
+}
+.demo-screen {
+  margin: 0;
+}
+.demo-screen-art {
+  height: 160px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: 14px;
+  overflow: hidden;
+}
+.demo-screen figcaption {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 42ch;
+}
+
+.demo-screen-art.board {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.mini-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.mini-head {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--fg);
+  opacity: 0.75;
+}
+.mini-card {
+  border-radius: 4px;
+  background: var(--sunk);
+  border-left: 2px solid var(--border);
+}
+.mini-card.warn {
+  border-left-color: var(--warn);
+  background: var(--warn-wash);
+}
+.mini-card.bad {
+  border-left-color: var(--bad);
+  background: var(--bad-wash);
+}
+
+.demo-screen-art.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.mini-bar {
+  flex: 1;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent-wash);
+  border-top: 2px solid var(--accent);
+}
+
+.demo-screen-art.matrix {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+.mini-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mini-label {
+  width: 64px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--sunk);
+  flex: none;
+}
+.mini-dot {
+  width: 26px;
+  height: 20px;
+  border-radius: 4px;
+  background: var(--sunk);
+  border: 1px solid var(--border);
+}
+.mini-dot.v5 { background: var(--ok-wash); border-color: var(--ok); }
+.mini-dot.v4 { background: var(--ok-wash); }
+.mini-dot.v2 { background: var(--bad-wash); border-color: var(--bad); }
+/* The row the debrief would wash in warn: panelists disagreed on it. */
+.mini-row:has(.diverged) {
+  background: var(--warn-wash);
+  border-radius: 4px;
+  padding: 4px 6px;
+  margin: -4px -6px;
 }
 
 .demo-tour {
@@ -2993,6 +3153,6 @@ table.data td time {
 .demo-foot {
   margin-top: var(--step-6);
   padding-top: var(--step-4);
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--border);
   font-size: 14px;
 }
