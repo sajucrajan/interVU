@@ -32,13 +32,31 @@ export class FilesService {
     private readonly s3: S3Service,
   ) {}
 
+  /**
+   * `extract_only` reads the resume, keeps the text the matcher needs, and
+   * throws the bytes away — no object storage required at all.
+   *
+   * It exists for deployments with no durable disk (the free demo, docs/11):
+   * a container filesystem is wiped on redeploy and on scale-to-zero, so
+   * "just write it locally" is not storage, it is a delay before data loss.
+   * The cost is that the file itself is gone, so the presigned download in
+   * `resumeDownloadUrl` has nothing to hand back.
+   *
+   * Deliberately opt-in. A real install that lost every CV because an
+   * environment variable was unset would be a far worse failure than an
+   * upload that refuses.
+   */
+  private get extractOnly() {
+    return process.env.RESUME_STORAGE === "extract_only";
+  }
+
   /** Store a resume for a submission; extracts text for the matcher. */
   async storeResume(
     organizationId: string,
     submissionId: string,
     file: UploadedResume,
   ) {
-    if (!this.s3.enabled) {
+    if (!this.s3.enabled && !this.extractOnly) {
       throw new ServiceUnavailableException({
         code: "storage_disabled",
         detail: "File storage is not configured (S3_ENDPOINT)",
@@ -55,13 +73,28 @@ export class FilesService {
       });
     }
 
-    const key = `resumes/${organizationId}/${submissionId}/${randomUUID()}${ext}`;
-    await this.s3.put(key, file.buffer, file.mimetype);
-
     const parsedText = await this.extractText(file).catch((err) => {
       this.logger.warn(`text extraction failed: ${(err as Error).message}`);
       return null;
     });
+
+    // With no bytes retained, unextractable text leaves NOTHING behind — the
+    // row would record that a resume once existed and hold none of it. Refuse
+    // instead, and say which formats do work. (DOCX extraction is still the
+    // "later increment" noted in extractText.)
+    if (this.extractOnly && !parsedText) {
+      throw new BadRequestException({
+        code: "text_not_extractable",
+        detail:
+          "This deployment does not retain uploaded files, and no text could be read from this one. Upload a PDF or plain text file.",
+      });
+    }
+
+    let key: string | null = null;
+    if (!this.extractOnly) {
+      key = `resumes/${organizationId}/${submissionId}/${randomUUID()}${ext}`;
+      await this.s3.put(key, file.buffer, file.mimetype);
+    }
 
     // One resume per submission: replace metadata if re-uploaded.
     await this.prisma.attachment.deleteMany({
@@ -93,6 +126,13 @@ export class FilesService {
       },
     });
     if (!attachment) throw new NotFoundException("No resume on this submission");
+    if (!attachment.s3Key) {
+      throw new ServiceUnavailableException({
+        code: "bytes_not_retained",
+        detail:
+          "This deployment reads resumes and discards the file. The extracted text is on the submission; the original is not kept.",
+      });
+    }
     return {
       filename: attachment.filename,
       url: await this.s3.presignGet(attachment.s3Key, attachment.filename),

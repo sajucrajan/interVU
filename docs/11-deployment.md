@@ -116,14 +116,46 @@ Note it runs `migrate reset` and then the seed as two explicit steps. Re-running
 the seed alone would not do: it upserts, so it restores what was deleted but
 cannot undo what was edited or added.
 
+## Resumes without object storage
+
+Neither Neon nor a Koyeb container gives you a durable place to put a file: the
+container filesystem is wiped on redeploy and on scale-to-zero, so writing
+locally is not storage, it is a delay before data loss.
+
+`RESUME_STORAGE=extract_only` avoids needing any. The API reads the upload,
+keeps the extracted text — which is the part the matcher actually consumes
+(docs/04) — and discards the bytes. The vendor submission flow works end to
+end and match scores are real, with no bucket, no credentials and nothing to
+clean up.
+
+What it costs:
+
+- **The original file is gone.** `GET /submissions/:id/resume` returns
+  `bytes_not_retained` and says so. No screen calls that endpoint today, so
+  nothing visibly breaks — but a real install would be giving up the reviewer
+  and interviewer download.
+- **PDF and plain text only.** DOCX text extraction is not implemented, and
+  with no bytes retained an unextractable upload would leave a row recording
+  that a resume once existed while holding none of it. Those uploads are
+  refused with `text_not_extractable` rather than accepted emptily.
+
+It is opt-in for that reason: a production install that silently stopped
+keeping CVs because a variable was unset would be a much worse failure than an
+upload that refuses.
+
+**If you would rather keep the files**, attach any S3-compatible bucket —
+Cloudflare R2 and Supabase Storage both have free tiers — and set `S3_ENDPOINT`
+/ `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_BUCKET` instead. Note that the
+nightly job resets the *database* only: bucket objects would outlive the rows
+pointing at them, so add a bucket purge to the workflow if you go that way.
+
 ## Known limits of the free tier
 
 - **Cold starts.** A scaled-to-zero service takes tens of seconds on the first
   request. The dashboard issues several API calls at once, so a cold visit can
   look broken before it looks slow.
-- **No file storage**, so resume upload is disabled unless you add an
-  S3-compatible bucket and set `S3_ENDPOINT` / `S3_ACCESS_KEY` /
-  `S3_SECRET_KEY` / `S3_BUCKET`.
+- **Resume upload runs without any storage.** Set `RESUME_STORAGE=extract_only`
+  on the API service — see below.
 - **Seed dates drift.** The demo backdates rows relative to seed time; a
   database left unseeded for weeks shows everything as SLA-breached. The
   nightly job keeps this honest.
