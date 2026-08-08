@@ -125,7 +125,8 @@ The web URL will load but have no data yet.
 
 ## Step 3 — Seed the demo data
 
-The schema exists (migrations ran on API start) but there are no rows.
+Migrations run in CI, not on API start (see *How migrations work* below), so
+after the first deploy the database is still empty.
 
 1. GitHub → your repo → **Settings** → **Secrets and variables** →
    **Actions** → **New repository secret**
@@ -208,6 +209,22 @@ exhaust it in about a fortnight.
 Seed dates have drifted. Re-run **Reset demo data**.
 
 ---
+
+## How migrations work
+
+Migrations run in exactly one place: **Actions → Migrate database**, which
+fires automatically when anything under `apps/api/prisma/` changes on `main`,
+and can be run by hand.
+
+They deliberately do **not** run when the API container starts. Render
+restarts a free instance on every wake from sleep, so that meant migrating
+several times a day and racing the reseed job for Prisma's advisory lock — the
+P1002 failures. Local compose still opts in via `RUN_MIGRATIONS_ON_START=true`,
+where there is no CI and no second migrator.
+
+Both database jobs share the concurrency group `db-migrate`, so only one can
+run at a time and neither is cancelled part-way. That replaces the advisory
+lock with a guarantee that survives a crashed job, which the lock does not.
 
 ## Why the proxy
 
