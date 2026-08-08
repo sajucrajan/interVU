@@ -36,5 +36,13 @@ ENV NODE_ENV=production
 COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build /app/apps/web/public ./apps/web/public
+# Docker sets HOSTNAME to the container id, and Next's standalone server does
+# `process.env.HOSTNAME || "0.0.0.0"` — so without this it binds to that id
+# instead of every interface. Locally the port mapping still reaches it, which
+# is why this only showed up on a real host: Render's proxy could not connect
+# and every request came back 502.
+ENV HOSTNAME=0.0.0.0
+# Render injects its own PORT at runtime and that wins; this is the local default.
+ENV PORT=3000
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]

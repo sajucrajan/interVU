@@ -27,7 +27,10 @@ async function bootstrap() {
     credentials: true,
   });
   const port = Number(process.env.PORT ?? 4000);
-  await app.listen(port);
+  // Explicit 0.0.0.0: the default is already every interface, but a managed
+  // host that cannot reach the container answers 502 with nothing in the
+  // application log to explain it, so this removes the question.
+  await app.listen(port, "0.0.0.0");
   // eslint-disable-next-line no-console
   console.log(`InterVU API listening on :${port}`);
 }
