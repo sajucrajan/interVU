@@ -34,7 +34,7 @@ export default function PositionsPage() {
     () =>
       api<Position[]>("/positions")
         .then(setPositions)
-        .catch(() => router.push("/login")),
+        .catch(() => undefined),
     [router],
   );
 

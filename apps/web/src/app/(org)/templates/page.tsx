@@ -31,7 +31,7 @@ export default function TemplatesPage() {
     () =>
       api<Template[]>("/position-templates")
         .then(setTemplates)
-        .catch(() => router.push("/login")),
+        .catch(() => undefined),
     [router],
   );
 

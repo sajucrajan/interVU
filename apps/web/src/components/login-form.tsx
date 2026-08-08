@@ -50,7 +50,18 @@ export function LoginForm({ kind }: { kind: "org" | "vendor" }) {
     try {
       const body = { org_slug: orgSlug, email, password };
       await api(`/auth/${kind}/login`, { method: "POST", body });
-      router.push(kind === "org" ? "/dashboard" : "/vendor");
+      // Return them to whatever expired under them, if it was a page on this
+      // side of the wall. Only same-origin relative paths are honoured: `next`
+      // comes from the URL, so an absolute one would make this an open
+      // redirect — a phishing link that lands on a real sign-in and then
+      // forwards elsewhere.
+      const next = params.get("next");
+      const safe =
+        next &&
+        next.startsWith("/") &&
+        !next.startsWith("//") &&
+        (kind === "vendor") === next.startsWith("/vendor");
+      router.replace(safe ? next : kind === "org" ? "/dashboard" : "/vendor");
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {

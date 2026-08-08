@@ -42,7 +42,7 @@ export default function MatchReviewsPage() {
     () =>
       api<ReviewItem[]>("/match-reviews")
         .then(setItems)
-        .catch(() => router.push("/login")),
+        .catch(() => undefined),
     [router],
   );
 

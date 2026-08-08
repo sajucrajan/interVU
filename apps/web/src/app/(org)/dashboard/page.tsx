@@ -64,7 +64,7 @@ export default function Dashboard() {
   useEffect(() => {
     api<Worklist>("/me/worklist")
       .then(setWl)
-      .catch(() => router.push("/login"));
+      .catch(() => undefined);
     api<Me>("/auth/me")
       .then((m) => setCaps(m.capabilities ?? []))
       .catch(() => undefined);

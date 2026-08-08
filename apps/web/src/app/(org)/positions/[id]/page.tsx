@@ -65,7 +65,7 @@ export default function PositionDetailPage() {
     () =>
       api<Detail>(`/positions/${id}`)
         .then(setP)
-        .catch(() => router.push("/login")),
+        .catch(() => undefined),
     [id, router],
   );
 

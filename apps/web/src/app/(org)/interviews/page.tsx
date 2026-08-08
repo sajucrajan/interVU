@@ -71,7 +71,7 @@ export default function MyInterviewsPage() {
     () =>
       api<MyInterview[]>("/interviews/mine")
         .then(setInterviews)
-        .catch(() => router.push("/login")),
+        .catch(() => undefined),
     [router],
   );
 
