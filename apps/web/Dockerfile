@@ -28,6 +28,15 @@ ARG NEXT_PUBLIC_DEMO_ORG=acme
 ENV NEXT_PUBLIC_DEMO_ORG=$NEXT_PUBLIC_DEMO_ORG
 ARG NEXT_PUBLIC_DEMO_PASSWORD=intervu-demo
 ENV NEXT_PUBLIC_DEMO_PASSWORD=$NEXT_PUBLIC_DEMO_PASSWORD
+# Not a NEXT_PUBLIC_ value, but just as much a build-time one: Next evaluates
+# rewrites() during the build and writes the result into routes-manifest.json,
+# so a proxy target supplied only at runtime produces an image with no rewrite
+# in it at all. Docker discards any build arg the Dockerfile does not declare,
+# so without this ARG the value Render passes is silently dropped and
+# /api/v1/* answers with the Next 404 page — which looks like a wrong URL
+# rather than a missing route.
+ARG API_PROXY_TARGET=
+ENV API_PROXY_TARGET=$API_PROXY_TARGET
 RUN pnpm --filter @intervu/web build
 
 FROM base AS runtime
