@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { api, ApiError, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
-import { StickyIdentity } from "@/components/sticky-identity";
+import { usePageIdentity } from "@/components/sticky-identity";
 
 interface Timeline {
   candidate: {
@@ -112,6 +112,10 @@ export default function CandidateDossierPage() {
       .catch(() => undefined);
   }, [id, router]);
 
+  usePageIdentity(
+    d ? { label: d.display_name, meta: d.reference ?? "Candidate master" } : null,
+  );
+
   if (error) return <main className="wide error">{error}</main>;
   if (!tl || !d) return <main className="wide muted">Loading…</main>;
 
@@ -212,10 +216,6 @@ export default function CandidateDossierPage() {
           </div>
         )}
       </header>
-      <StickyIdentity
-        label={d.display_name}
-        meta={d.reference ? `Candidate master · ${d.reference}` : "Candidate master"}
-      />
 
       <div className="dossier-split">
         <div>

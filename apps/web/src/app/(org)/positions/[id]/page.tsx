@@ -13,7 +13,7 @@ import {
   useKnownSkills,
   type SkillRow,
 } from "@/components/skill-matrix";
-import { StickyIdentity } from "@/components/sticky-identity";
+import { usePageIdentity } from "@/components/sticky-identity";
 
 interface Detail {
   id: string;
@@ -89,6 +89,8 @@ export default function PositionDetailPage() {
     },
     [refresh],
   );
+
+  usePageIdentity(p ? { label: p.title, meta: p.reference } : null);
 
   if (!p) return <main className="wide muted">Loading…</main>;
 
@@ -205,17 +207,6 @@ export default function PositionDetailPage() {
           <ActionsMenu items={items} />
         </div>
       </div>
-      <StickyIdentity
-        label={p.title}
-        meta={p.reference}
-        action={
-          <span
-            className={`badge ${p.status === "open" ? "ok" : p.status === "closed" ? "bad" : "warn"}`}
-          >
-            {p.status}
-          </span>
-        }
-      />
 
       {error && <p className="error">{error}</p>}
 

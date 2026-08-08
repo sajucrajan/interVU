@@ -3542,9 +3542,21 @@ table.data td time {
    not carry navigation: the rail is already sticky, so nothing is
    unreachable and repeating it would cost space for nothing. ------------- */
 
+/* The bar lives in the org layout, so its host is the positioning context. */
+.sticky-host {
+  position: relative;
+}
+
+/* Roughly a header's worth of scroll before the bar arrives, so it replaces
+   the real heading rather than doubling it. Absolute: it measures scroll
+   position and must not occupy layout. */
 .sticky-sentinel {
-  height: 1px;
-  margin-top: -1px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 110px;
+  pointer-events: none;
 }
 
 .sticky-id {
