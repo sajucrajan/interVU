@@ -1,7 +1,12 @@
-# 11 — Deploying the public demo (Neon + Koyeb)
+# 11 — Deploying the public demo (Neon + Render)
 
 A free, always-available deployment of the demo. Neon supplies Postgres on a
-permanent free tier; Koyeb runs the two containers the repo already builds.
+permanent free tier; Render runs the two containers the repo already builds.
+
+> Koyeb was the original target and does not work: its free tier allows one
+> service per organization and this needs two. Render permits several. The
+> cookie problem below is identical on both, because `onrender.com` and
+> `koyeb.app` are both on the Public Suffix List.
 
 > **Following this for the first time?** Read
 > [12 — Deployment walkthrough](12-deployment-walkthrough.md) instead: the
@@ -21,8 +26,8 @@ permanent free tier; Koyeb runs the two containers the repo already builds.
 ## The one thing that will silently break
 
 The session cookie is `sameSite: "lax"` (`auth.controller.ts`). Koyeb publishes
-each service under its own subdomain of `koyeb.app`, and `koyeb.app` is on the
-Public Suffix List — so `web-xxx.koyeb.app` and `api-xxx.koyeb.app` are
+each service under its own subdomain of `onrender.com`, and `onrender.com` is on the
+Public Suffix List — so `intervu-web.onrender.com` and `intervu-api.onrender.com` are
 **different sites**. A browser will not send a `lax` cookie across them. Login
 returns 201, and every request after it comes back unauthenticated.
 
@@ -44,7 +49,7 @@ Create a project at [neon.tech](https://neon.tech) (free, permanent, no card)
 and copy the pooled connection string. Use Neon rather than a host-provided
 free Postgres: several delete free databases after 30 days.
 
-## 2. API service — Koyeb
+## 2. API service — Render
 
 New service → GitHub → this repo. Build with **Dockerfile**
 `apps/api/Dockerfile`, **build context the repo root** (the Dockerfile expects
@@ -64,7 +69,7 @@ once the proxy is in place; it is defence in depth for any direct call.
 Migrations need no step of their own: the image's `CMD` runs
 `prisma migrate deploy` before starting the server.
 
-## 3. Web service — Koyeb
+## 3. Web service — Render
 
 Dockerfile `apps/web/Dockerfile`, context the repo root, port `3000`.
 
@@ -144,7 +149,7 @@ check `DATABASE_URL` before answering.
 
 ## Resumes without object storage
 
-Neither Neon nor a Koyeb container gives you a durable place to put a file: the
+Neither Neon nor a Render container gives you a durable place to put a file: the
 container filesystem is wiped on redeploy and on scale-to-zero, so writing
 locally is not storage, it is a delay before data loss.
 

@@ -1,0 +1,76 @@
+# Render Blueprint — the public demo, both services.
+#
+# Render turns a service's environment variables into Docker build arguments
+# automatically, which is what makes this possible: the NEXT_PUBLIC_* values
+# have to reach the WEB app at build time (Next inlines them into the browser
+# bundle), and here they are just env vars.
+#
+# Deploy: Render Dashboard → New → Blueprint → pick this repository.
+# You will be prompted for the three values marked `sync: false`; everything
+# else is fixed here so it cannot be mistyped in a form.
+#
+# Free plan notes:
+#   - 750 instance-hours per month across the WORKSPACE, not per service.
+#     Both services sleep after 15 minutes idle, so a demo uses a fraction of
+#     that — but two services awake 24/7 would exhaust it in about a fortnight.
+#   - First request after a sleep takes ~50s to wake.
+
+services:
+  # ---------------------------------------------------------------- API ----
+  - type: web
+    name: intervu-api
+    runtime: docker
+    plan: free
+    # Virginia is the closest Render region to Neon's AWS us-east-1. A page
+    # render makes several database round trips, so API↔database latency
+    # matters far more than your own distance to either.
+    region: virginia
+    dockerfilePath: ./apps/api/Dockerfile
+    # Repo root: the Dockerfile copies workspace manifests and the lockfile
+    # from the top level, so a context of apps/api fails on a missing
+    # pnpm-lock.yaml.
+    dockerContext: .
+    # Everything else lives under /api/v1, so `/` is a 404 and would have the
+    # service restarted forever as unhealthy.
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        sync: false # paste the pooled Neon string in the dashboard
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      # Reads the resume, keeps the text the matcher needs, discards the file.
+      # There is no durable disk here, so this is what makes upload work at all.
+      - key: RESUME_STORAGE
+        value: extract_only
+      - key: WEB_ORIGIN
+        sync: false # the web service's URL, once you know it
+
+  # ---------------------------------------------------------------- WEB ----
+  - type: web
+    name: intervu-web
+    runtime: docker
+    plan: free
+    region: virginia
+    dockerfilePath: ./apps/web/Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    envVars:
+      # Relative on purpose. The browser then only ever talks to this origin,
+      # so the sameSite=lax session cookie stays first-party — onrender.com is
+      # on the Public Suffix List, which makes two services there different
+      # SITES, and a cookie set by one is never sent to the other.
+      - key: NEXT_PUBLIC_API_URL
+        value: /api/v1
+      # The other half of that: Next rewrites /api/v1/* to the API service.
+      - key: API_PROXY_TARGET
+        sync: false # the API service's URL, once you know it
+      # Publishes /demo with its one-click personas. Without this the route
+      # 404s — which is what you want on a real install.
+      - key: NEXT_PUBLIC_DEMO_MODE
+        value: "true"
+      - key: NEXT_PUBLIC_DEMO_ORG
+        value: acme
+      - key: NEXT_PUBLIC_DEMO_PASSWORD
+        value: intervu-demo

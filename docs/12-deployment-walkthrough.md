@@ -1,233 +1,224 @@
-# 12 — Deployment walkthrough, click by click
+# 12 — Deployment walkthrough, step by step
 
-Getting InterVU onto a public URL for free. Allow about 40 minutes the first
-time, most of it waiting for builds.
+Getting InterVU onto a public URL for free: **Neon** for Postgres, **Render**
+for the two services. Allow about 40 minutes the first time, most of it
+waiting for builds.
 
-`docs/11` explains *why* each setting is what it is. This one is just the
-steps, in order.
+`docs/11` explains *why* each setting is what it is. This page is the steps.
 
-> **On button labels.** Neon and Koyeb redesign their consoles regularly, so
-> a label here may read slightly differently by the time you follow it. The
-> *values* are exact and come from this repository — those will not drift.
-> When a label does not match, look for the nearest equivalent; nothing here
-> depends on a specific console layout.
+> **On console labels.** Neon and Render redesign their dashboards regularly,
+> so a label here may read slightly differently by the time you follow it. The
+> *values* come from this repository and will not drift.
 
-Before you start you need: a GitHub account with this repo, and an email
-address. No credit card.
+You need: a GitHub account with this repo, and an email address. No card.
+
+> **Why not Koyeb?** Its free tier allows one service per organization and
+> InterVU needs two. It also closed its free Starter tier to new accounts in
+> early 2026. Render permits several free web services.
 
 ---
 
 ## What you are building
 
 ```
-  browser ──▶ web service (Next.js, Koyeb)
-                  │  proxies /api/v1/* internally
-                  ▼
-              api service (NestJS, Koyeb) ──▶ Postgres (Neon)
+  browser ──▶ intervu-web (Next.js, Render)
+                  │  rewrites /api/v1/* to ↓
+              intervu-api (NestJS, Render) ──▶ Postgres (Neon)
 ```
 
-Two Koyeb services and one Neon database. The browser only ever talks to the
-web service — that is deliberate and explained at the end.
+The browser only ever talks to the web service. That is deliberate — see
+*Why the proxy* at the end.
 
 ---
 
 ## Step 1 — The database (Neon)
 
-1. Go to **[neon.tech](https://neon.tech)** and sign up (GitHub sign-in is
-   quickest).
-2. Create a project. Name it `intervu`. Take the default Postgres version.
-   Pick the region closest to you — it only affects latency.
-3. When it finishes, you land on a **Connection Details** panel (or open the
-   project **Dashboard** → **Connect**).
-4. Make sure the connection string is the **pooled** one. There is usually a
-   *Connection pooling* toggle — turn it **on**. The pooled host contains
-   `-pooler`:
+1. Sign up at **[neon.tech](https://neon.tech)**, GitHub sign-in is quickest.
+2. **Create project**:
+   - **Name:** `intervu`
+   - **Postgres version:** **17** (or 16). Local dev runs Postgres 16 and
+     Prisma 6.2 is certified against 16/17. Nothing here needs 18, and a
+     version you cannot reproduce locally is a bad place to debug.
+   - **Region:** **AWS US East 1 (N. Virginia)** — pair it with Render's
+     Virginia region. A page render makes several database round trips, so
+     API↔database latency matters more than your own distance to either.
+   - **Enable Neon Auth:** **off.** InterVU has its own session auth; this
+     would add tables nothing reads.
+3. **Connect** (green button, top of the left sidebar). In the dialog leave
+   branch `production`, database `neondb`, role `neondb_owner`, and keep
+   **Connection pooling on** (it is by default).
+4. Copy the string. Check it contains **`-pooler`**:
 
    ```
-   postgresql://USER:PASSWORD@ep-something-pooler.REGION.aws.neon.tech/neondb?sslmode=require
+   postgresql://neondb_owner:PASSWORD@ep-xxxx-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require
+                                                └── this ──┘
    ```
 
-   Use pooled because Koyeb services scale to zero and reconnect in bursts;
-   the direct endpoint runs out of connections doing that.
-5. **Copy it somewhere for the next ten minutes.** You need it three times:
-   the API service, the GitHub secret, and nothing else. Neon shows the
-   password once.
+   If it is missing, type it in: straight after the endpoint ID, before the
+   first dot. Pooled matters because Render services sleep and reconnect in
+   bursts, which exhausts the direct endpoint's connection limit.
+5. **Save it somewhere.** Neon shows the password once.
 
-✅ *Done when:* you have a string starting `postgresql://` containing
-`-pooler`.
+✅ *Verify it, in your own terminal:*
+
+```
+docker run --rm postgres:16 psql 'YOUR_STRING' -c 'select version();'
+```
+
+A `PostgreSQL 17.x` line back means you are done. This fails in two seconds;
+a bad string fails five minutes into a Render build with a worse message.
+
+**Do not** create tables, run SQL, or enable `pg_trgm` by hand. The API runs
+`prisma migrate deploy` on every start and builds the schema itself, extension
+included.
 
 ---
 
-## Step 2 — The API service (Koyeb)
+## Step 2 — Both services (Render Blueprint)
 
-1. Go to **[koyeb.com](https://koyeb.com)** and sign up. Free tier, no card.
-2. **Create Service** → **GitHub** → authorise Koyeb → pick your `interVU`
-   repository, branch `main`.
-3. **Builder: choose Dockerfile**, not Buildpack. Buildpack cannot build a
-   pnpm workspace and will fail confusingly.
-   - **Dockerfile location:** `apps/api/Dockerfile`
-   - **Work directory / build context:** leave **empty** (the repository
-     root). The Dockerfile copies workspace files from the root, so a context
-     of `apps/api` fails on missing `pnpm-lock.yaml`.
-4. **Instance:** the free one. **Regions:** any single one.
-5. **Ports:** `4000`, protocol HTTP. Path `/`.
-6. **Health check:** HTTP on port `4000`, path **`/healthz`**.
-   Not `/` — everything else lives under `/api/v1`, so `/` returns 404 and
-   the service would be restarted forever as unhealthy.
-7. **Environment variables:**
+`render.yaml` in the repository root already carries every setting — Dockerfile
+paths, build contexts, the health check path, ports, and the environment. You
+supply three values it deliberately does not store.
 
-   | Name | Value |
+1. Sign up at **[render.com](https://render.com)** with GitHub.
+2. **New** → **Blueprint**. Pick this repository, branch `main`.
+3. Render reads `render.yaml` and shows two services, `intervu-api` and
+   `intervu-web`, and prompts for three values. Leave two blank for now:
+
+   | Prompt | Value |
    |---|---|
-   | `DATABASE_URL` | the pooled Neon string from step 1 |
-   | `NODE_ENV` | `production` |
-   | `PORT` | `4000` |
-   | `RESUME_STORAGE` | `extract_only` |
-   | `WEB_ORIGIN` | `https://placeholder.koyeb.app` *(fixed in step 5)* |
+   | `DATABASE_URL` | the pooled Neon string |
+   | `WEB_ORIGIN` | leave blank — step 4 |
+   | `API_PROXY_TARGET` | leave blank — step 4 |
 
-8. **Service name:** `intervu-api`. Deploy.
-9. Wait for the build (5–10 minutes the first time). Watch the runtime logs
-   for `InterVU API listening on :4000`. Database migrations run
-   automatically on start — you will see Prisma output above that line.
-10. **Copy the public URL**, something like
-    `https://intervu-api-yourorg.koyeb.app`.
+4. **Apply**. Both services build; 5–10 minutes the first time.
 
-✅ *Test it:* open `<api-url>/healthz` in a browser. You want
-`{"status":"ok","service":"intervu-api"}`.
+Render will make the names unique if `intervu-api` is taken globally, so note
+the URLs it actually gives you.
 
-If it says unhealthy, it is almost always the health check path — see step 6.
+✅ *Check:* `<api-url>/healthz` returns `{"status":"ok","service":"intervu-api"}`.
+The web URL will load but have no data yet.
 
----
-
-## Step 3 — The web service (Koyeb)
-
-Same flow: **Create Service** → GitHub → same repo, branch `main`.
-
-1. **Builder: Dockerfile**
-   - **Dockerfile location:** `apps/web/Dockerfile`
-   - **Work directory / build context:** empty (repository root)
-2. **Ports:** `3000`, HTTP, path `/`.
-3. **Health check:** HTTP port `3000`, path `/` — the web app *does* serve a
-   page there, so the default is fine here.
-4. **Build arguments** — find the *Build* section, not the environment
-   section. This is the step people get wrong:
-
-   | Build argument | Value |
-   |---|---|
-   | `NEXT_PUBLIC_API_URL` | `/api/v1` |
-   | `NEXT_PUBLIC_DEMO_MODE` | `true` |
-   | `NEXT_PUBLIC_DEMO_ORG` | `acme` |
-   | `NEXT_PUBLIC_DEMO_PASSWORD` | `intervu-demo` |
-
-   Next.js **inlines** every `NEXT_PUBLIC_*` value into the browser bundle at
-   build time. Set as runtime variables they do nothing: the browser keeps
-   calling `localhost:4000` and `/demo` 404s, with no error anywhere
-   explaining why.
-
-5. **Environment variable** (runtime, not build):
-
-   | Name | Value |
-   |---|---|
-   | `API_PROXY_TARGET` | your API URL from step 2, e.g. `https://intervu-api-yourorg.koyeb.app` |
-
-   No trailing slash.
-
-6. **Service name:** `intervu-web`. Deploy, wait for the build.
-7. **Copy the public URL**, e.g. `https://intervu-web-yourorg.koyeb.app`.
-
-✅ *Test it:* open the URL. You should see the InterVU landing page with a
-**Start here** link. Do not sign in yet — the database is still empty.
+> **If the Blueprint has trouble**, create both services by hand: **New** →
+> **Web Service** → this repo → **Docker**, then per service —
+> **API:** Dockerfile `./apps/api/Dockerfile`, root directory blank, health
+> check `/healthz`, env `DATABASE_URL`, `NODE_ENV=production`, `PORT=4000`,
+> `RESUME_STORAGE=extract_only`.
+> **Web:** Dockerfile `./apps/web/Dockerfile`, root directory blank, health
+> check `/`, env `NEXT_PUBLIC_API_URL=/api/v1`, `NEXT_PUBLIC_DEMO_MODE=true`,
+> `NEXT_PUBLIC_DEMO_ORG=acme`, `NEXT_PUBLIC_DEMO_PASSWORD=intervu-demo`,
+> `API_PROXY_TARGET=<api url>`.
+> Render exposes a service's environment variables to its Docker build as
+> build arguments, which is why the `NEXT_PUBLIC_*` values work as plain env
+> vars here.
 
 ---
 
-## Step 4 — Seed the demo data
+## Step 3 — Seed the demo data
 
-The database has tables (migrations ran in step 2) but no rows.
+The schema exists (migrations ran on API start) but there are no rows.
 
-1. In GitHub: your repo → **Settings** → **Secrets and variables** →
-   **Actions** → **New repository secret**.
-   - Name: `DEMO_DATABASE_URL`
-   - Value: the same pooled Neon string
-2. Go to the **Actions** tab → **Reset demo data** in the left sidebar →
-   **Run workflow** → **Run workflow**.
-3. Wait ~2 minutes. Green tick means done.
+1. GitHub → your repo → **Settings** → **Secrets and variables** →
+   **Actions** → **New repository secret**
+   - **Name:** `DEMO_DATABASE_URL`
+   - **Value:** the same pooled Neon string
+2. **Actions** tab → **Reset demo data** → **Run workflow** → **Run workflow**
+3. ~2 minutes. A green tick means done.
 
-This same job runs nightly at 03:00 UTC, rebuilding the demo from scratch. The
-demo password is public in `seed.ts` on purpose so visitors can explore; the
-nightly reset is what stops anyone's changes from being permanent.
-
-✅ *Test it:* open `<web-url>/demo`. Six personas, each with a **Sign in**
-button. Click **Riley Recruiter** — you should land on a populated dashboard.
+The same job runs nightly at 03:00 UTC. The demo password is public in
+`seed.ts` on purpose so visitors can explore; the nightly reset is what keeps
+anyone's changes temporary.
 
 ---
 
-## Step 5 — Close the loop
+## Step 4 — Point the services at each other
 
-Back in Koyeb → `intervu-api` → **Settings** → environment variables:
+Now that both URLs exist:
 
-- Set `WEB_ORIGIN` to your real web URL from step 3.
-- Redeploy the service.
+- **intervu-web** → Environment → `API_PROXY_TARGET` = the **API** URL
+  (e.g. `https://intervu-api.onrender.com`, no trailing slash) → save.
+  This triggers a rebuild, which is necessary.
+- **intervu-api** → Environment → `WEB_ORIGIN` = the **web** URL → save.
 
-Nothing in the browser depends on this once the proxy is working — it is
-defence in depth for any direct call to the API.
+✅ *Test:* open `<web-url>/demo`, click **Riley Recruiter**. You should land on
+a populated dashboard.
 
 ---
 
-## Done. What to check
+## Done. What to look at
 
 | Check | Expected |
 |---|---|
 | `<web-url>/demo` | six personas, one-click sign-in |
 | Sign in as Riley | dashboard with a populated queue |
-| **Analytics**, bottom | *Where hires come from* with real figures |
-| **Pipeline** | cards with source chips and aging colours |
-| `<web-url>/vendor/login` as `recruiter@talentbridge.test` | vendor portal, its own submissions only |
+| **Analytics**, bottom | *Where hires come from*, with real figures |
+| **Pipeline** | source chips, aging colours, 2 breached of 28 |
+| `<web-url>/vendor/login` as `recruiter@talentbridge.test` | vendor portal, own submissions only |
 
 ---
 
 ## When something is wrong
 
-**The page loads but nothing has data, and sign-in bounces back.**
-`API_PROXY_TARGET` is unset, wrong, or has a trailing slash. The browser is
-talking to the wrong place. Check the web service's environment tab.
+**Pages load but have no data, and sign-in bounces straight back.**
+`API_PROXY_TARGET` is unset, wrong, or has a trailing slash — and remember it
+needs a **rebuild**, not just a restart.
 
 **`/demo` returns 404 on the deployed site but works locally.**
-`NEXT_PUBLIC_DEMO_MODE` was set as an environment variable rather than a
-**build argument**. Move it and rebuild — a redeploy without a rebuild will
-not pick it up.
+`NEXT_PUBLIC_DEMO_MODE` did not reach the build. Confirm it is on the **web**
+service and redeploy with **Clear build cache**.
 
-**The API service keeps restarting.**
-Health check path. It must be `/healthz`, not `/`.
+**The API keeps restarting.**
+Health check path. It must be `/healthz` — `/` is a 404 because everything
+lives under `/api/v1`.
 
 **Build fails on a missing `pnpm-lock.yaml` or workspace package.**
-The build context is set to `apps/api` or `apps/web`. It must be the
-repository root.
+Root directory is set to `apps/api` or `apps/web`. It must be blank (the
+repository root).
 
-**Login returns 201 and then everything is logged out again.**
-`API_PROXY_TARGET` is missing, so the browser is calling the API service
-directly. `koyeb.app` is on the Public Suffix List, which makes the two
-services different *sites*, and the `sameSite: "lax"` session cookie is never
-sent. The proxy exists precisely to keep the browser on one origin.
+**Login returns 201 and then everything is logged out.**
+The browser is reaching the API directly instead of through the proxy.
+`onrender.com` is on the Public Suffix List, so the two services are different
+*sites* and the `sameSite: "lax"` cookie is never sent between them.
 
-**First visit takes 30–60 seconds.**
-Both services scale to zero on the free tier. The dashboard fires several
-requests at once, so a cold visit can look broken before it looks slow. Not a
-fault. A ~$2/month always-on instance removes it.
+**First visit takes ~50 seconds.**
+Free services sleep after 15 minutes idle. The dashboard fires several requests
+at once, so a cold visit looks broken before it looks slow.
+
+**Services suspended mid-month.**
+750 instance-hours per month is a **workspace** pool shared by both services. A
+sleeping demo uses a fraction of it; two services awake around the clock would
+exhaust it in about a fortnight.
 
 **Everything on the pipeline board says SLA breached.**
-The seed backdates rows relative to seed time and has drifted. Re-run the
-**Reset demo data** workflow.
+Seed dates have drifted. Re-run **Reset demo data**.
+
+---
+
+## Why the proxy
+
+The session cookie is `sameSite: "lax"`, which is the right default. But
+`onrender.com` is on the Public Suffix List, so `intervu-web.onrender.com` and
+`intervu-api.onrender.com` are different **sites**, and a browser will not send
+a `lax` cookie across them. Login would return `201` and every request after it
+would come back unauthenticated — a failure that reads as a broken app rather
+than a configuration mistake.
+
+`API_PROXY_TARGET` makes `next.config.mjs` rewrite `/api/v1/*` to the API
+service, so the browser only ever talks to one origin. The cookie stays
+first-party with its CSRF protection intact, and CORS disappears because no
+cross-origin request remains.
 
 ---
 
 ## Afterwards
 
-- **Resume upload works without any file storage.** `RESUME_STORAGE=extract_only`
-  reads the CV, keeps the extracted text the matcher needs, and discards the
-  file. To keep files instead, attach any S3-compatible bucket (Cloudflare R2,
+- **Resume upload works with no file storage.** `RESUME_STORAGE=extract_only`
+  reads the CV, keeps the extracted text the matcher consumes, and discards the
+  file. To keep files instead, attach an S3-compatible bucket (Cloudflare R2,
   Supabase Storage) and set `S3_ENDPOINT` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` /
   `S3_BUCKET` — and add a bucket purge to the nightly job, which resets the
   database only.
-- **No email is sent.** No SMTP is configured, which is fine: vendors see
-  releases in the portal regardless.
-- **To take the demo down**, pause or delete both Koyeb services. The Neon
-  project can stay; it costs nothing.
+- **No email is sent.** No SMTP configured, which is fine: vendors see releases
+  in the portal regardless.
+- **To take it down**, suspend or delete both Render services. The Neon project
+  can stay; it costs nothing.
