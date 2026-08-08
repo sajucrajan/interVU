@@ -1,0 +1,52 @@
+# The ONE place migrations run against the deployed database.
+#
+# Prisma serialises migrations with a Postgres advisory lock, and that lock is
+# unreliable on Neon: it times out with P1002, and a failed migration does not
+# release it (prisma/prisma#12999), so one crash blocks every later attempt.
+#
+# The lock is therefore disabled and replaced with something that works —
+# a GitHub concurrency group shared with the reseed job. Only one of the two
+# can run at a time, and neither is cancelled mid-migration. That is a
+# stronger guarantee than the lock gave us, because it also excludes the API
+# container, which used to migrate on every wake from sleep and was the third
+# racer nobody had accounted for.
+name: Migrate database
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/prisma/migrations/**"
+      - "apps/api/prisma/schema.prisma"
+  workflow_dispatch: {}
+
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    if: github.repository == 'sajucrajan/interVU'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        env:
+          # Migrations need a DIRECT connection: advisory locks and DDL do not
+          # survive a transaction pooler handing statements to other backends.
+          DATABASE_URL: ${{ secrets.DEMO_DIRECT_DATABASE_URL || secrets.DEMO_DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.DEMO_DIRECT_DATABASE_URL || secrets.DEMO_DATABASE_URL }}
+          PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK: "true"
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::No database secret set — nothing was migrated."
+            exit 1
+          fi
+          pnpm --filter @intervu/api exec prisma migrate deploy
