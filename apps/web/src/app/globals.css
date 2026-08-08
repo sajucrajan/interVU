@@ -3536,3 +3536,74 @@ table.data td time {
   color: var(--fg);
   border-color: var(--border);
 }
+
+/* ---- Condensed identity bar ------------------------------------------
+   Appears only once the page header has scrolled away. Deliberately does
+   not carry navigation: the rail is already sticky, so nothing is
+   unreachable and repeating it would cost space for nothing. ------------- */
+
+.sticky-sentinel {
+  height: 1px;
+  margin-top: -1px;
+}
+
+.sticky-id {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--step-4);
+  /* Collapsed rather than hidden, so it takes no space until it is stuck. */
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  background: var(--page);
+  border-bottom: 1px solid transparent;
+  transition: max-height 0.14s ease, opacity 0.14s ease;
+}
+.sticky-id.on {
+  max-height: 64px;
+  opacity: 1;
+  padding: 10px 0;
+  border-bottom-color: var(--border);
+}
+
+.sticky-id-text {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+}
+.sticky-id-text strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sticky-id-text .mono-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sticky-id-action {
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky-id {
+    transition: none;
+  }
+}
+
+/* The mobile rail is its own sticky bar at the top, so this sits under it
+   rather than competing for the same 0 offset. */
+@media (max-width: 900px) {
+  .sticky-id {
+    top: 72px;
+  }
+  .sticky-id-text .mono-label {
+    display: none;
+  }
+}

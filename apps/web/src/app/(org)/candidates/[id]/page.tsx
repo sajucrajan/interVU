@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { api, ApiError, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
+import { StickyIdentity } from "@/components/sticky-identity";
 
 interface Timeline {
   candidate: {
@@ -211,6 +212,10 @@ export default function CandidateDossierPage() {
           </div>
         )}
       </header>
+      <StickyIdentity
+        label={d.display_name}
+        meta={d.reference ? `Candidate master · ${d.reference}` : "Candidate master"}
+      />
 
       <div className="dossier-split">
         <div>

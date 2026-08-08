@@ -13,6 +13,7 @@ import {
   useKnownSkills,
   type SkillRow,
 } from "@/components/skill-matrix";
+import { StickyIdentity } from "@/components/sticky-identity";
 
 interface Detail {
   id: string;
@@ -204,6 +205,17 @@ export default function PositionDetailPage() {
           <ActionsMenu items={items} />
         </div>
       </div>
+      <StickyIdentity
+        label={p.title}
+        meta={p.reference}
+        action={
+          <span
+            className={`badge ${p.status === "open" ? "ok" : p.status === "closed" ? "bad" : "warn"}`}
+          >
+            {p.status}
+          </span>
+        }
+      />
 
       {error && <p className="error">{error}</p>}
 

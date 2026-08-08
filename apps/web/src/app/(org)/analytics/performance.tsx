@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
+import { StickyIdentity } from "@/components/sticky-identity";
 
 interface Perf {
   range: string;
@@ -160,6 +161,7 @@ export function HiringPerformance() {
           ))}
         </div>
       </header>
+      <StickyIdentity label="Hiring performance" meta={`Rolling ${range}`} />
 
       {/* ---- four hero figures, separated by rules rather than cards ---- */}
       <div className="hero-row">

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
+import { StickyIdentity } from "@/components/sticky-identity";
 
 interface Cell {
   panelist_id: string;
@@ -207,6 +208,10 @@ export default function DebriefPage() {
           </div>
         </div>
       </header>
+      <StickyIdentity
+        label={d.candidate.displayName}
+        meta={`${d.position.reference ?? ""} ${d.position.title}`.trim()}
+      />
 
       {/* The hide-until-submitted policy governs the whole screen: seeing a
           colleague's rating first changes what you write. */}
