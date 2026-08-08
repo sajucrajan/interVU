@@ -25,7 +25,7 @@ permanent free tier; Render runs the two containers the repo already builds.
 
 ## The one thing that will silently break
 
-The session cookie is `sameSite: "lax"` (`auth.controller.ts`). Koyeb publishes
+The session cookie is `sameSite: "lax"` (`auth.controller.ts`). Render publishes
 each service under its own subdomain of `onrender.com`, and `onrender.com` is on the
 Public Suffix List — so `intervu-web.onrender.com` and `intervu-api.onrender.com` are
 **different sites**. A browser will not send a `lax` cookie across them. Login
