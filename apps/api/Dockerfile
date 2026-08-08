@@ -44,4 +44,13 @@ EXPOSE 4000
 # Migrations run on boot so `compose up` is the whole install story.
 # Invoke the Prisma binary directly — `pnpm exec` would re-run a workspace
 # dependency check that can't resolve in the slim runtime image.
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node dist/main.js"]
+# Neon (and any scale-to-zero Postgres) takes a few seconds to wake, and
+# Prisma's default connect timeout is 5s — so the very first deploy after an
+# idle spell fails with P1002 "reached but timed out" before the database is
+# even listening. Retrying is the honest fix: the database is not broken, it
+# is asleep.
+#
+# Still fails hard after 5 attempts rather than starting the server against an
+# unmigrated schema, which would trade a clear deploy failure for confusing
+# runtime errors.
+CMD ["sh", "-c", "n=0; until ./node_modules/.bin/prisma migrate deploy; do n=$((n+1)); if [ $n -ge 5 ]; then echo \"migrate deploy failed after $n attempts\"; exit 1; fi; echo \"migrate attempt $n failed — database may be waking, retrying in 6s\"; sleep 6; done; node dist/main.js"]
