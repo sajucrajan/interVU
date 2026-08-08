@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
+import { VoteButtons } from "@/components/vote";
 
 interface Competency {
   skill_id: string;
@@ -13,6 +14,31 @@ interface Competency {
   proficiency: string | null;
   min_years: number | null;
   evidenced: boolean;
+}
+
+interface Question {
+  id: string;
+  prompt: string;
+  rubric: string[];
+  follow_ups: string[];
+  kind: string;
+  level: number;
+  created_by: string | null;
+  skills: { id: string; name: string }[];
+  times_asked: number;
+  discrimination: number | null;
+  signal_basis: string;
+  score: number;
+  up: number;
+  down: number;
+  my_vote: number;
+}
+
+interface QuestionGroup {
+  skill_id: string;
+  name: string;
+  must_have: boolean;
+  questions: Question[];
 }
 
 interface Packet {
@@ -55,6 +81,7 @@ interface Packet {
     word_count: number;
   } | null;
   competencies: Competency[];
+  question_groups: QuestionGroup[];
   gaps: Competency[];
   extra_technologies: { skill_id: string; name: string }[];
   my_scorecard_filed: boolean;
@@ -65,6 +92,7 @@ interface DraftPayload {
   notes?: Record<string, string>;
   overall?: number;
   recommendation?: string;
+  asked?: string[];
 }
 
 const RECOMMENDATIONS = [
@@ -73,6 +101,72 @@ const RECOMMENDATIONS = [
   { key: "no", label: "No" },
   { key: "strong_no", label: "Strong no" },
 ];
+
+/** Collapsed by default: during a call you want the prompt, not an essay. */
+function QuestionCard({
+  question: q,
+  asked,
+  onToggle,
+}: {
+  question: Question;
+  asked: boolean;
+  onToggle: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`room-q${asked ? " asked" : ""}`}>
+      <div className="room-q-head">
+        <label className="room-q-ask">
+          <input type="checkbox" checked={asked} onChange={onToggle} />
+          <span>{q.prompt}</span>
+        </label>
+        <div className="room-q-actions">
+          <VoteButtons
+            questionId={q.id}
+            compact
+            initial={{ score: q.score, up: q.up, down: q.down, my_vote: q.my_vote }}
+          />
+          <button type="button" className="room-q-more" onClick={() => setOpen((v) => !v)}>
+            {open ? "less" : "more"}
+          </button>
+        </div>
+      </div>
+      <div className="mono-label room-q-meta">
+        L{q.level} · {q.kind.replace("_", " ")} ·{" "}
+        {q.discrimination !== null
+          ? `spread ${q.discrimination} over ${q.times_asked} asks`
+          : q.signal_basis}
+      </div>
+      {open && (
+        <div className="room-q-body">
+          {q.rubric.length > 0 && (
+            <>
+              <div className="mono-label">A strong answer usually covers</div>
+              <ul>
+                {q.rubric.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          {q.follow_ups.length > 0 && (
+            <>
+              <div className="mono-label">If the answer is thin</div>
+              <ul>
+                {q.follow_ups.map((f, i) => (
+                  <li key={i}>{f}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          {q.created_by && (
+            <p className="muted room-q-by">Added by {q.created_by}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * The interview room (docs/01 §interviewer).
@@ -100,6 +194,7 @@ export default function InterviewRoomPage() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [overall, setOverall] = useState(3);
   const [recommendation, setRecommendation] = useState("");
+  const [asked, setAsked] = useState<string[]>([]);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -115,6 +210,7 @@ export default function InterviewRoomPage() {
         setNotes(d.payload?.notes ?? {});
         if (d.payload?.overall) setOverall(d.payload.overall);
         if (d.payload?.recommendation) setRecommendation(d.payload.recommendation);
+        setAsked(d.payload?.asked ?? []);
       })
       .catch(() => undefined)
       .finally(() => {
@@ -129,13 +225,13 @@ export default function InterviewRoomPage() {
     const t = setTimeout(() => {
       api<{ saved_at: string }>(`/interviews/${id}/draft`, {
         method: "PUT",
-        body: { ratings, notes, overall, recommendation },
+        body: { ratings, notes, overall, recommendation, asked },
       })
         .then((r) => setSavedAt(r.saved_at))
         .catch(() => undefined);
     }, 1200);
     return () => clearTimeout(t);
-  }, [id, ratings, notes, overall, recommendation]);
+  }, [id, ratings, notes, overall, recommendation, asked]);
 
   const setNote = useCallback(
     (skillId: string, value: string) =>
@@ -156,6 +252,7 @@ export default function InterviewRoomPage() {
         body: {
           overall_rating: overall,
           recommendation,
+          asked_question_ids: asked,
           notes: notes.__overall ?? "",
           competencies: Object.entries(ratings).map(([skill_id, rating]) => ({
             skill_id,
@@ -296,6 +393,42 @@ export default function InterviewRoomPage() {
                 What was said in them stays sealed until everyone on this round
                 has filed.
               </p>
+            </>
+          )}
+
+          {packet.question_groups.some((g) => g.questions.length > 0) && (
+            <>
+              <SectionHead label="Questions for this round" />
+              <p className="muted room-hint">
+                From the shared bank, covering the competencies this round
+                grades. Tick what you actually ask — that is what teaches the
+                bank which questions separate people.{" "}
+                <Link href="/questions">Browse or add</Link>
+              </p>
+              {packet.question_groups
+                .filter((g) => g.questions.length > 0)
+                .map((g) => (
+                  <div key={g.skill_id} className="room-qgroup">
+                    <div className="mono-label">
+                      {g.name}
+                      {g.must_have ? " · must-have" : ""}
+                    </div>
+                    {g.questions.map((q) => (
+                      <QuestionCard
+                        key={q.id}
+                        question={q}
+                        asked={asked.includes(q.id)}
+                        onToggle={() =>
+                          setAsked((prev) =>
+                            prev.includes(q.id)
+                              ? prev.filter((x) => x !== q.id)
+                              : [...prev, q.id],
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
+                ))}
             </>
           )}
 

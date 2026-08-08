@@ -8,12 +8,14 @@ import type { InterviewCreate, ScorecardCreate } from "@intervu/contracts";
 import type { Access } from "../entitlements/access";
 import { ApplicationsService } from "../applications/applications.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { QuestionsService } from "../questions/questions.service";
 
 @Injectable()
 export class InterviewsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly applications: ApplicationsService,
+    private readonly questions: QuestionsService,
   ) {}
 
   async schedule(
@@ -39,7 +41,7 @@ export class InterviewsService {
         detail: "All panelists must be active users of this organization",
       });
     }
-    return this.prisma.$transaction(async (tx) => {
+    const filed = await this.prisma.$transaction(async (tx) => {
       const interview = await tx.interview.create({
         data: {
           organizationId,
@@ -160,7 +162,7 @@ export class InterviewsService {
         detail: "Only panel members can submit a scorecard for this interview",
       });
     }
-    return this.prisma.$transaction(async (tx) => {
+    const filed = await this.prisma.$transaction(async (tx) => {
       const scorecard = await tx.scorecard.upsert({
         where: { interviewId_orgUserId: { interviewId, orgUserId } },
         update: {
@@ -205,6 +207,23 @@ export class InterviewsService {
       });
       return scorecard;
     });
+
+    // Recorded AFTER the transaction commits, deliberately: a bank statistic
+    // must never be able to roll back a filed scorecard.
+    if (input.asked_question_ids.length > 0) {
+      const tags = await this.prisma.interviewQuestionSkill.findMany({
+        where: { questionId: { in: input.asked_question_ids } },
+        select: { questionId: true, skillId: true },
+      });
+      const ratingBySkill = Object.fromEntries(
+        input.competencies.map((c) => [c.skill_id, c.rating]),
+      );
+      await this.questions
+        .recordUsage(interviewId, input.asked_question_ids, ratingBySkill, tags)
+        .catch(() => undefined);
+    }
+
+    return filed;
   }
 
   /**

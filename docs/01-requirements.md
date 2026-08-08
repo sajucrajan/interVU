@@ -123,6 +123,48 @@ the chips stops reading the gaps too.
 room shows who else has *filed*, never what they said: hide-until-submitted
 exists to stop precisely the anchoring that a shared notes pane would cause.
 
+### The shared question bank (`/questions`)
+
+Questions are tagged to **skills, not positions**. That is the whole design: a
+question written for one role surfaces on every other role grading the same
+competency, so the bank compounds instead of fragmenting into a copy per
+requisition. Suggestions for an interview then fall straight out of the
+position's existing skill matrix — the same rows the scorecard grades — with no
+second mapping to maintain.
+
+**Anyone who interviews can author and edit.** Interviewers hold no hiring
+permissions at all (docs/09 §2), so gating authorship would lock out exactly
+the contributors the bank depends on. For the same reason the competency
+taxonomy is served from `/questions/skills` rather than the existing `/skills`,
+which requires `positions.view` and 403s for an interviewer.
+
+Each question carries a prompt, **what a strong answer usually covers**, and
+follow-ups for when an answer is thin. That wording is deliberate: a checklist
+people grade against produces consistent scores and worse hiring, so the rubric
+is calibration guidance, not a mark scheme.
+
+#### Two signals, deliberately separate
+
+| | What it measures | Where it comes from |
+|---|---|---|
+| **Spread** | Whether the question separates candidates | The range of competency ratings that followed it, recorded at filing time |
+| **Votes** | Whether interviewers think it is worth asking | A thumbs up/down per person, changeable |
+
+They answer different questions and often disagree, which is the point. A
+question can discriminate sharply and still be unfair, exhausting or badly
+worded — spread cannot see that, and people can. A well-liked question can buy
+no information at all. Suggestions sort by **score first**, so a question the
+panel has voted down sinks even when its spread is high.
+
+Spread stays null below four rated answers and says what it still needs rather
+than ranking on noise. Usage is recorded once per *competency actually graded*
+— a question tagged to three skills must not report triple the askings, because
+a statistic that overstates itself is worse than none.
+
+Archiving, never deleting: usage rows are evidence about how the organization
+interviews, and removing the question erases the history that makes the rest of
+the bank interpretable.
+
 ### The interviewer's screen (`/interviews`)
 
 Grouped by what the viewer must **do** — *Waiting on you* / *Upcoming* /

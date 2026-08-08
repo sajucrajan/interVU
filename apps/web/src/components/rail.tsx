@@ -48,6 +48,14 @@ const LINKS: RailLink[] = [
     queue: ["scorecards"],
   },
   {
+    // No `needs`: interviewers hold no hiring permissions at all, and they
+    // are exactly who the bank depends on for contributions.
+    group: "Hiring",
+    href: "/questions",
+    label: "Question bank",
+    icon: "⁇",
+  },
+  {
     group: "Hiring",
     href: "/positions",
     label: "Positions",

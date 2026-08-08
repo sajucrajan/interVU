@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { QuestionsService } from "../questions/questions.service";
 
 /**
  * The interview room packet (docs/01 §interviewer).
@@ -23,7 +24,10 @@ import { PrismaService } from "../prisma/prisma.service";
  */
 @Injectable()
 export class RoomService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly questions: QuestionsService,
+  ) {}
 
   async packet(organizationId: string, interviewId: string, orgUserId: string) {
     const interview = await this.prisma.interview.findFirst({
@@ -181,6 +185,12 @@ export class RoomService {
           }
         : null,
       competencies: required,
+      /** Bank questions covering exactly the competencies this round grades. */
+      question_groups: await this.questions.forInterview(
+        organizationId,
+        interviewId,
+        orgUserId,
+      ),
       gaps,
       extra_technologies: extra,
       my_scorecard_filed: interview.scorecards.some((s) => s.orgUserId === orgUserId),
