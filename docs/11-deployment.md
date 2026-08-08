@@ -3,6 +3,12 @@
 A free, always-available deployment of the demo. Neon supplies Postgres on a
 permanent free tier; Koyeb runs the two containers the repo already builds.
 
+> **Following this for the first time?** Read
+> [12 — Deployment walkthrough](12-deployment-walkthrough.md) instead: the
+> same deployment as an ordered click-by-click, with the failure modes and
+> what each check should show. This page is the reference for *why* each
+> setting is what it is.
+
 ## What the app actually needs
 
 | Service | Required? | Notes |
