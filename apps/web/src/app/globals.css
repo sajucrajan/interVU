@@ -3589,10 +3589,10 @@ table.data td time {
   padding-right: clamp(1rem, 2.4vw, 2.6rem);
 }
 .sticky-id.on {
-  max-height: 64px;
+  max-height: 80px;
   opacity: 1;
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding-top: 13px;
+  padding-bottom: 13px;
   border-bottom-color: var(--border);
 }
 
@@ -3603,7 +3603,16 @@ table.data td time {
   min-width: 0;
   overflow: hidden;
 }
+/* The same display face as the heading it stands in for, scaled down. The
+   bar is the header condensed, so it should read as the same voice — set in
+   the UI face it looked like a label about the page rather than the page's
+   own title. */
 .sticky-id-text strong {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
