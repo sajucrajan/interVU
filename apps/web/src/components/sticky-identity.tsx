@@ -95,8 +95,12 @@ export function PageIdentityProvider({ children }: { children: React.ReactNode }
     const el = host.current;
     if (!el) return;
     const read = () => {
-      const h1 = el.querySelector("h1");
-      setHeading(h1 ? oneLine(h1.textContent ?? "") : "");
+      const h1 = el.querySelector<HTMLElement>("h1");
+      // innerText, not textContent: the dashboard's heading breaks across a
+      // <br/>, and textContent joins straight across it — "21 thingsare
+      // waiting on you". innerText is layout-aware, so the break becomes a
+      // newline that collapses to a space.
+      setHeading(h1 ? oneLine(h1.innerText ?? h1.textContent ?? "") : "");
     };
     read();
     if (typeof MutationObserver === "undefined") return;
