@@ -6,8 +6,8 @@
 # bundle), and here they are just env vars.
 #
 # Deploy: Render Dashboard → New → Blueprint → pick this repository.
-# You will be prompted for the three values marked `sync: false`; everything
-# else is fixed here so it cannot be mistyped in a form.
+# You are prompted only for DATABASE_URL; everything else is fixed here so it
+# cannot be mistyped in a form.
 #
 # Free plan notes:
 #   - 750 instance-hours per month across the WORKSPACE, not per service.
@@ -44,8 +44,13 @@ services:
       # There is no durable disk here, so this is what makes upload work at all.
       - key: RESUME_STORAGE
         value: extract_only
+      # Render appends a suffix when a service name is already taken globally,
+      # so these are the URLs it actually assigned rather than the tidy names
+      # in this file. Recorded here rather than typed into the dashboard: the
+      # Blueprint syncs from main, so the repo stays the source of truth and
+      # the two cannot drift apart.
       - key: WEB_ORIGIN
-        sync: false # the web service's URL, once you know it
+        value: https://intervu-web-lby9.onrender.com
 
   # ---------------------------------------------------------------- WEB ----
   - type: web
@@ -65,7 +70,7 @@ services:
         value: /api/v1
       # The other half of that: Next rewrites /api/v1/* to the API service.
       - key: API_PROXY_TARGET
-        sync: false # the API service's URL, once you know it
+        value: https://intervu-api-2sli.onrender.com
       # Publishes /demo with its one-click personas. Without this the route
       # 404s — which is what you want on a real install.
       - key: NEXT_PUBLIC_DEMO_MODE

@@ -82,19 +82,22 @@ supply three values it deliberately does not store.
 
 1. Sign up at **[render.com](https://render.com)** with GitHub.
 2. **New** → **Blueprint**. Pick this repository, branch `main`.
-3. Render reads `render.yaml` and shows two services, `intervu-api` and
-   `intervu-web`, and prompts for three values. Leave two blank for now:
+3. Render reads `render.yaml`, shows two services, and prompts for a
+   **Blueprint name** (`intervu`), the **branch** (`main`), and one value:
 
    | Prompt | Value |
    |---|---|
    | `DATABASE_URL` | the pooled Neon string |
-   | `WEB_ORIGIN` | leave blank — step 4 |
-   | `API_PROXY_TARGET` | leave blank — step 4 |
 
 4. **Apply**. Both services build; 5–10 minutes the first time.
 
-Render will make the names unique if `intervu-api` is taken globally, so note
-the URLs it actually gives you.
+**Render appends a suffix when a service name is already taken globally** —
+`intervu-web` became `intervu-web-lby9`. The cross-references in `render.yaml`
+(`WEB_ORIGIN` and `API_PROXY_TARGET`) hold the URLs of an existing deployment,
+so on a *fresh* one you must update them to the URLs Render actually assigns
+and let both services redeploy. Editing the file is better than editing the
+dashboard: the Blueprint syncs from `main`, so the repo stays the source of
+truth.
 
 ✅ *Check:* `<api-url>/healthz` returns `{"status":"ok","service":"intervu-api"}`.
 The web URL will load but have no data yet.
@@ -133,15 +136,19 @@ anyone's changes temporary.
 
 ## Step 4 — Point the services at each other
 
-Now that both URLs exist:
+Only needed if Render assigned URLs different from the ones in `render.yaml`.
+Edit those two `value:` lines on `main` and let the Blueprint sync, or set them
+in the dashboard under each service's **Environment**:
 
-- **intervu-web** → Environment → `API_PROXY_TARGET` = the **API** URL
-  (e.g. `https://intervu-api.onrender.com`, no trailing slash) → save.
-  This triggers a rebuild, which is necessary.
-- **intervu-api** → Environment → `WEB_ORIGIN` = the **web** URL → save.
+- **intervu-web** → `API_PROXY_TARGET` = the **API** URL, no trailing slash
+- **intervu-api** → `WEB_ORIGIN` = the **web** URL
 
-✅ *Test:* open `<web-url>/demo`, click **Riley Recruiter**. You should land on
-a populated dashboard.
+Changing `API_PROXY_TARGET` triggers a rebuild of the web service. That is
+necessary, not incidental — it is read when the bundle is built.
+
+✅ *Test:* `<web-url>/api/v1/auth/me` should return **401**, not 404. A 401
+means the proxy reached the API and the API said "not signed in", which is
+correct. A 404 means the request never left the web service.
 
 ---
 
