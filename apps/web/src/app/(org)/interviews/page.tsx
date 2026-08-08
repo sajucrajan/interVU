@@ -203,9 +203,14 @@ function InterviewRow({
             panel {i.panel_filed}/{i.panel_size} filed
           </span>
           {onToggle && (
-            <button type="button" onClick={onToggle}>
-              {open ? "Close" : "Submit scorecard"}
-            </button>
+            <>
+              <Link href={`/interviews/${i.id}/room`} className="room-open">
+                Open room
+              </Link>
+              <button type="button" className="secondary" onClick={onToggle}>
+                {open ? "Close" : "Quick file"}
+              </button>
+            </>
           )}
         </div>
       </div>

@@ -345,6 +345,9 @@ export const ScorecardCreate = z.object({
       z.object({
         skill_id: z.string().uuid(),
         rating: z.number().int().min(1).max(5).nullable(),
+        /** What was asked and what came back. A rating with no reason is
+         *  the thing a debrief cannot argue with. */
+        note: z.string().max(4000).optional(),
       }),
     )
     .default([]),

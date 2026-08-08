@@ -121,6 +121,7 @@ model OrgUser {
   panelMemberships PanelMember[]
   inviteTokens InviteToken[]
 
+  scorecardDrafts ScorecardDraft[]
   @@unique([organizationId, email])
   @@map("org_user")
 }
@@ -719,6 +720,7 @@ model Interview {
   panelists   InterviewPanelist[]
   scorecards  Scorecard[]
 
+  drafts     ScorecardDraft[]
   @@index([organizationId, scheduledAt])
   @@map("interview")
 }
@@ -1065,6 +1067,10 @@ model ScorecardCompetency {
   skillId     String   @map("skill_id") @db.Uuid
   /// 1..5, or null for "not assessed in my round".
   rating      Int?
+  /// What was actually asked and what came back. Captured in the interview
+  /// room while it is still fresh; a rating with no reason is the thing a
+  /// debrief cannot argue with.
+  note        String?
   createdAt   DateTime @default(now()) @map("created_at")
 
   scorecard Scorecard @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
@@ -1229,4 +1235,24 @@ enum SourceChannel {
   import
 
   @@map("source_channel")
+}
+
+/// Notes taken DURING an interview, autosaved so a refresh mid-call does not
+/// lose them. Deliberately separate from Scorecard: a draft is private to its
+/// author and carries no verdict, so it can never be mistaken for a filed
+/// opinion by the hide-until-submitted gate (docs/01 §2.3).
+model ScorecardDraft {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  interviewId    String   @map("interview_id") @db.Uuid
+  orgUserId      String   @map("org_user_id") @db.Uuid
+  /// { ratings: {skillId: n}, notes: {skillId: text}, overall, recommendation }
+  payload        Json     @default("{}")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  orgUser   OrgUser   @relation(fields: [orgUserId], references: [id], onDelete: Cascade)
+
+  @@unique([interviewId, orgUserId])
+  @@map("scorecard_draft")
 }

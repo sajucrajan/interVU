@@ -639,6 +639,141 @@ Outside production, dev header auth also works instead of a session:
     }
   }
 
+  // --- Interviews, panels and scorecards.
+  //
+  // These were previously assumed to exist: the blocks further down that add
+  // per-competency ratings query for scorecards and silently do nothing when
+  // there are none. On a database that has actually been reset — which is now
+  // the nightly path — /interviews, the debrief and the interview room were
+  // all empty. Creating them here is what makes those screens demonstrable.
+  const iv1 = await prisma.orgUser.findFirst({
+    where: { organizationId: org.id, email: "interviewer1@acme.test" },
+    select: { id: true },
+  });
+  const iv2 = await prisma.orgUser.findFirst({
+    where: { organizationId: org.id, email: "interviewer2@acme.test" },
+    select: { id: true },
+  });
+  const interviewCount = await prisma.interview.count({ where: { organizationId: org.id } });
+  if (iv1 && iv2 && interviewCount === 0) {
+    const candidates = await prisma.application.findMany({
+      where: { organizationId: org.id, status: "active" },
+      orderBy: { createdAt: "asc" },
+      take: 3,
+      select: { id: true },
+    });
+
+    // Three deliberately different states, because the interviewer screen
+    // groups by what you must DO and each group needs an occupant:
+    //   0 — done, both filed        → the debrief has a full matrix
+    //   1 — done, iv1 has NOT filed → "waiting on you", and the room to use
+    //   2 — still ahead             → "upcoming"
+    const plan = [
+      { hoursAgo: 72, panel: [iv1.id, iv2.id], filed: [iv1.id, iv2.id], status: "completed" },
+      { hoursAgo: 30, panel: [iv1.id, iv2.id], filed: [iv2.id], status: "completed" },
+      { hoursAgo: -48, panel: [iv1.id], filed: [], status: "scheduled" },
+    ];
+
+    for (const [i, spec] of plan.entries()) {
+      const app = candidates[i];
+      if (!app) continue;
+      const at = new Date(Date.now() - spec.hoursAgo * 3_600_000);
+      const interview = await prisma.interview.create({
+        data: {
+          organizationId: org.id,
+          applicationId: app.id,
+          roundName: i === 0 ? "Screening call" : "Technical round",
+          scheduledAt: at,
+          durationMin: 60,
+          locationOrLink: "Meet · https://example.test/room",
+          status: spec.status,
+          panelists: { create: spec.panel.map((orgUserId) => ({ orgUserId })) },
+        },
+      });
+      for (const [j, orgUserId] of spec.filed.entries()) {
+        await prisma.scorecard.create({
+          data: {
+            organizationId: org.id,
+            interviewId: interview.id,
+            orgUserId,
+            overallRating: j === 0 ? 4 : 3,
+            recommendation: j === 0 ? "strong_yes" : "no",
+            notes:
+              j === 0
+                ? "Strong systems thinking. Walked through the read-path rework unprompted."
+                : "Solid, but thin on the operational side — struggled to reason about failure modes.",
+            // Filed a few hours after the round ended, so the debrief's
+            // turnaround column has a real span to report.
+            submittedAt: new Date(at.getTime() + (3 + j * 5) * 3_600_000),
+          },
+        });
+      }
+    }
+    console.log(`Seeded ${plan.length} interviews (1 fully filed, 1 awaiting a scorecard, 1 upcoming)`);
+  }
+
+  // A resume on the interviewed candidates, so the interview room has
+  // something to show. Plain text is enough: the room renders extracted TEXT,
+  // never the original file, so a realistic CV body is the whole fixture.
+  const RESUME = (name: string, title: string, tech: string) => `${name}
+${title}
+
+SUMMARY
+Nine years building and running production systems. Comfortable owning a
+service end to end, from design through on-call.
+
+EXPERIENCE
+Senior Engineer, Northwind Systems (2021 - present)
+  Led the migration of the billing platform to ${tech.split(", ")[0]}.
+  Cut p99 latency by 40% by reworking the read path and its caching.
+  Mentored three engineers; ran the hiring loop for the platform team.
+
+Engineer, Halcyon Data (2018 - 2021)
+  Built the ingestion pipeline handling 2B events/day.
+  Owned the on-call rotation and the incident review process.
+
+SKILLS
+${tech}
+
+EDUCATION
+BSc Computer Science, University of Edinburgh
+`;
+
+  const interviewed = await prisma.application.findMany({
+    where: { organizationId: org.id, interviews: { some: {} } },
+    select: {
+      id: true,
+      sourceSubmissionId: true,
+      candidate: { select: { displayName: true } },
+      position: { select: { title: true, skills: { select: { skill: { select: { name: true } } } } } },
+    },
+  });
+  for (const a of interviewed) {
+    if (!a.sourceSubmissionId) continue;
+    const existing = await prisma.attachment.count({
+      where: { ownerType: "submission", ownerId: a.sourceSubmissionId, kind: "resume" },
+    });
+    if (existing > 0) continue;
+    // Deliberately drop the FIRST required skill from the CV text, so the
+    // room's "must-have with no evidence" callout has something real to find.
+    const names = a.position.skills.map((s) => s.skill.name);
+    const shown = names.slice(1).concat(["Docker", "PostgreSQL", "CI/CD"]);
+    const text = RESUME(a.candidate.displayName, a.position.title, shown.join(", "));
+    await prisma.attachment.create({
+      data: {
+        organizationId: org.id,
+        kind: "resume",
+        ownerType: "submission",
+        ownerId: a.sourceSubmissionId,
+        s3Key: null,
+        filename: `${a.candidate.displayName.replace(/\s+/g, "-").toLowerCase()}-cv.txt`,
+        contentType: "text/plain",
+        size: text.length,
+        parsedText: text,
+      },
+    });
+  }
+
   // --- Sourcing channel (docs/05 §8). Everything above this line is
   // vendor-sourced by default, which is exactly what the migration
   // guarantees for existing data; these rows give the comparison a

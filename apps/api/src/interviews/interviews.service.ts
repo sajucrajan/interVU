@@ -188,6 +188,7 @@ export class InterviewsService {
             scorecardId: scorecard.id,
             skillId: c.skill_id,
             rating: c.rating,
+            note: c.note ?? null,
           })),
         });
       }
