@@ -18,8 +18,15 @@ interface Tally {
  * actually separates candidates. Those disagree often enough to be worth
  * seeing side by side.
  *
- * Clicking your current vote withdraws it, so there is a way back to "no
- * opinion" — otherwise a mis-click is permanent and the tally drifts.
+ * The thumbs SET your vote rather than toggling it: pressing ▲ when you have
+ * already upvoted leaves you upvoted, and pressing ▼ changes your mind. An
+ * explicit ✕ clears it.
+ *
+ * They were toggles first, and that was wrong. A second press on the thumb you
+ * had already chosen silently withdrew the vote — so the score fell and the
+ * highlight vanished, which reads as "I only got one chance" rather than "you
+ * just undid it". Withdrawing is a rarer intent than changing your mind, and
+ * it should not share a control with the common one.
  */
 export function VoteButtons({
   questionId,
@@ -34,8 +41,10 @@ export function VoteButtons({
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  async function cast(value: number) {
-    const next = tally.my_vote === value ? 0 : value;
+  async function cast(next: number) {
+    // Idempotent: re-pressing your current choice is a no-op rather than a
+    // silent undo.
+    if (next === tally.my_vote) return;
     setBusy(true);
     setFailed(false);
     try {
@@ -64,7 +73,7 @@ export function VoteButtons({
         aria-label="Good question"
         title={
           tally.my_vote > 0
-            ? "You marked this worth asking — click to withdraw"
+            ? "You marked this worth asking"
             : `${tally.up} found this worth asking`
         }
         className={`vote-btn${tally.my_vote > 0 ? " on up" : ""}`}
@@ -89,7 +98,7 @@ export function VoteButtons({
         aria-label="Not worth asking"
         title={
           tally.my_vote < 0
-            ? "You marked this not worth asking — click to withdraw"
+            ? "You marked this not worth asking"
             : `${tally.down} would not ask it`
         }
         className={`vote-btn${tally.my_vote < 0 ? " on down" : ""}`}
@@ -97,6 +106,18 @@ export function VoteButtons({
       >
         ▼
       </button>
+      {tally.my_vote !== 0 && (
+        <button
+          type="button"
+          disabled={busy}
+          className="vote-clear"
+          aria-label="Clear my vote"
+          title="Clear my vote"
+          onClick={() => cast(0)}
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 }

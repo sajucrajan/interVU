@@ -3520,3 +3520,19 @@ table.data td time {
 .vote-score.failed {
   color: var(--bad);
 }
+
+/* Withdrawing is a rarer intent than changing your mind, so it gets its own
+   quiet control instead of sharing the thumb. */
+.vote-clear {
+  padding: 1px 5px;
+  line-height: 1;
+  font-size: 10px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.vote-clear:hover:not(:disabled) {
+  color: var(--fg);
+  border-color: var(--border);
+}
