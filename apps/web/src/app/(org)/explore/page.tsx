@@ -40,7 +40,7 @@ export default function ExplorePage() {
         setFocus(d.hierarchy);
         setTrail([d.hierarchy]);
       })
-      .catch(() => router.push("/login"));
+      .catch(() => undefined);
   }, [router]);
 
   if (!data) return <main className="wide muted">Loading…</main>;

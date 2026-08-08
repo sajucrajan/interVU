@@ -66,7 +66,7 @@ function PipelineBoard() {
   }, []);
 
   useEffect(() => {
-    refresh().catch(() => router.push("/login"));
+    refresh().catch(() => undefined);
   }, [refresh, router]);
 
   const act = useCallback(

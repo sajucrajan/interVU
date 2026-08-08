@@ -3156,3 +3156,383 @@ table.data td time {
   border-top: 1px solid var(--border);
   font-size: 14px;
 }
+
+/* ---- Interview room --------------------------------------------------
+   Laid out for a screen that is open DURING a call: the candidate on the
+   left to glance at, the scoring on the right to type into, neither needing
+   a scroll to reach. ------------------------------------------------------ */
+
+.room {
+  max-width: 1500px;
+}
+.room-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--step-4);
+  padding-bottom: var(--step-4);
+  border-bottom: 2px solid var(--fg);
+  flex-wrap: wrap;
+}
+.room-head h1 {
+  margin: 10px 0 4px;
+}
+.room-sub {
+  margin: 0;
+  color: var(--muted);
+}
+.room-status {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.room-filed {
+  display: inline-block;
+  margin-top: var(--step-3);
+}
+
+.room-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: var(--step-5);
+  margin-top: var(--step-4);
+  align-items: start;
+}
+
+/* The scoring column stays put while the resume scrolls — you should never
+   have to hunt for the rating boxes mid-answer. */
+.room-right {
+  position: sticky;
+  top: var(--step-3);
+  max-height: calc(100vh - var(--step-5));
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: var(--step-4);
+}
+
+.room-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+/* A required skill the CV never mentions. Dashed rather than red: it is a
+   place to start a question, not a failure. */
+.skill-chip.absent {
+  border-style: dashed;
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+.room-gaps {
+  margin-top: var(--step-4);
+  padding: var(--step-3) var(--step-4);
+  border-left: 3px solid var(--warn);
+  background: var(--warn-wash);
+  border-radius: var(--radius);
+}
+.room-gaps p {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+.room-list {
+  padding-left: 1.1rem;
+  font-size: 14px;
+}
+.room-list li {
+  margin-bottom: 5px;
+}
+.room-hint {
+  font-size: 13px;
+  max-width: 60ch;
+}
+
+.room-resume {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: var(--step-4);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.room-section h3 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: var(--step-4) 0 6px;
+}
+/* Preserve the resume's own line breaks without trusting its markup: the
+   text came from an uploaded file, so it is rendered as text, never HTML. */
+.room-resume pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: 400 14px/1.6 var(--font-ui), sans-serif;
+  background: none;
+  padding: 0;
+}
+
+.room-comp {
+  padding: var(--step-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.room-comp:last-of-type {
+  border-bottom: 0;
+}
+.room-comp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.room-comp textarea {
+  font-size: 14px;
+}
+.room-rec {
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: var(--step-3);
+}
+.room-file {
+  margin-top: var(--step-3);
+  width: 100%;
+}
+.room-open {
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .room-grid {
+    grid-template-columns: 1fr;
+  }
+  .room-right {
+    position: static;
+    max-height: none;
+  }
+}
+
+/* ---- Question bank --------------------------------------------------- */
+
+.qb-filters {
+  gap: 10px;
+  margin-bottom: var(--step-4);
+}
+.qb-form {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: var(--step-4);
+  margin-bottom: var(--step-5);
+}
+.qb-picker {
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: var(--step-3);
+}
+.qb-picker .skill-chip {
+  cursor: pointer;
+}
+.qb-caution {
+  font-size: 13px;
+  max-width: 60ch;
+  margin-top: 6px;
+}
+
+.qb-row {
+  display: flex;
+  gap: var(--step-4);
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: var(--step-4);
+  margin-bottom: var(--step-3);
+}
+.qb-main {
+  min-width: 0;
+  flex: 1;
+}
+.qb-prompt {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.qb-tags {
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.qb-details {
+  margin-top: 10px;
+  font-size: 14px;
+}
+.qb-details summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.qb-details ul {
+  padding-left: 1.1rem;
+  margin: 6px 0;
+}
+
+/* The figure that says whether the question is earning its slot. */
+.qb-signal {
+  flex: none;
+  width: 150px;
+  text-align: right;
+}
+.qb-signal .figure {
+  font-size: 30px;
+  line-height: 1;
+}
+.qb-signal .basis {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.qb-note {
+  font-size: 13px;
+  max-width: 70ch;
+  margin-top: var(--step-4);
+}
+
+/* ---- Questions inside the room --------------------------------------- */
+
+.room-qgroup {
+  margin-bottom: var(--step-4);
+}
+.room-q {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: 10px 12px;
+  margin-top: 6px;
+}
+/* Asked questions stay visible rather than disappearing: during a call the
+   list is also the record of where you have been. */
+.room-q.asked {
+  border-color: var(--ok);
+  background: var(--ok-wash);
+}
+.room-q-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.room-q-ask {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.room-q-ask input {
+  margin-top: 3px;
+  width: auto;
+  flex: none;
+}
+.room-q-more {
+  flex: none;
+  padding: 2px 8px;
+  font-size: 11px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+}
+.room-q-meta {
+  margin-top: 6px;
+}
+.room-q-body {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+.room-q-body ul {
+  padding-left: 1.1rem;
+  margin: 6px 0 10px;
+}
+.room-q-by {
+  font-size: 12px;
+  margin: 0;
+}
+
+/* ---- Question votes -------------------------------------------------- */
+
+.vote {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+.vote.compact {
+  flex-direction: row;
+  gap: 4px;
+}
+.vote-btn {
+  padding: 2px 7px;
+  line-height: 1;
+  font-size: 12px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  cursor: pointer;
+}
+.vote-btn:hover:not(:disabled) {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+.vote-btn.on.up {
+  color: var(--ok);
+  border-color: var(--ok);
+  background: var(--ok-wash);
+}
+.vote-btn.on.down {
+  color: var(--bad);
+  border-color: var(--bad);
+  background: var(--bad-wash);
+}
+.vote-score {
+  font: 600 12px/1 var(--font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-width: 2ch;
+  text-align: center;
+}
+.room-q-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+/* A vote that did not save must not look like a vote that was withdrawn. */
+.vote-score.failed {
+  color: var(--bad);
+}
+
+/* Withdrawing is a rarer intent than changing your mind, so it gets its own
+   quiet control instead of sharing the thumb. */
+.vote-clear {
+  padding: 1px 5px;
+  line-height: 1;
+  font-size: 10px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.vote-clear:hover:not(:disabled) {
+  color: var(--fg);
+  border-color: var(--border);
+}

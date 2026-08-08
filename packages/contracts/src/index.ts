@@ -340,11 +340,16 @@ export const ScorecardCreate = z.object({
    * means "not assessed in my round" — a real answer, and different from a
    * low score. Rows the panelist leaves blank simply do not appear.
    */
+  /** Bank questions actually asked, so usage can be paired with the rating. */
+  asked_question_ids: z.array(z.string().uuid()).max(50).default([]),
   competencies: z
     .array(
       z.object({
         skill_id: z.string().uuid(),
         rating: z.number().int().min(1).max(5).nullable(),
+        /** What was asked and what came back. A rating with no reason is
+         *  the thing a debrief cannot argue with. */
+        note: z.string().max(4000).optional(),
       }),
     )
     .default([]),
@@ -440,3 +445,36 @@ export const DebriefUpdate = z.object({
 export type FeedbackVisibilityEnum = z.infer<typeof FeedbackVisibilityEnum>;
 export type FeedbackPacketUpsert = z.infer<typeof FeedbackPacketUpsert>;
 export type DebriefUpdate = z.infer<typeof DebriefUpdate>;
+
+// --- Shared question bank (docs/01 §interviewer)
+
+export const QuestionKindEnum = z.enum([
+  "technical",
+  "system_design",
+  "behavioural",
+  "situational",
+]);
+
+export const QuestionCreate = z.object({
+  prompt: z.string().min(8).max(2000),
+  /** What a STRONG answer usually covers — guidance, not a mark scheme. */
+  rubric: z.array(z.string().min(1).max(500)).max(10).default([]),
+  follow_ups: z.array(z.string().min(1).max(500)).max(10).default([]),
+  kind: QuestionKindEnum.default("technical"),
+  level: z.number().int().min(1).max(5).default(3),
+  /** Tagged to skills, never to a position — that is what makes it reusable. */
+  skill_ids: z.array(z.string().uuid()).min(1).max(10),
+});
+
+export const QuestionUpdate = QuestionCreate.partial().extend({
+  archived: z.boolean().optional(),
+});
+
+/** +1, -1, or 0 to withdraw. */
+export const QuestionVote = z.object({
+  value: z.number().int().min(-1).max(1),
+});
+
+export type QuestionVote = z.infer<typeof QuestionVote>;
+export type QuestionCreate = z.infer<typeof QuestionCreate>;
+export type QuestionUpdate = z.infer<typeof QuestionUpdate>;

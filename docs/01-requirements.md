@@ -85,6 +85,86 @@ Roles attach at a **scope** — the whole org or any node of the unit hierarchy 
 - As a **hiring manager**, before any interview I open the candidate's timeline: every past submission (which vendor, which position, when), every interview round, scorecards, outcomes, and flags.
 - As an **interviewer**, I get my assignment, see the candidate packet (resume + history per policy), and submit a structured scorecard.
 
+### The interview room (`/interviews/:id/room`)
+
+Opened from an assignment, and designed to be on screen **during** the call:
+the candidate on the left to glance at, the competencies on the right to type
+into, neither needing a scroll to reach.
+
+The load-bearing idea is that **notes taken here are the scorecard**. The old
+flow made people reconstruct an interview from memory an hour later, which is
+both why turnaround slipped and why so many scorecards said so little. Notes
+autosave, so a refresh or a closed laptop mid-call costs nothing. Each
+competency carries its own note, and those notes surface in the debrief — a
+rating with no reason is the thing a debrief cannot argue with.
+
+**The packet is structured, not the resume reformatted.** Preserving source
+formatting cannot be done consistently — PDF arrives as a flat text dump while
+DOCX keeps its structure — and rendering HTML that came from an uploaded file
+is an injection surface. Resume text is rendered as *text*, never markup. What
+the room derives instead:
+
+- **Required skills, and whether the CV evidences each.** Matched against the
+  organization's own `skill` vocabulary rather than a hardcoded technology
+  list, so the packet stays right as their stack changes.
+- **Must-haves with no evidence in the CV**, called out. The single most
+  useful thing to hand someone before a call — a place to open, explicitly not
+  a red flag, since absence from a resume is not absence of the skill.
+- Technologies present that the role never asked for.
+- Resume text split at its own headings, so it arrives in blocks.
+
+Matching is **whole-token**. Substring matching turns "R" into a hit on
+"React" and "Go" into a hit on "MongoDB"; an interviewer who stops trusting
+the chips stops reading the gaps too.
+
+**Access is panel membership, not scope.** Assignment *is* the grant
+(docs/09 §4.2), so an org admin who is not on the panel gets `not_a_panelist`
+— the packet is candidate PII scoped to the people actually interviewing. The
+room shows who else has *filed*, never what they said: hide-until-submitted
+exists to stop precisely the anchoring that a shared notes pane would cause.
+
+### The shared question bank (`/questions`)
+
+Questions are tagged to **skills, not positions**. That is the whole design: a
+question written for one role surfaces on every other role grading the same
+competency, so the bank compounds instead of fragmenting into a copy per
+requisition. Suggestions for an interview then fall straight out of the
+position's existing skill matrix — the same rows the scorecard grades — with no
+second mapping to maintain.
+
+**Anyone who interviews can author and edit.** Interviewers hold no hiring
+permissions at all (docs/09 §2), so gating authorship would lock out exactly
+the contributors the bank depends on. For the same reason the competency
+taxonomy is served from `/questions/skills` rather than the existing `/skills`,
+which requires `positions.view` and 403s for an interviewer.
+
+Each question carries a prompt, **what a strong answer usually covers**, and
+follow-ups for when an answer is thin. That wording is deliberate: a checklist
+people grade against produces consistent scores and worse hiring, so the rubric
+is calibration guidance, not a mark scheme.
+
+#### Two signals, deliberately separate
+
+| | What it measures | Where it comes from |
+|---|---|---|
+| **Spread** | Whether the question separates candidates | The range of competency ratings that followed it, recorded at filing time |
+| **Votes** | Whether interviewers think it is worth asking | A thumbs up/down per person, changeable |
+
+They answer different questions and often disagree, which is the point. A
+question can discriminate sharply and still be unfair, exhausting or badly
+worded — spread cannot see that, and people can. A well-liked question can buy
+no information at all. Suggestions sort by **score first**, so a question the
+panel has voted down sinks even when its spread is high.
+
+Spread stays null below four rated answers and says what it still needs rather
+than ranking on noise. Usage is recorded once per *competency actually graded*
+— a question tagged to three skills must not report triple the askings, because
+a statistic that overstates itself is worse than none.
+
+Archiving, never deleting: usage rows are evidence about how the organization
+interviews, and removing the question erases the history that makes the rest of
+the bank interpretable.
+
 ### The interviewer's screen (`/interviews`)
 
 Grouped by what the viewer must **do** — *Waiting on you* / *Upcoming* /

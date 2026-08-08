@@ -6,6 +6,7 @@
 import { PrismaClient } from "@prisma/client";
 import { SYSTEM_ROLES } from "../src/entitlements/permissions";
 import { hashPassword } from "../src/auth/password";
+import { randomUUID } from "node:crypto";
 
 const prisma = new PrismaClient();
 const HOUR_MS = 3_600_000;
@@ -637,6 +638,276 @@ Outside production, dev header auth also works instead of a session:
         data: { status: "hired" },
       });
     }
+  }
+
+  // --- Interviews, panels and scorecards.
+  //
+  // These were previously assumed to exist: the blocks further down that add
+  // per-competency ratings query for scorecards and silently do nothing when
+  // there are none. On a database that has actually been reset — which is now
+  // the nightly path — /interviews, the debrief and the interview room were
+  // all empty. Creating them here is what makes those screens demonstrable.
+  const iv1 = await prisma.orgUser.findFirst({
+    where: { organizationId: org.id, email: "interviewer1@acme.test" },
+    select: { id: true },
+  });
+  const iv2 = await prisma.orgUser.findFirst({
+    where: { organizationId: org.id, email: "interviewer2@acme.test" },
+    select: { id: true },
+  });
+  const interviewCount = await prisma.interview.count({ where: { organizationId: org.id } });
+  if (iv1 && iv2 && interviewCount === 0) {
+    const candidates = await prisma.application.findMany({
+      where: { organizationId: org.id, status: "active" },
+      orderBy: { createdAt: "asc" },
+      take: 3,
+      select: { id: true },
+    });
+
+    // Three deliberately different states, because the interviewer screen
+    // groups by what you must DO and each group needs an occupant:
+    //   0 — done, both filed        → the debrief has a full matrix
+    //   1 — done, iv1 has NOT filed → "waiting on you", and the room to use
+    //   2 — still ahead             → "upcoming"
+    const plan = [
+      { hoursAgo: 72, panel: [iv1.id, iv2.id], filed: [iv1.id, iv2.id], status: "completed" },
+      { hoursAgo: 30, panel: [iv1.id, iv2.id], filed: [iv2.id], status: "completed" },
+      { hoursAgo: -48, panel: [iv1.id], filed: [], status: "scheduled" },
+    ];
+
+    for (const [i, spec] of plan.entries()) {
+      const app = candidates[i];
+      if (!app) continue;
+      const at = new Date(Date.now() - spec.hoursAgo * 3_600_000);
+      const interview = await prisma.interview.create({
+        data: {
+          organizationId: org.id,
+          applicationId: app.id,
+          roundName: i === 0 ? "Screening call" : "Technical round",
+          scheduledAt: at,
+          durationMin: 60,
+          locationOrLink: "Meet · https://example.test/room",
+          status: spec.status,
+          panelists: { create: spec.panel.map((orgUserId) => ({ orgUserId })) },
+        },
+      });
+      for (const [j, orgUserId] of spec.filed.entries()) {
+        await prisma.scorecard.create({
+          data: {
+            organizationId: org.id,
+            interviewId: interview.id,
+            orgUserId,
+            overallRating: j === 0 ? 4 : 3,
+            recommendation: j === 0 ? "strong_yes" : "no",
+            notes:
+              j === 0
+                ? "Strong systems thinking. Walked through the read-path rework unprompted."
+                : "Solid, but thin on the operational side — struggled to reason about failure modes.",
+            // Filed a few hours after the round ended, so the debrief's
+            // turnaround column has a real span to report.
+            submittedAt: new Date(at.getTime() + (3 + j * 5) * 3_600_000),
+          },
+        });
+      }
+    }
+    console.log(`Seeded ${plan.length} interviews (1 fully filed, 1 awaiting a scorecard, 1 upcoming)`);
+  }
+
+  // --- The shared question bank, with usage history.
+  //
+  // Seeded WITH past usage so the discrimination figure has something to say
+  // on arrival: a bank with no history shows "needs N more rated answers"
+  // everywhere, which hides the one idea that makes it more than a document.
+  const bankCount = await prisma.interviewQuestion.count({ where: { organizationId: org.id } });
+  if (bankCount === 0) {
+    const allSkills = await prisma.skill.findMany({
+      where: { organizationId: org.id },
+      select: { id: true, name: true },
+    });
+    const byName = new Map(allSkills.map((s) => [s.name.toLowerCase(), s.id]));
+    const BANK: {
+      prompt: string;
+      rubric: string[];
+      followUps: string[];
+      kind: "technical" | "system_design" | "behavioural" | "situational";
+      level: number;
+      skills: string[];
+      /** Ratings that followed, seeded to give each question a real spread. */
+      ratings: number[];
+    }[] = [
+      {
+        prompt:
+          "Walk me through a service you owned end to end. What broke in production, and what did you change so it could not break that way again?",
+        rubric: [
+          "Describes the failure concretely, not in the abstract",
+          "Separates the fix from the mitigation",
+          "Talks about what they changed in the SYSTEM, not just the code",
+        ],
+        followUps: ["What did you decide NOT to fix, and why?"],
+        kind: "behavioural",
+        level: 3,
+        skills: ["kubernetes", "go", "spark"],
+        // Wide spread: this one genuinely separates people.
+        ratings: [5, 2, 4, 2, 5],
+      },
+      {
+        prompt:
+          "How would you design a read path that stays fast as the dataset grows 100x? Talk me through where it breaks first.",
+        rubric: [
+          "Identifies the first bottleneck rather than listing every technology",
+          "Reasons about access patterns before reaching for a cache",
+          "Names the tradeoff they are accepting",
+        ],
+        followUps: ["Where does your cache go stale, and who notices first?"],
+        kind: "system_design",
+        level: 4,
+        skills: ["kubernetes", "airflow", "typescript"],
+        ratings: [4, 3, 5, 2],
+      },
+      {
+        prompt: "What does this language give you that you would miss elsewhere?",
+        rubric: ["Answers from experience rather than from the docs"],
+        followUps: [],
+        kind: "technical",
+        level: 2,
+        skills: ["go", "python", "typescript"],
+        // Everyone answers this the same way — a spread of 0 is the point.
+        ratings: [4, 4, 4, 4],
+      },
+      {
+        prompt:
+          "Tell me about a time you disagreed with a technical decision that had already been made. What did you do?",
+        rubric: [
+          "Engages with the other position on its merits",
+          "Describes what would have changed their own mind",
+        ],
+        followUps: ["What happened afterwards?"],
+        kind: "situational",
+        level: 3,
+        skills: ["react", "design systems", "python"],
+        ratings: [3, 5, 2],
+      },
+    ];
+
+    const author = iv2 ?? iv1;
+    for (const q of BANK) {
+      const ids = q.skills
+        .map((n) => byName.get(n))
+        .filter((x): x is string => Boolean(x));
+      if (ids.length === 0) continue;
+      const created = await prisma.interviewQuestion.create({
+        data: {
+          organizationId: org.id,
+          createdById: author?.id ?? null,
+          prompt: q.prompt,
+          rubric: q.rubric,
+          followUps: q.followUps,
+          kind: q.kind,
+          level: q.level,
+          skills: { create: ids.map((skillId) => ({ skillId })) },
+        },
+      });
+      // Synthetic history: one usage row per past rating, against a distinct
+      // fake interview id so the unique (question, interview, skill) holds.
+      await prisma.interviewQuestionUsage.createMany({
+        data: q.ratings.map((rating, i) => ({
+          questionId: created.id,
+          interviewId: randomUUID(),
+          skillId: ids[0]!,
+          rating,
+        })),
+        skipDuplicates: true,
+      });
+    }
+    // Votes are cast by people the demo does NOT sign you in as. Seeding them
+    // as interviewer1/2 meant arriving with my_vote already set, so the first
+    // click on the thumb WITHDREW a vote you never knowingly cast and the
+    // score went down — the control looked broken while working correctly.
+    const voters = await prisma.orgUser.findMany({
+      where: {
+        organizationId: org.id,
+        email: { in: ["recruiter@acme.test", "hm.eng@acme.test", "admin@acme.test"] },
+      },
+      select: { id: true },
+    });
+    const seeded = await prisma.interviewQuestion.findMany({
+      where: { organizationId: org.id },
+      select: { id: true, level: true, prompt: true },
+    });
+    for (const q of seeded) {
+      const weak = q.prompt.startsWith("What does this language");
+      for (const [i, v] of voters.entries()) {
+        if (weak && i > 0) continue;
+        await prisma.interviewQuestionVote.upsert({
+          where: { questionId_orgUserId: { questionId: q.id, orgUserId: v.id } },
+          update: { value: weak ? -1 : 1 },
+          create: { questionId: q.id, orgUserId: v.id, value: weak ? -1 : 1 },
+        });
+      }
+    }
+    console.log(`Seeded ${BANK.length} bank questions with usage history and votes`);
+  }
+
+  // A resume on the interviewed candidates, so the interview room has
+  // something to show. Plain text is enough: the room renders extracted TEXT,
+  // never the original file, so a realistic CV body is the whole fixture.
+  const RESUME = (name: string, title: string, tech: string) => `${name}
+${title}
+
+SUMMARY
+Nine years building and running production systems. Comfortable owning a
+service end to end, from design through on-call.
+
+EXPERIENCE
+Senior Engineer, Northwind Systems (2021 - present)
+  Led the migration of the billing platform to ${tech.split(", ")[0]}.
+  Cut p99 latency by 40% by reworking the read path and its caching.
+  Mentored three engineers; ran the hiring loop for the platform team.
+
+Engineer, Halcyon Data (2018 - 2021)
+  Built the ingestion pipeline handling 2B events/day.
+  Owned the on-call rotation and the incident review process.
+
+SKILLS
+${tech}
+
+EDUCATION
+BSc Computer Science, University of Edinburgh
+`;
+
+  const interviewed = await prisma.application.findMany({
+    where: { organizationId: org.id, interviews: { some: {} } },
+    select: {
+      id: true,
+      sourceSubmissionId: true,
+      candidate: { select: { displayName: true } },
+      position: { select: { title: true, skills: { select: { skill: { select: { name: true } } } } } },
+    },
+  });
+  for (const a of interviewed) {
+    if (!a.sourceSubmissionId) continue;
+    const existing = await prisma.attachment.count({
+      where: { ownerType: "submission", ownerId: a.sourceSubmissionId, kind: "resume" },
+    });
+    if (existing > 0) continue;
+    // Deliberately drop the FIRST required skill from the CV text, so the
+    // room's "must-have with no evidence" callout has something real to find.
+    const names = a.position.skills.map((s) => s.skill.name);
+    const shown = names.slice(1).concat(["Docker", "PostgreSQL", "CI/CD"]);
+    const text = RESUME(a.candidate.displayName, a.position.title, shown.join(", "));
+    await prisma.attachment.create({
+      data: {
+        organizationId: org.id,
+        kind: "resume",
+        ownerType: "submission",
+        ownerId: a.sourceSubmissionId,
+        s3Key: null,
+        filename: `${a.candidate.displayName.replace(/\s+/g, "-").toLowerCase()}-cv.txt`,
+        contentType: "text/plain",
+        size: text.length,
+        parsedText: text,
+      },
+    });
   }
 
   // --- Sourcing channel (docs/05 §8). Everything above this line is

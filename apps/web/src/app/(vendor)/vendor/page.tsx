@@ -80,7 +80,7 @@ export default function VendorHome() {
         setMe(m);
         return refresh();
       })
-      .catch(() => router.push("/vendor/login"));
+      .catch(() => undefined);
   }, [router, refresh]);
 
   if (!me) return <main className="wide muted">Loading…</main>;

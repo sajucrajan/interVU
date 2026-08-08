@@ -121,6 +121,9 @@ model OrgUser {
   panelMemberships PanelMember[]
   inviteTokens InviteToken[]
 
+  scorecardDrafts ScorecardDraft[]
+  authoredQuestions InterviewQuestion[]
+  questionVotes InterviewQuestionVote[]
   @@unique([organizationId, email])
   @@map("org_user")
 }
@@ -719,6 +722,7 @@ model Interview {
   panelists   InterviewPanelist[]
   scorecards  Scorecard[]
 
+  drafts     ScorecardDraft[]
   @@index([organizationId, scheduledAt])
   @@map("interview")
 }
@@ -826,6 +830,7 @@ model Skill {
   templateSkills PositionTemplateSkill[]
   scorecardRatings ScorecardCompetency[]
 
+  questionTags     InterviewQuestionSkill[]
   @@unique([organizationId, nameNorm])
   @@map("skill")
 }
@@ -1065,6 +1070,10 @@ model ScorecardCompetency {
   skillId     String   @map("skill_id") @db.Uuid
   /// 1..5, or null for "not assessed in my round".
   rating      Int?
+  /// What was actually asked and what came back. Captured in the interview
+  /// room while it is still fresh; a rating with no reason is the thing a
+  /// debrief cannot argue with.
+  note        String?
   createdAt   DateTime @default(now()) @map("created_at")
 
   scorecard Scorecard @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
@@ -1229,4 +1238,123 @@ enum SourceChannel {
   import
 
   @@map("source_channel")
+}
+
+/// Notes taken DURING an interview, autosaved so a refresh mid-call does not
+/// lose them. Deliberately separate from Scorecard: a draft is private to its
+/// author and carries no verdict, so it can never be mistaken for a filed
+/// opinion by the hide-until-submitted gate (docs/01 §2.3).
+model ScorecardDraft {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  interviewId    String   @map("interview_id") @db.Uuid
+  orgUserId      String   @map("org_user_id") @db.Uuid
+  /// { ratings: {skillId: n}, notes: {skillId: text}, overall, recommendation }
+  payload        Json     @default("{}")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  orgUser   OrgUser   @relation(fields: [orgUserId], references: [id], onDelete: Cascade)
+
+  @@unique([interviewId, orgUserId])
+  @@map("scorecard_draft")
+}
+
+// ---------- Shared question bank (docs/01 §interviewer) ----------
+
+enum QuestionKind {
+  technical
+  system_design
+  behavioural
+  situational
+
+  @@map("question_kind")
+}
+
+/// A question any interviewer can contribute, tagged to the skills it probes.
+/// Tagging to `skill` rather than to a position is what lets a question written
+/// for one role surface automatically on every other role that needs the same
+/// competency — the bank compounds instead of fragmenting per requisition.
+model InterviewQuestion {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  prompt         String
+  /// What a STRONG answer usually covers. Deliberately not "the answer": a
+  /// checklist people grade against produces consistent scores and worse
+  /// hiring, so this is guidance for calibration, not a mark scheme.
+  rubric         String[]
+  /// Where to go if the first answer is thin.
+  followUps      String[]     @map("follow_ups")
+  kind           QuestionKind @default(technical)
+  /// 1..5, matching the scorecard scale so "a level-4 question" means the
+  /// same thing as "a level-4 answer".
+  level          Int          @default(3)
+  createdById    String?      @map("created_by_id") @db.Uuid
+  archivedAt     DateTime?    @map("archived_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  createdBy OrgUser?                 @relation(fields: [createdById], references: [id])
+  skills    InterviewQuestionSkill[]
+  usages    InterviewQuestionUsage[]
+
+  votes     InterviewQuestionVote[]
+  @@index([organizationId, archivedAt])
+  @@map("interview_question")
+}
+
+model InterviewQuestionSkill {
+  questionId String @map("question_id") @db.Uuid
+  skillId    String @map("skill_id") @db.Uuid
+
+  question InterviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  skill    Skill             @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, skillId])
+  @@map("interview_question_skill")
+}
+
+/// One row per (question asked, rating that followed).
+///
+/// This is what turns the bank from a shared document into a calibration
+/// instrument: a question everyone answers well tells you nothing, while one
+/// with a wide spread of ratings is doing real work. Recorded at filing time,
+/// when both the "I asked this" mark and the rating are known.
+model InterviewQuestionUsage {
+  id          String   @id @default(uuid()) @db.Uuid
+  questionId  String   @map("question_id") @db.Uuid
+  interviewId String   @map("interview_id") @db.Uuid
+  skillId     String   @map("skill_id") @db.Uuid
+  /// The rating given for that competency in the same scorecard. Null where
+  /// the question was asked but the competency was left "not assessed".
+  rating      Int?
+  askedAt     DateTime @default(now()) @map("asked_at")
+
+  question InterviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, interviewId, skillId])
+  @@index([questionId])
+  @@map("interview_question_usage")
+}
+
+/// One vote per person per question, changeable.
+///
+/// Deliberately a SEPARATE signal from usage spread: spread says whether a
+/// question separates candidates, a vote says whether interviewers think it is
+/// a good question to ask. A question can discriminate sharply and still be
+/// unfair or exhausting, and a well-liked question can buy no information at
+/// all — showing one without the other would hide half the picture.
+model InterviewQuestionVote {
+  questionId String   @map("question_id") @db.Uuid
+  orgUserId  String   @map("org_user_id") @db.Uuid
+  /// +1 or -1. Removing a vote deletes the row rather than storing 0.
+  value      Int
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  question InterviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  orgUser  OrgUser           @relation(fields: [orgUserId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, orgUserId])
+  @@index([questionId])
+  @@map("interview_question_vote")
 }

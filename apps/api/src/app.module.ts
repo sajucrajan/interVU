@@ -6,6 +6,7 @@ import { CandidatesModule } from "./candidates/candidates.module";
 import { EntitlementsModule } from "./entitlements/entitlements.module";
 import { FilesModule } from "./files/files.module";
 import { HealthModule } from "./health/health.module";
+import { QuestionsModule } from "./questions/questions.module";
 import { InterviewsModule } from "./interviews/interviews.module";
 import { MatchReviewsModule } from "./match-reviews/match-reviews.module";
 import { NotificationsModule } from "./notifications/notifications.module";
@@ -28,6 +29,7 @@ import { WorklistModule } from "./worklist/worklist.module";
 
 @Module({
   imports: [
+    QuestionsModule,
     PrismaModule,
     AuthModule,
     TenancyModule,

@@ -72,7 +72,7 @@ export class DebriefService {
                 notes: true,
                 submittedAt: true,
                 orgUser: { select: { id: true, name: true } },
-                competencies: { select: { skillId: true, rating: true } },
+                competencies: { select: { skillId: true, rating: true, note: true } },
               },
             },
           },
@@ -112,10 +112,16 @@ export class DebriefService {
     // Rows follow the POSITION's skill matrix, so the debrief and the job
     // description cannot drift apart.
     const rows = application.position.skills.map((ps) => {
-      const cells = scorecards.map((s) => ({
-        panelist_id: s.orgUser.id,
-        rating: s.competencies.find((c) => c.skillId === ps.skill.id)?.rating ?? null,
-      }));
+      const cells = scorecards.map((s) => {
+        const c = s.competencies.find((x) => x.skillId === ps.skill.id);
+        return {
+          panelist_id: s.orgUser.id,
+          rating: c?.rating ?? null,
+          // Captured live in the interview room. This is what turns a
+          // diverged row from an argument into a conversation.
+          note: c?.note ?? null,
+        };
+      });
       const given = cells.map((c) => c.rating).filter((r): r is number => r !== null);
       const spread = given.length > 1 ? Math.max(...given) - Math.min(...given) : 0;
       const mean = given.length ? given.reduce((a, b) => a + b, 0) / given.length : null;

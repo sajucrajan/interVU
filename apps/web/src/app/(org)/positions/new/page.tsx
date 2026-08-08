@@ -122,7 +122,7 @@ function NewPositionForm() {
   useEffect(() => {
     api<UnitNode[]>("/org-units")
       .then((tree) => setTeams(teamOptions(tree)))
-      .catch(() => router.push("/login"));
+      .catch(() => undefined);
     api<TemplateSummary[]>("/position-templates")
       .then(setTemplates)
       .catch(() => undefined);

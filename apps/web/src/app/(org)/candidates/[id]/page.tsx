@@ -101,10 +101,11 @@ export default function CandidateDossierPage() {
   useEffect(() => {
     api<Timeline>(`/candidates/${id}/timeline`)
       .then(setTl)
-      .catch((e) => {
-        if (e instanceof ApiError && e.status === 401) router.push("/login");
-        else setError("You don't have access to this candidate's history.");
-      });
+      .catch(() =>
+        // 401 is redirected centrally in lib/api; anything else here really
+        // is a scope problem rather than a lost session.
+        setError("You don't have access to this candidate's history."),
+      );
     api<Dossier>(`/candidates/${id}/dossier`)
       .then(setD)
       .catch(() => undefined);
