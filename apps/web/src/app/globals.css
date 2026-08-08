@@ -3515,3 +3515,8 @@ table.data td time {
   gap: 8px;
   flex: none;
 }
+
+/* A vote that did not save must not look like a vote that was withdrawn. */
+.vote-score.failed {
+  color: var(--bad);
+}

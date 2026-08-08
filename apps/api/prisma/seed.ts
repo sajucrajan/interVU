@@ -819,10 +819,17 @@ Outside production, dev header auth also works instead of a session:
         skipDuplicates: true,
       });
     }
-    // A couple of votes, including one clear thumbs-down, so the two signals
-    // visibly disagree: the "what does this language give you" question has a
-    // spread of 0 AND a negative score, which is the case for retiring it.
-    const voters = [iv1, iv2].filter(Boolean) as { id: string }[];
+    // Votes are cast by people the demo does NOT sign you in as. Seeding them
+    // as interviewer1/2 meant arriving with my_vote already set, so the first
+    // click on the thumb WITHDREW a vote you never knowingly cast and the
+    // score went down — the control looked broken while working correctly.
+    const voters = await prisma.orgUser.findMany({
+      where: {
+        organizationId: org.id,
+        email: { in: ["recruiter@acme.test", "hm.eng@acme.test", "admin@acme.test"] },
+      },
+      select: { id: true },
+    });
     const seeded = await prisma.interviewQuestion.findMany({
       where: { organizationId: org.id },
       select: { id: true, level: true, prompt: true },
