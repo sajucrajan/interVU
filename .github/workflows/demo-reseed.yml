@@ -16,8 +16,11 @@ on:
     - cron: "0 3 * * *"
   workflow_dispatch: {}
 
+# Shared with migrate.yml: exactly one job may touch the schema at a time.
+# This replaces Prisma's advisory lock, which is unreliable on Neon and is
+# disabled below.
 concurrency:
-  group: demo-reseed
+  group: db-migrate
   cancel-in-progress: false
 
 jobs:

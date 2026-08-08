@@ -44,13 +44,14 @@ EXPOSE 4000
 # Migrations run on boot so `compose up` is the whole install story.
 # Invoke the Prisma binary directly — `pnpm exec` would re-run a workspace
 # dependency check that can't resolve in the slim runtime image.
-# Neon (and any scale-to-zero Postgres) takes a few seconds to wake, and
-# Prisma's default connect timeout is 5s — so the very first deploy after an
-# idle spell fails with P1002 "reached but timed out" before the database is
-# even listening. Retrying is the honest fix: the database is not broken, it
-# is asleep.
+# Migrations do NOT run here.
 #
-# Still fails hard after 5 attempts rather than starting the server against an
-# unmigrated schema, which would trade a clear deploy failure for confusing
-# runtime errors.
-CMD ["sh", "-c", "n=0; until ./node_modules/.bin/prisma migrate deploy; do n=$((n+1)); if [ $n -ge 5 ]; then echo \"migrate deploy failed after $n attempts\"; exit 1; fi; echo \"migrate attempt $n failed — database may be waking, retrying in 6s\"; sleep 6; done; node dist/main.js"]
+# Render restarts a free instance on every wake from sleep, so migrating on
+# start meant migrating several times a day — and racing the reseed job for
+# Prisma's advisory lock, which is what made deploys fail with P1002.
+# Migrations belong in one deliberate place: .github/workflows/migrate.yml,
+# serialised against the reseed job by a shared concurrency group.
+#
+# Local compose opts in with RUN_MIGRATIONS_ON_START=true, where there is no
+# CI to do it and no second migrator to race.
+CMD ["sh", "-c", "if [ \"$RUN_MIGRATIONS_ON_START\" = \"true\" ]; then ./node_modules/.bin/prisma migrate deploy || exit 1; fi; node dist/main.js"]
