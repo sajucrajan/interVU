@@ -59,7 +59,7 @@ it), port `4000`.
 DATABASE_URL   = <neon pooled connection string>
 NODE_ENV       = production
 PORT           = 4000
-WEB_ORIGIN     = https://<web-service>.koyeb.app
+WEB_ORIGIN     = https://<web-service>.onrender.com
 ```
 
 `WEB_ORIGIN` is a placeholder on the first deploy — you do not know the web URL
@@ -78,7 +78,7 @@ build args: NEXT_PUBLIC_API_URL      = /api/v1
             NEXT_PUBLIC_DEMO_MODE    = true
             NEXT_PUBLIC_DEMO_ORG     = acme
             NEXT_PUBLIC_DEMO_PASSWORD = intervu-demo
-env:        API_PROXY_TARGET         = https://<api-service>.koyeb.app
+env:        API_PROXY_TARGET         = https://<api-service>.onrender.com
 ```
 
 Every `NEXT_PUBLIC_*` value is inlined into the client bundle at **build**
