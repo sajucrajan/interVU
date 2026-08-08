@@ -72,6 +72,11 @@ services:
       # Migrations need a direct connection (advisory locks). No pooler here,
       # so it is the same URL — it exists so the schema's directUrl resolves.
       DIRECT_DATABASE_URL: postgresql://intervu:intervu@postgres:5432/intervu
+      # Local only. On the deployed database migrations run in CI
+      # (.github/workflows/migrate.yml), serialised against the reseed job.
+      # Here there is no CI and no second migrator, so the container does it
+      # on start — without this a fresh local database gets no schema at all.
+      RUN_MIGRATIONS_ON_START: "true"
       PORT: 4000
       WEB_ORIGIN: http://localhost:3000
       S3_ENDPOINT: http://minio:9000
