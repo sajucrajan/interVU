@@ -3559,6 +3559,12 @@ table.data td time {
   pointer-events: none;
 }
 
+/* Nudged in by the same gutter, so "scrolled past the heading" is measured
+   where the heading actually is. */
+.sticky-sentinel {
+  left: clamp(1rem, 2.4vw, 2.6rem);
+}
+
 .sticky-id {
   position: sticky;
   top: 0;
@@ -3575,10 +3581,18 @@ table.data td time {
   border-bottom: 1px solid transparent;
   transition: max-height 0.14s ease, opacity 0.14s ease;
 }
+/* Shares the page's own gutter. The bar sits outside <main>, so without this
+   it starts hard against the rail while every heading below it is inset —
+   the two disagree and the bar reads as belonging to the nav, not the page. */
+.sticky-id {
+  padding-left: clamp(1rem, 2.4vw, 2.6rem);
+  padding-right: clamp(1rem, 2.4vw, 2.6rem);
+}
 .sticky-id.on {
   max-height: 64px;
   opacity: 1;
-  padding: 10px 0;
+  padding-top: 10px;
+  padding-bottom: 10px;
   border-bottom-color: var(--border);
 }
 
