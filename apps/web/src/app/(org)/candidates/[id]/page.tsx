@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { api, ApiError, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
+import { usePageIdentity } from "@/components/sticky-identity";
 
 interface Timeline {
   candidate: {
@@ -110,6 +111,10 @@ export default function CandidateDossierPage() {
       .then(setD)
       .catch(() => undefined);
   }, [id, router]);
+
+  usePageIdentity(
+    d ? { label: d.display_name, meta: d.reference ?? "Candidate master" } : null,
+  );
 
   if (error) return <main className="wide error">{error}</main>;
   if (!tl || !d) return <main className="wide muted">Loading…</main>;

@@ -3536,3 +3536,109 @@ table.data td time {
   color: var(--fg);
   border-color: var(--border);
 }
+
+/* ---- Condensed identity bar ------------------------------------------
+   Appears only once the page header has scrolled away. Deliberately does
+   not carry navigation: the rail is already sticky, so nothing is
+   unreachable and repeating it would cost space for nothing. ------------- */
+
+/* The bar lives in the org layout, so its host is the positioning context. */
+.sticky-host {
+  position: relative;
+}
+
+/* Roughly a header's worth of scroll before the bar arrives, so it replaces
+   the real heading rather than doubling it. Absolute: it measures scroll
+   position and must not occupy layout. */
+.sticky-sentinel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 110px;
+  pointer-events: none;
+}
+
+/* Nudged in by the same gutter, so "scrolled past the heading" is measured
+   where the heading actually is. */
+.sticky-sentinel {
+  left: clamp(1rem, 2.4vw, 2.6rem);
+}
+
+.sticky-id {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--step-4);
+  /* Collapsed rather than hidden, so it takes no space until it is stuck. */
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  background: var(--page);
+  border-bottom: 1px solid transparent;
+  transition: max-height 0.14s ease, opacity 0.14s ease;
+}
+/* Shares the page's own gutter. The bar sits outside <main>, so without this
+   it starts hard against the rail while every heading below it is inset —
+   the two disagree and the bar reads as belonging to the nav, not the page. */
+.sticky-id {
+  padding-left: clamp(1rem, 2.4vw, 2.6rem);
+  padding-right: clamp(1rem, 2.4vw, 2.6rem);
+}
+.sticky-id.on {
+  max-height: 80px;
+  opacity: 1;
+  padding-top: 13px;
+  padding-bottom: 13px;
+  border-bottom-color: var(--border);
+}
+
+.sticky-id-text {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+}
+/* The same display face as the heading it stands in for, scaled down. The
+   bar is the header condensed, so it should read as the same voice — set in
+   the UI face it looked like a label about the page rather than the page's
+   own title. */
+.sticky-id-text strong {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sticky-id-text .mono-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sticky-id-action {
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky-id {
+    transition: none;
+  }
+}
+
+/* The mobile rail is its own sticky bar at the top, so this sits under it
+   rather than competing for the same 0 offset. */
+@media (max-width: 900px) {
+  .sticky-id {
+    top: 72px;
+  }
+  .sticky-id-text .mono-label {
+    display: none;
+  }
+}

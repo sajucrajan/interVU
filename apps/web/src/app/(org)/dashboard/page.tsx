@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
 import { formatAge } from "@/components/age-pill";
 import type { Worklist } from "@/lib/worklist";
+import { usePageIdentity } from "@/components/sticky-identity";
 
 interface Me {
   kind: string;
@@ -69,6 +70,14 @@ export default function Dashboard() {
       .then((m) => setCaps(m.capabilities ?? []))
       .catch(() => undefined);
   }, [router]);
+
+  // The heading here is a HEADLINE — "21 things are waiting on you" — which
+  // reads oddly in a bar meant to answer "where am I". The count still
+  // matters though, so it moves to the meta slot where it belongs.
+  usePageIdentity({
+    label: "Today",
+    meta: wl && wl.total > 0 ? `${wl.total} waiting on you` : null,
+  });
 
   if (!wl) return <main className="wide muted">Loading…</main>;
 

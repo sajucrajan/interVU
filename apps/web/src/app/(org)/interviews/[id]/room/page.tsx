@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
 import { VoteButtons } from "@/components/vote";
+import { usePageIdentity } from "@/components/sticky-identity";
 
 interface Competency {
   skill_id: string;
@@ -267,6 +268,15 @@ export default function InterviewRoomPage() {
       setBusy(false);
     }
   }
+
+  usePageIdentity(
+    packet
+      ? {
+          label: packet.candidate.displayName,
+          meta: `${packet.position.reference ?? ""} ${packet.interview.round_name}`.trim(),
+        }
+      : null,
+  );
 
   if (error && !packet) {
     return (

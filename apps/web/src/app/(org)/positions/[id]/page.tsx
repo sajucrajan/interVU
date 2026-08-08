@@ -13,6 +13,7 @@ import {
   useKnownSkills,
   type SkillRow,
 } from "@/components/skill-matrix";
+import { usePageIdentity } from "@/components/sticky-identity";
 
 interface Detail {
   id: string;
@@ -88,6 +89,8 @@ export default function PositionDetailPage() {
     },
     [refresh],
   );
+
+  usePageIdentity(p ? { label: p.title, meta: p.reference } : null);
 
   if (!p) return <main className="wide muted">Loading…</main>;
 

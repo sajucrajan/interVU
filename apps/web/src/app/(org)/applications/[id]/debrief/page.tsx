@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
+import { usePageIdentity } from "@/components/sticky-identity";
 
 interface Cell {
   panelist_id: string;
@@ -123,6 +124,15 @@ export default function DebriefPage() {
   useEffect(load, [load]);
 
   if (error) return <main className="wide error">{error}</main>;
+  usePageIdentity(
+    d
+      ? {
+          label: d.candidate.displayName,
+          meta: `${d.position.reference ?? ""} ${d.position.title}`.trim(),
+        }
+      : null,
+  );
+
   if (!d) return <main className="wide muted">Loading…</main>;
 
   const strengths = d.competencies.filter((r) => r.consensus === "strong").map((r) => r.name);
