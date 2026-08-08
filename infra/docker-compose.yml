@@ -69,6 +69,9 @@ services:
       dockerfile: apps/api/Dockerfile
     environment:
       DATABASE_URL: postgresql://intervu:intervu@postgres:5432/intervu
+      # Migrations need a direct connection (advisory locks). No pooler here,
+      # so it is the same URL — it exists so the schema's directUrl resolves.
+      DIRECT_DATABASE_URL: postgresql://intervu:intervu@postgres:5432/intervu
       PORT: 4000
       WEB_ORIGIN: http://localhost:3000
       S3_ENDPOINT: http://minio:9000

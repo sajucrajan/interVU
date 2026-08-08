@@ -9,6 +9,16 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  /// Migrations cannot run through a connection pooler. They take a Postgres
+  /// advisory lock, and in transaction-pooling mode the lock is acquired on
+  /// one backend while the next statement lands on another — so it waits for
+  /// a lock it will never see and dies with P1002 "timed out trying to
+  /// acquire a postgres advisory lock".
+  ///
+  /// Pooled stays right for the running application, which opens and closes
+  /// connections constantly. Falls back to DATABASE_URL so a plain local
+  /// Postgres, which has no pooler in front of it, needs no second variable.
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ---------- Tenancy: organization & hierarchy ----------

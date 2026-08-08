@@ -34,8 +34,13 @@ services:
     # service restarted forever as unhealthy.
     healthCheckPath: /healthz
     envVars:
+      # Pooled: the running app opens and closes connections constantly.
       - key: DATABASE_URL
-        sync: false # paste the pooled Neon string in the dashboard
+        sync: false # the POOLED Neon string (host contains -pooler)
+      # Direct: migrations take an advisory lock, which a transaction pooler
+      # cannot hold across statements. Same string with -pooler removed.
+      - key: DIRECT_DATABASE_URL
+        sync: false # the DIRECT Neon string (no -pooler)
       - key: NODE_ENV
         value: production
       - key: PORT
