@@ -78,6 +78,15 @@ const LINKS: RailLink[] = [
   },
   {
     group: "Insight",
+    href: "/analytics/vendors",
+    label: "Vendor performance",
+    icon: "⚖",
+    // Commercial, not operational — this is the screen a fee is renegotiated
+    // from, so it follows the vendor permission rather than positions.view.
+    needs: "vendors.manage",
+  },
+  {
+    group: "Insight",
     href: "/explore",
     label: "Explorer",
     icon: "◎",
