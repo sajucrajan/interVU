@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { panelOwned } from "./panel-owned";
 import { requirementFit, sections } from "./requirement-fit";
 
 /**
@@ -103,8 +104,13 @@ export class ScreeningService {
       application_id: application.id,
       stage: application.currentStage,
       status: application.status,
-      /** Once anyone has interviewed, this is no longer a screening call. */
-      interviewed: application.interviews.length > 0,
+      /**
+       * Once a panel owns this, it is no longer a screening call — so the
+       * screen hides the reject button and points at the debrief instead.
+       * Same rule the decision endpoint enforces, so the page never offers
+       * an action the API will refuse.
+       */
+      interviewed: panelOwned(application.currentStage, application.interviews.length),
       already_decided: application.decision?.outcome ?? null,
       candidate: application.candidate,
       position: {

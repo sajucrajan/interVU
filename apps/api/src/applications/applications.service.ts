@@ -9,6 +9,7 @@ import type { Permission } from "../entitlements/permissions";
 import { AuthzService } from "../entitlements/authz.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { panelOwned } from "./panel-owned";
 
 @Injectable()
 export class ApplicationsService {
@@ -165,14 +166,27 @@ Track your submissions in the portal:
     // dozens a week and must be able to record the outcome of their own work;
     // overturning a panel is a hiring manager's call.
     //
-    // The line is INTERVIEWS, not stage: once anyone has been interviewed,
-    // even a rejection needs `decisions.record`, so a loop's conclusion can
-    // never be recorded by someone who did not see it.
-    const interviewed = await this.prisma.interview.count({
-      where: { applicationId, organizationId },
+    // The line is "has a panel taken this over yet", and an interview ROW is
+    // not a reliable answer to that. An application sits in the interviewing
+    // lane from the moment someone drags it there; the interview record is
+    // created later, when a time is actually agreed. Keying only on the row
+    // let a recruiter unilaterally reject a candidate the board was showing as
+    // mid-loop — every application in the interviewing and offer stages had
+    // zero interview rows, so the narrow rule covered none of them.
+    //
+    // Stage OR interviews, therefore. Either is enough to mean the outcome
+    // belongs to the loop, so a panel's conclusion can never be recorded by
+    // someone who did not see it.
+    const current = await this.prisma.application.findFirstOrThrow({
+      where: { id: applicationId, organizationId },
+      select: { currentStage: true },
     });
+    const owned = panelOwned(
+      current.currentStage,
+      await this.prisma.interview.count({ where: { applicationId, organizationId } }),
+    );
     const permission: Permission =
-      input.outcome === "reject" && interviewed === 0
+      input.outcome === "reject" && !owned
         ? "applications.reject"
         : "decisions.record";
     const application = await this.requireOnUnit(

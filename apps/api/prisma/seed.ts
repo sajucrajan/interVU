@@ -657,8 +657,12 @@ Outside production, dev header auth also works instead of a session:
   });
   const interviewCount = await prisma.interview.count({ where: { organizationId: org.id } });
   if (iv1 && iv2 && interviewCount === 0) {
+    // Applications actually IN the interviewing lane, not merely the oldest
+    // three. Picking by age put every interview on a card sitting in
+    // `submitted` or `screening`, so the board showed five candidates
+    // interviewing while /interviews showed three other people entirely.
     const candidates = await prisma.application.findMany({
-      where: { organizationId: org.id, status: "active" },
+      where: { organizationId: org.id, status: "active", currentStage: "interviewing" },
       orderBy: { createdAt: "asc" },
       take: 3,
       select: { id: true },
@@ -848,9 +852,21 @@ Outside production, dev header auth also works instead of a session:
     console.log(`Seeded ${BANK.length} bank questions with usage history and votes`);
   }
 
-  // A resume on the interviewed candidates, so the interview room has
-  // something to show. Plain text is enough: the room renders extracted TEXT,
-  // never the original file, so a realistic CV body is the whole fixture.
+  // A resume on every vendor-sourced application, because that is what a
+  // submission IS — a vendor sends a candidate by sending their CV.
+  //
+  // This used to cover only applications that had interviews, written when the
+  // interview room was the only thing that read a resume. Screening happens
+  // BEFORE any interview exists, so the screening packet was structurally
+  // starved: six of seven candidates in that stage showed 0% coverage and an
+  // empty comparison, which reads as a broken feature rather than a thin
+  // fixture.
+  //
+  // Direct applicants still get nothing, deliberately — they have no vendor
+  // submission to carry a file, and that empty state is worth seeing too.
+  //
+  // Plain text is enough: every screen renders extracted TEXT, never the
+  // original file, so a realistic CV body is the whole fixture.
   const RESUME = (name: string, title: string, tech: string) => `${name}
 ${title}
 
@@ -875,8 +891,20 @@ EDUCATION
 BSc Computer Science, University of Edinburgh
 `;
 
-  const interviewed = await prisma.application.findMany({
-    where: { organizationId: org.id, interviews: { some: {} } },
+  // The organization's own skill rows are the vocabulary the comparison
+  // matches against, so a CV that only lists technologies outside it can never
+  // produce an "also mentioned" chip. The old fixture appended Docker,
+  // PostgreSQL and CI/CD — none of which are skills here — which left that
+  // section of the screening packet permanently empty.
+  const vocab = await prisma.skill.findMany({
+    where: { organizationId: org.id },
+    select: { name: true },
+    orderBy: { name: "asc" },
+  });
+
+  const submitted = await prisma.application.findMany({
+    where: { organizationId: org.id, sourceSubmissionId: { not: null } },
+    orderBy: { createdAt: "asc" },
     select: {
       id: true,
       sourceSubmissionId: true,
@@ -884,16 +912,31 @@ BSc Computer Science, University of Edinburgh
       position: { select: { title: true, skills: { select: { skill: { select: { name: true } } } } } },
     },
   });
-  for (const a of interviewed) {
+  for (const [i, a] of submitted.entries()) {
     if (!a.sourceSubmissionId) continue;
     const existing = await prisma.attachment.count({
       where: { ownerType: "submission", ownerId: a.sourceSubmissionId, kind: "resume" },
     });
     if (existing > 0) continue;
-    // Deliberately drop the FIRST required skill from the CV text, so the
-    // room's "must-have with no evidence" callout has something real to find.
+    // Drop a varying number of required skills from the CV text, so coverage
+    // spreads across the board instead of every candidate scoring the same.
+    // Screening is a comparison, and a comparison where every row reads alike
+    // teaches a screener nothing about the screen.
+    //
+    // One in three shows every requirement — without a clean fit, the gaps
+    // callout looks like an artefact of the fixture rather than a finding.
     const names = a.position.skills.map((s) => s.skill.name);
-    const shown = names.slice(1).concat(["Docker", "PostgreSQL", "CI/CD"]);
+    // Two technologies this role never asked for, rotated so they differ per
+    // candidate: that is what the "also mentioned" section is for — spotting
+    // someone who is a poor fit here and an obvious one for the role next door.
+    const beyond = vocab
+      .map((s) => s.name)
+      .filter((n) => !names.includes(n))
+      .filter((_, j) => j % 5 === i % 5)
+      .slice(0, 2);
+    const shown = names
+      .slice(i % 3)
+      .concat(beyond, ["Docker", "PostgreSQL", "CI/CD"]);
     const text = RESUME(a.candidate.displayName, a.position.title, shown.join(", "));
     await prisma.attachment.create({
       data: {
@@ -939,12 +982,23 @@ BSc Computer Science, University of Edinburgh
   // A handful of direct applicants. These deliberately keep
   // source_submission_id null: a direct applicant has no vendor, and giving
   // them a fake one is precisely the invoice fraud the ownership rule blocks.
-  const directable = await prisma.application.findMany({
-    where: { organizationId: org.id, sourceChannel: "vendor" },
-    orderBy: { createdAt: "desc" },
-    take: 4,
-    select: { id: true },
+  //
+  // Guarded, because this block was not idempotent: it took four rows that
+  // were STILL marked vendor, and the ones it had already converted no longer
+  // matched — so every re-run ate four more. Two runs of `db:seed` took the
+  // vendor-sourced count from 26 to 18 and moved the channel mix the analytics
+  // page reports, with nothing to show that anything had changed.
+  const alreadyDirect = await prisma.application.count({
+    where: { organizationId: org.id, sourceChannel: { not: "vendor" } },
   });
+  const directable = alreadyDirect > 0
+    ? []
+    : await prisma.application.findMany({
+        where: { organizationId: org.id, sourceChannel: "vendor" },
+        orderBy: { createdAt: "desc" },
+        take: 4,
+        select: { id: true },
+      });
   const CHANNELS = ["careers", "referral", "careers", "internal"] as const;
   for (const [i, a] of directable.entries()) {
     await prisma.application.update({
