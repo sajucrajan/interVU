@@ -47,7 +47,7 @@ const ORG_PERSONAS: Persona[] = [
     role: "Recruiter",
     scope: "Whole organization",
     notice:
-      "The main workflow and the widest view. Screen submissions, arbitrate duplicate claims, move candidates, record decisions.",
+      "The main workflow and the widest view. Screen submissions against the role, arbitrate duplicate claims, move candidates, reject at screening. Recording a panel's verdict is the hiring manager's.",
     landing: "/dashboard",
   },
   {
@@ -419,6 +419,7 @@ export default function DemoPage() {
       </ul>
 
       <p className="demo-foot">
+        <Link href="/how-it-works">How it works</Link> ·{" "}
         <a href="https://github.com/sajucrajan/interVU">Source on GitHub</a> ·{" "}
         <Link href="/login">Sign in normally</Link> ·{" "}
         <Link href="/vendor/login">Vendor portal</Link>

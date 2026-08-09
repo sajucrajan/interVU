@@ -16,6 +16,12 @@ export default function Home() {
         </p>
       )}
       <ul>
+        {/* Not demo-gated: a self-hosted team needs the walkthrough more than
+            a visitor does — it is the page you send someone on day one. */}
+        <li>
+          <Link href="/how-it-works">How it works</Link> — the full path from an
+          open role to a signed offer
+        </li>
         <li>
           <Link href="/login">Organization workspace</Link> — internal sign-in
         </li>
