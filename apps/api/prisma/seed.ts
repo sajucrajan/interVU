@@ -1029,6 +1029,69 @@ BSc Computer Science, University of Edinburgh
     });
   }
 
+  // --- Rejections, so the vendor funnel is not a column of zeroes.
+  //
+  // Every figure the vendor analytics screen exists to show — rejected at
+  // screening, rejected after interview, screen-through rate — was 0 on a
+  // fresh database, because nothing here ever recorded a `reject`. A funnel
+  // where the only outcome is "offer" makes the whole screen look broken
+  // rather than empty, which is the same trap the resume fixture fell into.
+  //
+  // Two distinct kinds, because the product now distinguishes them and the
+  // difference is the point: a screening rejection costs a recruiter ten
+  // minutes, a post-interview rejection costs a panel three hours.
+  // Looked up rather than captured: the seed does not keep references to
+  // these users, and the decider matters — a screening rejection is the
+  // recruiter's to make, a post-interview one is not.
+  const deciderScreen = await prisma.orgUser.findFirst({
+    where: { organizationId: org.id, email: "recruiter@acme.test" },
+    select: { id: true },
+  });
+  const deciderPanel = await prisma.orgUser.findFirst({
+    where: { organizationId: org.id, email: "hm.eng@acme.test" },
+    select: { id: true },
+  });
+  const decidable = await prisma.application.findMany({
+    where: { organizationId: org.id, decision: null, sourceSubmissionId: { not: null } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, currentStage: true, interviews: { select: { id: true } } },
+  });
+  const REASONS = [
+    "Six years short on the platform side; no Kubernetes anywhere in the history.",
+    "Strong CV, but every example is greenfield — this role is mostly migration.",
+    "Comfortable with the stack, not with the on-call expectation.",
+    "Panel agreed: solid engineer, no system design depth at this level.",
+    "Two of three panelists had the same concern about ownership.",
+  ];
+  let rejected = 0;
+  for (const [i, a] of decidable.entries()) {
+    // Roughly a third, deterministic rather than random so a reseed produces
+    // the same board twice — screenshots and demos depend on it.
+    if (i % 3 !== 0) continue;
+    if (rejected >= 8) break;
+    const afterInterview = a.interviews.length > 0;
+    await prisma.decision.create({
+      data: {
+        organizationId: org.id,
+        applicationId: a.id,
+        outcome: "reject",
+        reason: REASONS[rejected % REASONS.length]!,
+        decidedById: afterInterview
+          ? (deciderPanel?.id ?? admin.id)
+          : (deciderScreen?.id ?? admin.id),
+      },
+    });
+    // "rejected", matching what decide() writes. `closed` is not a member of
+    // ApplicationStatus and a fixture that sets a state the app cannot
+    // produce teaches the wrong thing about the product.
+    await prisma.application.update({
+      where: { id: a.id },
+      data: { status: "rejected" },
+    });
+    rejected++;
+  }
+  console.log(`Seeded ${rejected} rejections across screening and post-interview`);
+
   // --- Per-competency ratings on the seeded scorecards, so the debrief has a
   // matrix to show and one row where the panel genuinely disagrees.
   const seededCards = await prisma.scorecard.findMany({
