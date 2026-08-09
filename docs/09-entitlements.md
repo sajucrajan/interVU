@@ -66,6 +66,7 @@ The five built-ins start with these permissions (an organization can change any 
 | `panels.manage` (skill-tagged panelist pools) | ✓ | ✓ | ✓ (own scope) | — | — |
 | `org.settings` (incl. white-label branding) | ✓ | — | — | — | — |
 | `scorecards.submit` | — | — | — | — | ✓ (own interviews) |
+| `applications.reject` (screening, pre-interview) | ✓ | ✓ | ✓ | — | — |
 | `decisions.record` | ✓ | — | ✓ | — | — |
 | `vendors.manage` | ✓ | — | — | — | — |
 | `org.manage_structure` (units/teams) | ✓ | — | — | — | — |
@@ -131,6 +132,26 @@ single-use activation link (`/activate?token=…`):
   configured can still onboard people.
 - Missing, spent and expired tokens return one identical error, so probing
   reveals nothing about which tokens ever existed.
+
+### Rejecting at screening is not deciding a loop
+
+`applications.reject` and `decisions.record` are separate because the two acts
+are separate. A screening rejection is a recruiter's own work, made dozens of
+times a week on a CV. A post-interview outcome confirms or overturns a panel,
+and belongs to whoever owns the role.
+
+They were one permission at first, which meant the people doing the screening
+could not record the result of it — the queue said "19 to screen" and the only
+way to finish was to ask someone else.
+
+**The line is interviews, not stage.** Once anyone has interviewed a candidate,
+even a rejection needs `decisions.record`, so a loop's conclusion can never be
+recorded by someone who did not see it. Before any interview,
+`applications.reject` is enough.
+
+**The UI hides what the viewer cannot do.** The board's action menu is built
+from the same capability list the rail uses. An action you can see but cannot
+take reads as a bug, which is exactly how the first version was reported.
 
 ## 4. Contextual entitlements (where pure RBAC isn't enough)
 

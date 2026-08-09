@@ -11,6 +11,7 @@ import { InterviewsService } from "../interviews/interviews.service";
 import { OrgScope, Tenant } from "../tenancy/scope.decorator";
 import type { TenantContext } from "../tenancy/tenant-context";
 import { ApplicationsService } from "./applications.service";
+import { ScreeningService } from "./screening.service";
 import { OffersService } from "./offers.service";
 
 @Controller("applications")
@@ -18,6 +19,7 @@ import { OffersService } from "./offers.service";
 export class ApplicationsController {
   constructor(
     private readonly applications: ApplicationsService,
+    private readonly screening_: ScreeningService,
     private readonly interviews: InterviewsService,
     private readonly authz: AuthzService,
     private readonly offers: OffersService,
@@ -48,6 +50,19 @@ export class ApplicationsController {
       tenant.org!.user.id,
       input,
     );
+  }
+
+  /**
+   * The screening packet. Needs only `submissions.view`: screening IS the
+   * recruiter's job, and the queue has been pointing at it since M2.
+   */
+  @Get(":id/screening")
+  async screening(@Tenant() tenant: TenantContext, @Param("id", ParseUUIDPipe) id: string) {
+    const access = await this.authz.access(tenant);
+    await this.applications.requireOnUnit(
+      tenant.org!.organizationId, id, access, "submissions.view",
+    );
+    return this.screening_.screen(tenant.org!.organizationId, id);
   }
 
   @Post(":id/decision")

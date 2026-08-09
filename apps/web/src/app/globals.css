@@ -3642,3 +3642,48 @@ table.data td time {
     display: none;
   }
 }
+
+/* ---- Screening ------------------------------------------------------- */
+
+.screen-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: var(--step-5);
+  align-items: start;
+}
+.screen-actions {
+  position: sticky;
+  top: var(--step-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: var(--step-4);
+}
+.screen-actions button {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.screen-coverage {
+  text-align: right;
+  flex: none;
+}
+.screen-coverage .figure {
+  font-size: 34px;
+  line-height: 1;
+}
+.screen-decided {
+  display: inline-block;
+  margin-bottom: var(--step-4);
+}
+.screen-reqs .gap-row {
+  background: var(--warn-wash);
+}
+
+@media (max-width: 1100px) {
+  .screen-grid {
+    grid-template-columns: 1fr;
+  }
+  .screen-actions {
+    position: static;
+  }
+}

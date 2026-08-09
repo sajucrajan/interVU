@@ -105,6 +105,12 @@ function PipelineBoard() {
       if (!a.decision) {
         items.push(
           { label: "Decision", heading: true },
+          // Screening is where most candidates actually end, so it comes
+          // first — before the debrief, which only applies after a loop.
+          {
+            label: "Screen against this role…",
+            onSelect: () => router.push(`/applications/${a.id}/screen`),
+          },
           // Where a LOOP resolves. The one-click actions below stay for the
           // pre-interview case, which needs no panel to reconcile.
           {
@@ -293,6 +299,15 @@ function ScheduleInterviewForm({
       </select>
       <div className="row" style={{ marginTop: "1rem" }}>
         <button
+          // Say what is missing. This was silently inert with no explanation,
+          // which reads as a broken button rather than an incomplete form.
+          title={
+            !when
+              ? "Pick a date and time first"
+              : panel.length === 0
+                ? "Choose at least one panelist"
+                : undefined
+          }
           disabled={busy || !when || panel.length === 0}
           onClick={async () => {
             setBusy(true);
@@ -318,6 +333,15 @@ function ScheduleInterviewForm({
           {busy ? "Scheduling…" : "Schedule"}
         </button>
       </div>
+      {!busy && (!when || panel.length === 0) && (
+        <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+          {!when && panel.length === 0
+            ? "Pick a date and time, and at least one panelist."
+            : !when
+              ? "Pick a date and time."
+              : "Choose at least one panelist."}
+        </p>
+      )}
       {error && <p className="error">{error}</p>}
     </>
   );

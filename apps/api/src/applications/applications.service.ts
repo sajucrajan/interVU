@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import type { DecisionCreate, StageTransitionCreate } from "@intervu/contracts";
 import type { Access } from "../entitlements/access";
+import type { Permission } from "../entitlements/permissions";
 import { AuthzService } from "../entitlements/authz.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -84,7 +85,10 @@ Track your submissions in the portal:
     organizationId: string,
     applicationId: string,
     access: Access,
-    permission: "applications.transition" | "decisions.record" | "interviews.schedule",
+    // Typed as Permission rather than a hand-kept union: the union was a
+    // whitelist that silently rejected any permission nobody had remembered
+    // to add.
+    permission: Permission,
   ) {
     const application = await this.prisma.application.findFirst({
       where: { id: applicationId, organizationId },
@@ -155,11 +159,26 @@ Track your submissions in the portal:
     actorId: string,
     input: DecisionCreate,
   ) {
+    // A screening rejection and a post-interview verdict are different acts,
+    // made by different people, carrying different weight. Recruiters screen
+    // dozens a week and must be able to record the outcome of their own work;
+    // overturning a panel is a hiring manager's call.
+    //
+    // The line is INTERVIEWS, not stage: once anyone has been interviewed,
+    // even a rejection needs `decisions.record`, so a loop's conclusion can
+    // never be recorded by someone who did not see it.
+    const interviewed = await this.prisma.interview.count({
+      where: { applicationId, organizationId },
+    });
+    const permission: Permission =
+      input.outcome === "reject" && interviewed === 0
+        ? "applications.reject"
+        : "decisions.record";
     const application = await this.requireOnUnit(
       organizationId,
       applicationId,
       access,
-      "decisions.record",
+      permission,
     );
     const existing = await this.prisma.decision.findUnique({
       where: { applicationId: application.id },
