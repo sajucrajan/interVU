@@ -87,7 +87,13 @@ supply three values it deliberately does not store.
 
    | Prompt | Value |
    |---|---|
-   | `DATABASE_URL` | the pooled Neon string |
+   | `DATABASE_URL` | the **pooled** Neon string (host contains `-pooler`) |
+   | `DIRECT_DATABASE_URL` | the **direct** one — same string, `-pooler` removed |
+
+   Two connections on purpose. The running app opens and closes connections
+   constantly and wants the pooler; migrations take a Postgres advisory lock,
+   which a transaction pooler cannot hold across statements, and fail with
+   `P1002 timed out trying to acquire a postgres advisory lock`.
 
 4. **Apply**. Both services build; 5–10 minutes the first time.
 
@@ -125,7 +131,9 @@ after the first deploy the database is still empty.
 1. GitHub → your repo → **Settings** → **Secrets and variables** →
    **Actions** → **New repository secret**
    - **Name:** `DEMO_DATABASE_URL`
-   - **Value:** the same pooled Neon string
+   - **Value:** the **direct** Neon string — `-pooler` removed. This job is
+     nothing but migrations, so the pooled endpoint deadlocks on the advisory
+     lock.
 2. **Actions** tab → **Reset demo data** → **Run workflow** → **Run workflow**
 3. ~2 minutes. A green tick means done.
 

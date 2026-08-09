@@ -44,6 +44,10 @@ jobs:
         # "succeeding" against nothing.
         env:
           DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+          # This job is nothing BUT migrations, so it needs the direct
+          # endpoint. Defaults to the same secret for a database with no
+          # pooler in front of it.
+          DIRECT_DATABASE_URL: ${{ secrets.DEMO_DIRECT_DATABASE_URL || secrets.DEMO_DATABASE_URL }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
             echo "::error::DEMO_DATABASE_URL is not set — nothing was reset."

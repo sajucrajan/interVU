@@ -51,6 +51,11 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://intervu:intervu@localhost:5432/intervu
+      # Prisma's directUrl does NOT fall back when its variable is missing —
+      # it fails schema validation outright (P1012), so every environment that
+      # loads the schema has to define it. No pooler in CI, so it is the same
+      # URL as above.
+      DIRECT_DATABASE_URL: postgresql://intervu:intervu@localhost:5432/intervu
     steps:
       - uses: actions/checkout@v4
 
