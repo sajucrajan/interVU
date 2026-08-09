@@ -133,6 +133,7 @@ single-use activation link (`/activate?token=…`):
 - Missing, spent and expired tokens return one identical error, so probing
   reveals nothing about which tokens ever existed.
 
+<<<<<<< HEAD
 ### Rejecting at screening is not deciding a loop
 
 `applications.reject` and `decisions.record` are separate because the two acts
@@ -152,6 +153,23 @@ recorded by someone who did not see it. Before any interview,
 **The UI hides what the viewer cannot do.** The board's action menu is built
 from the same capability list the rail uses. An action you can see but cannot
 take reads as a bug, which is exactly how the first version was reported.
+=======
+### Reading a debrief is not deciding
+
+Viewing `/applications/:id/debrief` needs `submissions.view`; recording the
+decision, editing the internal reason and releasing the vendor packet all need
+`decisions.record`.
+
+They were the same permission at first, which locked recruiters — the main
+workflow role, and the people who chase outstanding scorecards and draft the
+vendor-facing packet — out of the screen entirely. Seeing where a loop stands
+is coordination; calling the outcome is not.
+
+**The UI hides what the viewer cannot do.** The pipeline board's action menu is
+built from the same capability list the rail uses, so a recruiter is never
+offered "Record offer" and then refused by the API. An action you can see but
+cannot take is worse than one that is absent, because it reads as a bug.
+>>>>>>> origin/feat/board-dnd-and-permissions
 
 ## 4. Contextual entitlements (where pure RBAC isn't enough)
 

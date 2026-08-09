@@ -85,9 +85,10 @@ Track your submissions in the portal:
     organizationId: string,
     applicationId: string,
     access: Access,
-    // Typed as Permission rather than a hand-kept union: the union was a
-    // whitelist that silently rejected any permission nobody had remembered
-    // to add.
+    // Typed as Permission rather than a hand-kept union: the union silently
+    // became a whitelist, and both widening the debrief read and adding
+    // applications.reject failed to compile for no reason other than that
+    // nobody had added them to it.
     permission: Permission,
   ) {
     const application = await this.prisma.application.findFirst({

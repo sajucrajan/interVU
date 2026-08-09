@@ -85,6 +85,7 @@ export function PipelineBoard({
   positionId,
   actionsFor,
   reloadKey,
+  onMove,
 }: {
   view: string;
   onView: (key: string) => void;
@@ -97,8 +98,19 @@ export function PipelineBoard({
   actionsFor?: (card: BoardCard) => MenuItem[];
   /** Lets the page refresh the board after one of those actions. */
   reloadKey?: number;
+  /**
+   * Dropping a card on a lane. Kept alongside the menu, never replacing it:
+   * dragging is unusable by keyboard and invisible to a screen reader, so the
+   * menu remains the accessible path to the same move.
+   *
+   * Absent (or the viewer lacks `applications.transition`) and cards are not
+   * draggable at all — better than a card that lifts and then refuses.
+   */
+  onMove?: (cardId: string, toStage: string) => Promise<void>;
 }) {
   const [data, setData] = useState<BoardData | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -288,7 +300,38 @@ export function PipelineBoard({
         {visibleColumns.map((col) => {
           const cards = col.cards.filter(matches);
           return (
-            <div className="board-col" key={col.stage}>
+            <div
+              key={col.stage}
+              className={`board-col${dropTarget === col.stage ? " drop-target" : ""}`}
+              onDragOver={(e) => {
+                // A lane only accepts a card that is not already in it. The
+                // default is to REFUSE a drop, so this must be prevented for
+                // the cursor to say "move" rather than "no".
+                if (!onMove || !dragging) return;
+                const from = visibleColumns.find((x) =>
+                  x.cards.some((c) => c.id === dragging),
+                );
+                if (from?.stage === col.stage) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDropTarget(col.stage);
+              }}
+              onDragLeave={(e) => {
+                // Ignore the events fired while crossing child elements.
+                if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                setDropTarget((t) => (t === col.stage ? null : t));
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const id = dragging ?? e.dataTransfer.getData("text/plain");
+                setDragging(null);
+                setDropTarget(null);
+                // The page owns the call and the error surface, so a refusal
+                // (a WIP cap, a permission) is reported the same way whether
+                // it came from the menu or from a drag.
+                if (id && onMove) void onMove(id, col.stage);
+              }}
+            >
               <div className="board-col-head">
                 <span className="mono-label">{STAGE_LABEL[col.stage] ?? col.stage}</span>
                 <span className="figure board-col-count">{cards.length}</span>
@@ -310,9 +353,20 @@ export function PipelineBoard({
               {cards.map((c) => (
                 <div
                   key={c.id}
+                  draggable={!!onMove}
+                  onDragStart={(e) => {
+                    setDragging(c.id);
+                    e.dataTransfer.effectAllowed = "move";
+                    // Some browsers refuse to start a drag without payload.
+                    e.dataTransfer.setData("text/plain", c.id);
+                  }}
+                  onDragEnd={() => {
+                    setDragging(null);
+                    setDropTarget(null);
+                  }}
                   className={`pipe-card${c.hatched ? " hatched" : ""}${
                     selected.has(c.id) ? " selected" : ""
-                  }`}
+                  }${dragging === c.id ? " dragging" : ""}`}
                   style={{ borderLeftColor: AGE_COLOR[c.age_state] }}
                   onClick={(e) => {
                     // Clicking the card body selects; links still navigate.
