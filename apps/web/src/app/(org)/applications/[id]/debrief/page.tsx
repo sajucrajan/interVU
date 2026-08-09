@@ -123,7 +123,10 @@ export default function DebriefPage() {
 
   useEffect(load, [load]);
 
-  if (error) return <main className="wide error">{error}</main>;
+  // Above the early returns: a hook skipped on the error path changes the
+  // hook count between renders, and React throws — which surfaces as a bare
+  // "client-side exception" with nothing pointing at the cause. This page
+  // returns early on 403, so it hit that the moment recruiters could reach it.
   usePageIdentity(
     d
       ? {
@@ -132,6 +135,8 @@ export default function DebriefPage() {
         }
       : null,
   );
+
+  if (error) return <main className="wide error">{error}</main>;
 
   if (!d) return <main className="wide muted">Loading…</main>;
 
