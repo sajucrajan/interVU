@@ -3915,3 +3915,63 @@ table.data td time {
     display: none;
   }
 }
+
+/* ---- Position brief ----------------------------------------------------
+   The read-only role, for an interviewer or a vendor. Narrower than the
+   editing surface: this is a document to read, not a form to work. -------- */
+
+.brief-page {
+  max-width: 860px;
+}
+.brief-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--step-3) var(--step-4);
+  margin: var(--step-4) 0 var(--step-5);
+  padding: var(--step-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--sunk);
+}
+.brief-facts dt {
+  margin-bottom: 4px;
+}
+.brief-facts dd {
+  margin: 0;
+  text-transform: capitalize;
+}
+.brief-jd pre {
+  white-space: pre-wrap;
+  font: inherit;
+  margin: 0 0 var(--step-5);
+  max-width: 68ch;
+}
+.brief-skills {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--step-5);
+}
+.brief-skills li {
+  display: flex;
+  align-items: center;
+  gap: var(--step-3);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.brief-skills li:last-child {
+  border-bottom: 0;
+}
+/* Stated, not silently absent — a reader who cannot tell a withheld band from
+   a role that never set one eventually reports the wrong bug. */
+.brief-withheld {
+  border-left: 2px solid var(--border);
+  padding-left: var(--step-3);
+  max-width: 62ch;
+  margin: var(--step-5) 0;
+  font-size: 14px;
+}
+.brief-back {
+  border-top: 1px solid var(--hairline);
+  padding-top: var(--step-4);
+  margin-top: var(--step-5);
+}
