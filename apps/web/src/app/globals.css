@@ -14,10 +14,32 @@
   --bg: #faf9f5;
   --sunk: #eceadf;          /* inset wells, track backgrounds, row hover */
 
-  /* ink */
+  /* ink
+
+     --faint is a TEXT colour despite the name: 22 of its 28 uses are `color`,
+     and the loudest of them is .mono-label, which is 10px uppercase mono —
+     the hardest thing on the page to read. It was #8f8b7e, measuring 2.99:1
+     against --page where WCAG AA asks 4.5:1 for text this size.
+
+     Darkened to the lightest value that clears 4.5:1 on ALL THREE surfaces a
+     label can land on — --page, the lighter --bg, and --sunk, which is row
+     hover and inset wells. Two surfaces was the first attempt and --sunk
+     still failed at 4.28:1: a label that passes until you hover the row is
+     not a label that passes. Labels stay quiet, which is their job.
+
+     The half-dozen border uses darken with it; a rule at 4.5:1 is not a
+     regression when non-text UI only needs 3:1. */
   --fg: #14130f;
   --muted: #5c5850;
-  --faint: #8f8b7e;
+  --faint: #6d695f; /* page 4.80 · bg 5.20 · sunk 4.54 */
+
+  /* KNOWN, deliberately not changed here: --accent measures 3.87:1 in light
+     and 3.98:1 in dark against --bg, so it clears AA for large or bold text
+     but not for body-size links. Fixing it means moving the brand colour,
+     which touches buttons, chart series and the sunburst — a decision about
+     the product's identity, not a contrast patch, and not something to slip
+     into a change about labels. Call sites that use it for text below 18px
+     should carry their own weight or size until then. */
 
   /* rules */
   --border: #dcd8ca;
@@ -71,7 +93,10 @@ html[data-theme="dark"] {
   --sunk: #141312;
   --fg: #f5f3ec;
   --muted: #a6a196;
-  --faint: #726e65;
+  /* Lightened rather than darkened, same 4.5:1 target on both surfaces.
+     Dark mode was failing too, at 3.77:1 — less badly, which is exactly why
+     nobody had noticed it. */
+  --faint: #858176; /* page 4.92 · bg 4.52 · sunk 4.77 */
   --border: #2b2926;
   --hairline: rgba(245, 243, 236, 0.12);
   --hatch: rgba(245, 243, 236, 0.12);
@@ -3756,6 +3781,11 @@ table.data td time {
 }
 .hiw-step-n {
   font-size: 20px;
+  /* 700, not the .mono-label 600 it inherits. At 20px that makes it large
+     bold text, which WCAG asks 3:1 of rather than 4.5:1 — and --accent
+     measures 3.87:1. The weight is doing accessibility work here, not just
+     looking heavier. See the note on --accent in the ink block. */
+  font-weight: 700;
   color: var(--accent);
   line-height: 1.2;
 }
