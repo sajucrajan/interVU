@@ -18,11 +18,21 @@ export class DebriefController {
     private readonly debriefs: DebriefService,
   ) {}
 
+  /**
+   * Reading a debrief needs `submissions.view`, not `decisions.record`.
+   *
+   * Recruiters run the process — chasing outstanding scorecards and drafting
+   * the vendor-facing packet is their job — but they deliberately do not hold
+   * `decisions.record` (docs/09 §2), so gating the READ on it locked the main
+   * workflow role out of the screen entirely. Recording the decision and
+   * editing the internal reason stay restricted below; only looking is
+   * widened.
+   */
   @Get(":id/debrief")
   async get(@Tenant() tenant: TenantContext, @Param("id", ParseUUIDPipe) id: string) {
     const access = await this.authz.access(tenant);
     await this.applications.requireOnUnit(
-      tenant.org!.organizationId, id, access, "decisions.record",
+      tenant.org!.organizationId, id, access, "submissions.view",
     );
     return this.debriefs.debrief(tenant.org!.organizationId, id);
   }

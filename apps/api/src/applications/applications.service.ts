@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import type { DecisionCreate, StageTransitionCreate } from "@intervu/contracts";
 import type { Access } from "../entitlements/access";
+import type { Permission } from "../entitlements/permissions";
 import { AuthzService } from "../entitlements/authz.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -84,7 +85,10 @@ Track your submissions in the portal:
     organizationId: string,
     applicationId: string,
     access: Access,
-    permission: "applications.transition" | "decisions.record" | "interviews.schedule",
+    // Typed as Permission rather than a hand-kept union: the union silently
+    // became a whitelist, and widening the debrief read to submissions.view
+    // failed to compile for no reason other than that nobody had added it.
+    permission: Permission,
   ) {
     const application = await this.prisma.application.findFirst({
       where: { id: applicationId, organizationId },

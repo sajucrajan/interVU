@@ -3642,3 +3642,24 @@ table.data td time {
     display: none;
   }
 }
+
+/* ---- Pipeline drag and drop ------------------------------------------
+   Alongside the actions menu, never instead of it: dragging is unusable by
+   keyboard and invisible to a screen reader. ---------------------------- */
+
+.pipe-card[draggable="true"] {
+  cursor: grab;
+}
+.pipe-card.dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+/* The lane says it will accept the card before you let go — a drop that
+   silently does nothing is indistinguishable from a broken one. */
+.board-col.drop-target {
+  background: var(--accent-wash);
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+  border-radius: var(--radius);
+}
