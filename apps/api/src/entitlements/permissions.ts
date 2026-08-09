@@ -17,6 +17,7 @@ export type Permission =
   | "interviews.schedule"
   | "panels.manage"
   | "scorecards.submit"
+  | "applications.reject"
   | "decisions.record"
   | "vendors.manage"
   | "org.manage_structure"
@@ -54,6 +55,10 @@ export const PERMISSION_GROUPS: {
       { key: "interviews.schedule", label: "Schedule interviews" },
       { key: "panels.manage", label: "Manage panels" },
       { key: "scorecards.submit", label: "Submit scorecards" },
+      {
+        key: "applications.reject",
+        label: "Reject at screening (before interviews)",
+      },
       { key: "decisions.record", label: "Record hire/no-hire decisions" },
     ],
   },
@@ -101,6 +106,7 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
       "applications.transition",
       "interviews.schedule",
       "panels.manage",
+      "applications.reject",
       "decisions.record",
       "vendors.manage",
       "org.manage_structure",
@@ -124,6 +130,7 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
       "candidates.merge",
       "candidates.flag",
       "applications.transition",
+      "applications.reject",
       "interviews.schedule",
       "panels.manage",
     ],
@@ -140,6 +147,7 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
       "applications.transition",
       "interviews.schedule",
       "panels.manage",
+      "applications.reject",
       "decisions.record",
     ],
   },

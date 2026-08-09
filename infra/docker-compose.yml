@@ -100,11 +100,23 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
-        # Off by default. `DEMO_MODE=true docker compose --profile app build web`
-        # publishes /demo locally, the same way the deployment does (docs/11).
-        # It is a BUILD arg because Next inlines NEXT_PUBLIC_* at build time —
-        # setting it at runtime does nothing.
-        NEXT_PUBLIC_DEMO_MODE: ${DEMO_MODE:-false}
+        # On by default here, off by default in the image (apps/web/Dockerfile),
+        # because those are different audiences: this compose file IS the demo
+        # stack — seeded accounts, a public password, mailpit instead of a mail
+        # server — so a /demo that 404s locally only means the one screen you
+        # cannot check is the one visitors land on.
+        #
+        # `DEMO_MODE=false docker compose --profile app build web` turns it off.
+        # A real install builds the image directly and gets the safe default.
+        #
+        # BUILD arg, not environment: Next inlines NEXT_PUBLIC_* at build time,
+        # so setting this at runtime does nothing at all.
+        NEXT_PUBLIC_DEMO_MODE: ${DEMO_MODE:-true}
+        # Kept alongside it so this file states the whole demo contract rather
+        # than half of it inheriting from the Dockerfile. These must match the
+        # seed, which is where the accounts on /demo actually come from.
+        NEXT_PUBLIC_DEMO_ORG: ${DEMO_ORG:-acme}
+        NEXT_PUBLIC_DEMO_PASSWORD: ${DEMO_PASSWORD:-intervu-demo}
     ports:
       - "3000:3000"
     depends_on:

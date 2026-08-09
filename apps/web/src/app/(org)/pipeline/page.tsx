@@ -51,6 +51,7 @@ function PipelineBoard() {
   const [users, setUsers] = useState<OrgUserRow[]>([]);
   const [scheduleFor, setScheduleFor] = useState<Application | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [caps, setCaps] = useState<string[] | null>(null);
   /** Bumped after any action so the board refetches alongside the page data. */
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -68,6 +69,17 @@ function PipelineBoard() {
   useEffect(() => {
     refresh().catch(() => undefined);
   }, [refresh, router]);
+
+  // The menu used to offer every action to everyone and let the API refuse.
+  // A recruiter — the main workflow role — does not hold `decisions.record`
+  // (docs/09 §2), so three items existed only to fail when clicked.
+  useEffect(() => {
+    api<{ capabilities?: string[] }>("/auth/me")
+      .then((m) => setCaps(m.capabilities ?? []))
+      .catch(() => setCaps([]));
+  }, []);
+
+  const can = (p: string) => caps === null || caps.includes(p);
 
   const act = useCallback(
     async (fn: () => Promise<unknown>) => {
@@ -96,21 +108,36 @@ function PipelineBoard() {
             }),
           ),
       }));
-      const items: MenuItem[] = [
-        { label: "Move stage", heading: true },
-        ...moves,
-        { label: "Interview", heading: true },
-        { label: "Schedule interview…", onSelect: () => setScheduleFor(a) },
-      ];
+      const items: MenuItem[] = [];
+      if (can("applications.transition")) {
+        items.push({ label: "Move stage", heading: true }, ...moves);
+      }
+      if (can("interviews.schedule")) {
+        items.push(
+          { label: "Interview", heading: true },
+          { label: "Schedule interview…", onSelect: () => setScheduleFor(a) },
+        );
+      }
       if (!a.decision) {
         items.push(
           { label: "Decision", heading: true },
-          // Where a LOOP resolves. The one-click actions below stay for the
-          // pre-interview case, which needs no panel to reconcile.
+          // Screening is where most candidates actually end, so it comes
+          // first — before the debrief, which only applies after a loop.
+          {
+            label: "Screen against this role…",
+            onSelect: () => router.push(`/applications/${a.id}/screen`),
+          },
+          // Where a LOOP resolves. Readable by anyone who can see the board —
+          // recruiters chase the outstanding scorecards — while recording the
+          // decision below needs `decisions.record`.
           {
             label: "Open debrief…",
             onSelect: () => router.push(`/applications/${a.id}/debrief`),
           },
+        );
+      }
+      if (!a.decision && can("decisions.record")) {
+        items.push(
           {
             label: "Record offer",
             tone: "primary",
@@ -144,7 +171,10 @@ function PipelineBoard() {
       );
       return items;
     },
-    [act, router],
+    // caps belongs here: without it the menu is built once while capabilities
+    // are still loading — when `can()` optimistically returns true — and never
+    // rebuilt, so the gating had no effect at all.
+    [act, router, caps],
   );
 
   if (!apps) return <main className="wide muted">Loading…</main>;
@@ -174,6 +204,19 @@ function PipelineBoard() {
         stage={stageParam}
         positionId={positionParam}
         reloadKey={reloadKey}
+        // Only when the viewer can actually transition — otherwise a card
+        // lifts and then refuses, which is worse than not lifting.
+        onMove={
+          can("applications.transition")
+            ? (id: string, toStage: string) =>
+                act(() =>
+                  api(`/applications/${id}/transition`, {
+                    method: "POST",
+                    body: { to_stage: toStage },
+                  }),
+                )
+            : undefined
+        }
         actionsFor={(card) => {
           const app = apps.find((a) => a.id === card.id);
           return app ? menuFor(app) : [];
@@ -293,6 +336,15 @@ function ScheduleInterviewForm({
       </select>
       <div className="row" style={{ marginTop: "1rem" }}>
         <button
+          // Say what is missing. This was silently inert with no explanation,
+          // which reads as a broken button rather than an incomplete form.
+          title={
+            !when
+              ? "Pick a date and time first"
+              : panel.length === 0
+                ? "Choose at least one panelist"
+                : undefined
+          }
           disabled={busy || !when || panel.length === 0}
           onClick={async () => {
             setBusy(true);
@@ -318,6 +370,15 @@ function ScheduleInterviewForm({
           {busy ? "Scheduling…" : "Schedule"}
         </button>
       </div>
+      {!busy && (!when || panel.length === 0) && (
+        <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+          {!when && panel.length === 0
+            ? "Pick a date and time, and at least one panelist."
+            : !when
+              ? "Pick a date and time."
+              : "Choose at least one panelist."}
+        </p>
+      )}
       {error && <p className="error">{error}</p>}
     </>
   );

@@ -165,6 +165,7 @@ correct. A 404 means the request never left the web service.
 
 | Check | Expected |
 |---|---|
+| `<web-url>/how-it-works` | twelve steps, and a role matrix read live from the API |
 | `<web-url>/demo` | six personas, one-click sign-in |
 | Sign in as Riley | dashboard with a populated queue |
 | **Analytics**, bottom | *Where hires come from*, with real figures |
@@ -178,6 +179,10 @@ correct. A 404 means the request never left the web service.
 **Pages load but have no data, and sign-in bounces straight back.**
 `API_PROXY_TARGET` is unset, wrong, or has a trailing slash — and remember it
 needs a **rebuild**, not just a restart.
+
+**`/how-it-works` shows the steps but no tables.**
+The page could not reach `/api/v1/meta/workflow`, which is the same proxy
+problem as below — it says so in a banner rather than rendering empty boxes.
 
 **`/demo` returns 404 on the deployed site but works locally.**
 `NEXT_PUBLIC_DEMO_MODE` did not reach the build. Confirm it is on the **web**

@@ -5,9 +5,11 @@ import {
 } from "@nestjs/common";
 import type { DecisionCreate, StageTransitionCreate } from "@intervu/contracts";
 import type { Access } from "../entitlements/access";
+import type { Permission } from "../entitlements/permissions";
 import { AuthzService } from "../entitlements/authz.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { panelOwned } from "./panel-owned";
 
 @Injectable()
 export class ApplicationsService {
@@ -84,7 +86,11 @@ Track your submissions in the portal:
     organizationId: string,
     applicationId: string,
     access: Access,
-    permission: "applications.transition" | "decisions.record" | "interviews.schedule",
+    // Typed as Permission rather than a hand-kept union: the union silently
+    // became a whitelist, and both widening the debrief read and adding
+    // applications.reject failed to compile for no reason other than that
+    // nobody had added them to it.
+    permission: Permission,
   ) {
     const application = await this.prisma.application.findFirst({
       where: { id: applicationId, organizationId },
@@ -155,11 +161,39 @@ Track your submissions in the portal:
     actorId: string,
     input: DecisionCreate,
   ) {
+    // A screening rejection and a post-interview verdict are different acts,
+    // made by different people, carrying different weight. Recruiters screen
+    // dozens a week and must be able to record the outcome of their own work;
+    // overturning a panel is a hiring manager's call.
+    //
+    // The line is "has a panel taken this over yet", and an interview ROW is
+    // not a reliable answer to that. An application sits in the interviewing
+    // lane from the moment someone drags it there; the interview record is
+    // created later, when a time is actually agreed. Keying only on the row
+    // let a recruiter unilaterally reject a candidate the board was showing as
+    // mid-loop — every application in the interviewing and offer stages had
+    // zero interview rows, so the narrow rule covered none of them.
+    //
+    // Stage OR interviews, therefore. Either is enough to mean the outcome
+    // belongs to the loop, so a panel's conclusion can never be recorded by
+    // someone who did not see it.
+    const current = await this.prisma.application.findFirstOrThrow({
+      where: { id: applicationId, organizationId },
+      select: { currentStage: true },
+    });
+    const owned = panelOwned(
+      current.currentStage,
+      await this.prisma.interview.count({ where: { applicationId, organizationId } }),
+    );
+    const permission: Permission =
+      input.outcome === "reject" && !owned
+        ? "applications.reject"
+        : "decisions.record";
     const application = await this.requireOnUnit(
       organizationId,
       applicationId,
       access,
-      "decisions.record",
+      permission,
     );
     const existing = await this.prisma.decision.findUnique({
       where: { applicationId: application.id },

@@ -3642,3 +3642,276 @@ table.data td time {
     display: none;
   }
 }
+
+/* ---- Screening ------------------------------------------------------- */
+
+.screen-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: var(--step-5);
+  align-items: start;
+}
+.screen-actions {
+  position: sticky;
+  top: var(--step-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: var(--step-4);
+}
+.screen-actions button {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.screen-coverage {
+  text-align: right;
+  flex: none;
+}
+.screen-coverage .figure {
+  font-size: 34px;
+  line-height: 1;
+}
+.screen-decided {
+  display: inline-block;
+  margin-bottom: var(--step-4);
+}
+.screen-reqs .gap-row {
+  background: var(--warn-wash);
+}
+
+@media (max-width: 1100px) {
+  .screen-grid {
+    grid-template-columns: 1fr;
+  }
+  .screen-actions {
+    position: static;
+  }
+}
+
+/* ---- Pipeline drag and drop ------------------------------------------
+   Alongside the actions menu, never instead of it: dragging is unusable by
+   keyboard and invisible to a screen reader. ---------------------------- */
+
+.pipe-card[draggable="true"] {
+  cursor: grab;
+}
+.pipe-card.dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+/* The lane says it will accept the card before you let go — a drop that
+   silently does nothing is indistinguishable from a broken one. */
+.board-col.drop-target {
+  background: var(--accent-wash);
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+  border-radius: var(--radius);
+}
+
+/* ---- How it works ------------------------------------------------------
+   A reading page, so it is narrower than the app's working screens: long
+   measure is what makes a twelve-step explanation unreadable. ------------ */
+
+.hiw-page {
+  max-width: 1000px;
+}
+.hiw-hero {
+  padding: var(--step-6) 0 var(--step-5);
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: var(--step-5);
+}
+.hiw-hero h1 {
+  margin: var(--step-3) 0 0;
+}
+.hiw-lede {
+  max-width: 60ch;
+  margin-top: var(--step-3);
+}
+.hiw-sub {
+  margin-top: var(--step-3);
+}
+.hiw-offline {
+  display: block;
+  margin-bottom: var(--step-5);
+}
+
+/* The numbered spine. The rule down the left is what makes twelve separate
+   boxes read as one sequence. */
+.hiw-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--step-6);
+  border-left: 1px solid var(--border);
+}
+.hiw-step {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: var(--step-4);
+  padding: var(--step-4) 0 var(--step-4) var(--step-4);
+  border-bottom: 1px solid var(--hairline);
+}
+.hiw-step:last-child {
+  border-bottom: 0;
+}
+.hiw-step-n {
+  font-size: 20px;
+  color: var(--accent);
+  line-height: 1.2;
+}
+.hiw-step-body h3 {
+  margin: 0 0 var(--step-2);
+}
+.hiw-step-body p {
+  max-width: 68ch;
+  margin: var(--step-2) 0 0;
+}
+.hiw-step-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.hiw-where {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.hiw-aside {
+  border-left: 2px solid var(--border);
+  padding-left: var(--step-3);
+  font-size: 14px;
+}
+.hiw-note {
+  max-width: 68ch;
+  margin-bottom: var(--step-4);
+}
+
+.hiw-stages,
+.hiw-modes {
+  display: grid;
+  gap: var(--step-3);
+  margin-bottom: var(--step-6);
+}
+.hiw-stages {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+.hiw-modes {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.hiw-stage,
+.hiw-mode {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--step-3);
+  background: var(--bg);
+}
+/* Washed rather than outlined: these are a majority of the stages, and five
+   outlined boxes in a row is a fence, not an emphasis. */
+.hiw-stage.panel {
+  background: var(--warn-wash);
+}
+.hiw-stage p,
+.hiw-mode p {
+  font-size: 14px;
+  margin: var(--step-2) 0 var(--step-2);
+}
+
+/* The matrix is wide by nature — it grows a column per role, and an
+   organization's custom roles land here too. Scroll it inside its own box so
+   the page body never scrolls sideways. */
+.hiw-matrix-scroll {
+  overflow-x: auto;
+  margin-bottom: var(--step-6);
+}
+.hiw-matrix {
+  min-width: 720px;
+}
+.hiw-matrix .hiw-group td {
+  background: var(--sunk);
+}
+.hiw-key {
+  font-size: 11px;
+  color: var(--muted);
+}
+.hiw-cell {
+  text-align: center;
+}
+.hiw-yes {
+  color: var(--ok);
+}
+.hiw-no {
+  color: var(--faint);
+}
+
+.hiw-rules {
+  max-width: 72ch;
+  margin-bottom: var(--step-6);
+}
+.hiw-rules li {
+  margin-bottom: var(--step-3);
+}
+.hiw-foot {
+  border-top: 1px solid var(--hairline);
+  padding: var(--step-4) 0 var(--step-6);
+  font-size: 14px;
+}
+
+@media (max-width: 700px) {
+  .hiw-step {
+    grid-template-columns: 1fr;
+    gap: var(--step-2);
+  }
+}
+
+/* ---- Demo: start-here card ---------------------------------------------
+   The one link on the page that competes with the sign-in buttons, so it is
+   the only block that gets the accent wash. Whole card is the target — a
+   4px "read more" is a target you have to aim at. -------------------------- */
+
+.demo-start {
+  display: flex;
+  align-items: center;
+  gap: var(--step-4);
+  margin: var(--step-5) 0 var(--step-6);
+  padding: var(--step-4) var(--step-5);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--accent-wash);
+  color: inherit;
+  text-decoration: none;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+.demo-start:hover {
+  box-shadow: var(--shadow-pop);
+  transform: translateY(-1px);
+}
+/* --accent, not --accent-ink: "ink" is the colour for text ON a solid accent
+   fill and is plain white, which on a 10% wash is white-on-paper. */
+.demo-start .mono-label {
+  color: var(--accent);
+}
+.demo-start h2 {
+  margin: var(--step-2) 0 0;
+}
+.demo-start p {
+  margin: var(--step-2) 0 0;
+  max-width: 62ch;
+}
+.demo-start-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.demo-start-go {
+  flex: none;
+  font-size: 28px;
+  color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .demo-start {
+    padding: var(--step-4);
+  }
+  .demo-start-go {
+    display: none;
+  }
+}

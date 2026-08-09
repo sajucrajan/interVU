@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { QuestionsService } from "../questions/questions.service";
+import { requirementFit, sections } from "../applications/requirement-fit";
 
 /**
  * The interview room packet (docs/01 §interviewer).
@@ -109,39 +110,16 @@ export class RoomService {
 
     const text = attachment?.parsedText ?? "";
 
-    // Match against the org's OWN skill vocabulary rather than a hardcoded
-    // technology list: the organization already curates these rows, so the
-    // packet stays right as their stack changes without anyone maintaining a
-    // second list that silently drifts.
     const vocabulary = await this.prisma.skill.findMany({
       where: { organizationId },
       select: { id: true, name: true, nameNorm: true },
     });
-    const found = new Set(
-      vocabulary.filter((s) => mentions(text, s.nameNorm)).map((s) => s.id),
-    );
-
-    const required = position.skills.map((ps) => ({
-      skill_id: ps.skill.id,
-      name: ps.skill.name,
-      must_have: ps.level === "must_have",
-      proficiency: ps.proficiency,
-      min_years: ps.minYears,
-      /** Evidenced in the resume text — not proof of ability, just presence. */
-      evidenced: found.has(ps.skill.id),
-    }));
-
-    // The most useful line to hand someone before a call: what the role
-    // demands that the CV does not mention. Not a red flag — a place to start.
-    const gaps = required.filter((r) => r.must_have && !r.evidenced);
-
-    // Technologies present that the role never asked for. Often where the
-    // interesting part of a conversation is.
-    const extra = vocabulary
-      .filter(
-        (s) => found.has(s.id) && !position.skills.some((ps) => ps.skill.id === s.id),
-      )
-      .map((s) => ({ skill_id: s.id, name: s.name }));
+    // Shared with screening: the same question asked at two moments, so one
+    // implementation rather than two that drift.
+    const fit = requirementFit(text, position.skills, vocabulary);
+    const required = fit.required;
+    const gaps = fit.gaps;
+    const extra = fit.extra;
 
     return {
       interview: {
@@ -231,34 +209,4 @@ export class RoomService {
     });
     return row ?? { payload: {}, updatedAt: null };
   }
-}
-
-/**
- * Whole-token match. Substring matching turns "R" into a hit on "React" and
- * "Go" into a hit on "MongoDB", which is worse than no signal at all — an
- * interviewer who stops trusting the chips ignores the gaps too.
- */
-function mentions(text: string, nameNorm: string): boolean {
-  if (!text || !nameNorm) return false;
-  const escaped = nameNorm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(^|[^a-z0-9+#.])${escaped}([^a-z0-9+#.]|$)`, "i").test(text);
-}
-
-/** Common resume headings, so the text arrives in blocks rather than a wall. */
-const HEADINGS =
-  /^\s*(professional\s+)?(experience|employment|work\s+history|education|skills?|technical\s+skills?|projects?|certifications?|summary|profile|objective|achievements?|publications?)\s*:?\s*$/i;
-
-function sections(text: string): { heading: string | null; body: string }[] {
-  if (!text.trim()) return [];
-  const lines = text.split(/\r?\n/);
-  const out: { heading: string | null; body: string[] }[] = [
-    { heading: null, body: [] },
-  ];
-  for (const line of lines) {
-    if (HEADINGS.test(line)) out.push({ heading: line.trim(), body: [] });
-    else out[out.length - 1]!.body.push(line);
-  }
-  return out
-    .map((s) => ({ heading: s.heading, body: s.body.join("\n").trim() }))
-    .filter((s) => s.body.length > 0 || s.heading);
 }

@@ -9,6 +9,7 @@ import { HealthModule } from "./health/health.module";
 import { QuestionsModule } from "./questions/questions.module";
 import { InterviewsModule } from "./interviews/interviews.module";
 import { MatchReviewsModule } from "./match-reviews/match-reviews.module";
+import { MetaModule } from "./meta/meta.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { OrgUnitsModule } from "./org-units/org-units.module";
 import { InvitesModule } from "./invites/invites.module";
@@ -52,6 +53,7 @@ import { WorklistModule } from "./worklist/worklist.module";
     AnalyticsModule,
     InterviewsModule,
     MatchReviewsModule,
+    MetaModule,
     CandidatesModule,
     VendorPortalModule,
     VendorsModule,
