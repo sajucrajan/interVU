@@ -3862,3 +3862,56 @@ table.data td time {
     gap: var(--step-2);
   }
 }
+
+/* ---- Demo: start-here card ---------------------------------------------
+   The one link on the page that competes with the sign-in buttons, so it is
+   the only block that gets the accent wash. Whole card is the target — a
+   4px "read more" is a target you have to aim at. -------------------------- */
+
+.demo-start {
+  display: flex;
+  align-items: center;
+  gap: var(--step-4);
+  margin: var(--step-5) 0 var(--step-6);
+  padding: var(--step-4) var(--step-5);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--accent-wash);
+  color: inherit;
+  text-decoration: none;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+.demo-start:hover {
+  box-shadow: var(--shadow-pop);
+  transform: translateY(-1px);
+}
+/* --accent, not --accent-ink: "ink" is the colour for text ON a solid accent
+   fill and is plain white, which on a 10% wash is white-on-paper. */
+.demo-start .mono-label {
+  color: var(--accent);
+}
+.demo-start h2 {
+  margin: var(--step-2) 0 0;
+}
+.demo-start p {
+  margin: var(--step-2) 0 0;
+  max-width: 62ch;
+}
+.demo-start-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.demo-start-go {
+  flex: none;
+  font-size: 28px;
+  color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .demo-start {
+    padding: var(--step-4);
+  }
+  .demo-start-go {
+    display: none;
+  }
+}

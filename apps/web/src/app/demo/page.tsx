@@ -342,6 +342,34 @@ export default function DemoPage() {
         </p>
       </header>
 
+      {/*
+        Above the diagram and above the sign-in buttons, because the order of
+        this page is the order people read it in. Someone dropped into a
+        seeded pipeline as a stranger's account can click competently for ten
+        minutes and still not know what the product is FOR — vendor ownership,
+        scope, the screening-versus-panel split. Five minutes here is what
+        makes the rest of the tour legible.
+
+        Phrased as a choice rather than a gate: anyone who would rather poke at
+        it first is two screens from the buttons below, and telling them they
+        are doing it wrong would be both rude and false.
+      */}
+      <Link href="/how-it-works" className="demo-start">
+        <div className="demo-start-body">
+          <div className="mono-label">Start here · about 5 minutes</div>
+          <h2>How it works, end to end</h2>
+          <p>
+            The whole path from an open role to a signed offer: twelve steps,
+            who does each one, and the permission it needs. The demo below makes
+            far more sense afterwards — and every table on that page is read
+            live from this running API, so it is never out of date.
+          </p>
+        </div>
+        <div className="demo-start-go" aria-hidden="true">
+          →
+        </div>
+      </Link>
+
       <SectionHead label="The mechanic everything hangs off" />
       <OwnershipDiagram />
 
