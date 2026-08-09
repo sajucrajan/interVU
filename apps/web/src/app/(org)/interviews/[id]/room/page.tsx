@@ -299,10 +299,16 @@ export default function InterviewRoomPage() {
       <header className="room-head">
         <div>
           <div className="mono-label">
-            {packet.position.reference && (
-              <span className="ref-code">{packet.position.reference}</span>
-            )}{" "}
-            {packet.position.title} · {packet.interview.round_name}
+            {/* Openable mid-interview: the brief is the thing you are
+                assessing against, and hunting for it in another tab while
+                someone waits is exactly when nobody bothers. */}
+            <Link href={`/positions/${packet.position.id}`} className="ref-link">
+              {packet.position.reference && (
+                <span className="ref-code">{packet.position.reference}</span>
+              )}{" "}
+              {packet.position.title}
+            </Link>{" "}
+            · {packet.interview.round_name}
           </div>
           <h1>{c.displayName}</h1>
           <p className="room-sub">

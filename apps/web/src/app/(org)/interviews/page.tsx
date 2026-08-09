@@ -23,6 +23,7 @@ interface MyInterview {
   candidate: { id: string; displayName: string };
   position_title: string;
   position_reference: string | null;
+  position_id: string;
   application_id: string;
   my_scorecard_submitted: boolean;
   competencies: Competency[];
@@ -177,10 +178,15 @@ function InterviewRow({
             {i.candidate.displayName}
           </Link>
           <div className="iv-meta">
-            {i.position_reference && (
-              <span className="ref-code">{i.position_reference}</span>
-            )}{" "}
-            {i.position_title} · {i.round_name}
+            {/* The role, openable. A panelist without positions.view gets the
+                brief at this same URL — see the positions controller. */}
+            <Link href={`/positions/${i.position_id}`} className="ref-link">
+              {i.position_reference && (
+                <span className="ref-code">{i.position_reference}</span>
+              )}{" "}
+              {i.position_title}
+            </Link>{" "}
+            · {i.round_name}
           </div>
           <div className="mono-label iv-when">
             {when(i.scheduled_at)} · {i.duration_min}m

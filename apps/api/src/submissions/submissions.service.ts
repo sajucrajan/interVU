@@ -444,6 +444,11 @@ export class SubmissionsService {
       return {
         ...this.toVendorDto(s, s.position.title),
         position_reference: s.position.reference,
+        /* So a vendor can reopen the brief they sourced against — the
+           document that answers "why was this person not right?". Only an id;
+           what the role actually discloses is decided by the portal's
+           released-positions filter, not by this list. */
+        position_id: s.positionId,
         feedback: p
           ? {
               headline: p.headline,
