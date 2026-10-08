@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, API_BASE, ApiError, apiErrorMessage } from "@/lib/api";
@@ -34,6 +36,7 @@ interface VendorSubmission {
   status: string;
   submitted_at: string;
   position_reference: string | null;
+  position_id: string;
   feedback: VendorFeedback | null;
 }
 
@@ -115,8 +118,10 @@ export default function VendorHome() {
         <div className="card" key={p.id}>
           <div className="row spread">
             <div>
-              <span className="ref-code">{p.reference}</span>{" "}
-              <strong>{p.title}</strong>{" "}
+              <Link href={`/vendor/positions/${p.id}`} className="ref-link">
+                <span className="ref-code">{p.reference}</span>{" "}
+                <strong>{p.title}</strong>
+              </Link>{" "}
               <span className="muted">
                 · {p.organization} · {p.openings} opening{p.openings > 1 ? "s" : ""}
               </span>
@@ -187,7 +192,9 @@ export default function VendorHome() {
               <Fragment key={s.id}>
                 <tr>
                   <td>
-                    <span className="ref-code">{s.position_reference ?? "—"}</span>
+                    <Link href={`/vendor/positions/${s.position_id}`} className="ref-link">
+                      <span className="ref-code">{s.position_reference ?? "—"}</span>
+                    </Link>
                   </td>
                   <td>{s.candidate_name}</td>
                   <td>{s.position_title}</td>

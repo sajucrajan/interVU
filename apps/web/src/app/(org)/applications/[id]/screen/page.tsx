@@ -136,8 +136,12 @@ export default function ScreenPage() {
         <div>
           <div className="mono-label">
             Screening ·{" "}
-            {p.position.reference && <span className="ref-code">{p.position.reference}</span>}{" "}
-            {p.position.title}
+            <Link href={`/positions/${p.position.id}`} className="ref-link">
+              {p.position.reference && (
+                <span className="ref-code">{p.position.reference}</span>
+              )}{" "}
+              {p.position.title}
+            </Link>
           </div>
           <h1 style={{ marginTop: 12 }}>{c.displayName}</h1>
           <p className="dossier-meta">

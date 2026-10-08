@@ -119,6 +119,10 @@ export class InterviewsService {
         candidate: i.application.candidate,
         position_title: i.application.position.title,
         position_reference: i.application.position.reference,
+        /* So a panelist can open the role they are assessing against. The
+           list carried the title and the reference but not the id, which is
+           the one field a link needs. */
+        position_id: i.application.positionId,
         application_id: i.applicationId,
         my_scorecard_submitted: mine,
         /**
