@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
@@ -198,7 +200,10 @@ export default function DebriefPage() {
       <header className="page-head">
         <div>
           <div className="mono-label">
-            Debrief · {d.position.reference} {d.position.title}
+            Debrief ·{" "}
+            <Link href={`/positions/${d.position.id}`} className="ref-link">
+              {d.position.reference} {d.position.title}
+            </Link>
           </div>
           <h1 style={{ marginTop: 12, fontSize: 40 }}>{d.candidate.displayName}</h1>
           <p className="dossier-meta">

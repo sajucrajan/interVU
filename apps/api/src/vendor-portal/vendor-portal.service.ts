@@ -28,6 +28,27 @@ export class VendorPortalService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * One released position, for the vendor it was released to.
+   *
+   * The list has carried every field of this since M3; what was missing was a
+   * way to open one. A vendor recruiter reading a status change on their own
+   * submission had no route back to the role they had sourced against, which
+   * is the document they need to answer "why was this person not right?".
+   *
+   * Reuses the release filter rather than restating it: visibility is a
+   * property of the release ladder, and two copies of that rule would
+   * eventually disagree about a hybrid role's opening date.
+   */
+  async releasedPosition(
+    vendorId: string,
+    organizationId: string,
+    positionId: string,
+  ): Promise<VendorPositionDto | null> {
+    const all = await this.visiblePositions(vendorId, organizationId);
+    return all.find((p) => p.id === positionId) ?? null;
+  }
+
+  /**
    * The visibility predicate (docs/05 §2), evaluated at query time —
    * DB is truth, no scheduler involved:
    *   position open AND now() >= visible_from AND vendor_org active

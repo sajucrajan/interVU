@@ -9,6 +9,7 @@ import type { PositionCreate, PositionUpdate, ReleasePolicy } from "@intervu/con
 import { ReleaseNotifierService } from "../notifications/release-notifier.service";
 import { PanelsService } from "../panels/panels.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { BRIEF_SELECT, positionBrief } from "./position-brief";
 
 const HOUR_MS = 3_600_000;
 
@@ -301,6 +302,49 @@ export class PositionsService {
   }
 
   /** Full JD view: role identity, skill matrix, must-haves, release state. */
+  /**
+   * Is this org user close enough to the role to be shown its brief?
+   *
+   * Panel membership, not a permission. An interviewer holds only
+   * `scorecards.submit` by design — giving them `positions.view` to fix this
+   * would hand them every open role in the organization, which is a much
+   * larger grant than "show me the one I am interviewing for". The
+   * relationship IS the authorisation, and it expires with the interview.
+   */
+  private async isPanelistOnPosition(
+    organizationId: string,
+    positionId: string,
+    orgUserId: string,
+  ): Promise<boolean> {
+    const seat = await this.prisma.interviewPanelist.count({
+      where: {
+        orgUserId,
+        interview: {
+          organizationId,
+          application: { positionId, organizationId },
+        },
+      },
+    });
+    return seat > 0;
+  }
+
+  /**
+   * The role as an interviewer needs it: everything about the work, nothing
+   * about the commercials. Returns null when this user has no claim to it, so
+   * the caller can 403 exactly as before rather than leaking existence.
+   */
+  async briefForOrgUser(organizationId: string, id: string, orgUserId: string) {
+    if (!(await this.isPanelistOnPosition(organizationId, id, orgUserId))) {
+      return null;
+    }
+    const position = await this.prisma.position.findFirst({
+      where: { id, organizationId },
+      select: BRIEF_SELECT,
+    });
+    if (!position) throw new NotFoundException("Position not found");
+    return positionBrief(position, { includeRate: false, audience: "interviewer" });
+  }
+
   async detail(organizationId: string, id: string) {
     const position = await this.prisma.position.findFirst({
       where: { id, organizationId },

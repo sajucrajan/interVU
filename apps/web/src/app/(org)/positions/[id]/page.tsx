@@ -14,6 +14,7 @@ import {
   type SkillRow,
 } from "@/components/skill-matrix";
 import { usePageIdentity } from "@/components/sticky-identity";
+import { PositionBriefView, type Brief } from "@/components/position-brief";
 
 interface Detail {
   id: string;
@@ -35,6 +36,13 @@ interface Detail {
   orgUnitId: string;
   orgUnit: { name: string };
   skills: { level: string; proficiency: string; minYears: number | null; skill: { name: string } }[];
+  /**
+   * "full" for anyone holding positions.view on the unit; "interviewer" for a
+   * panelist without it, who gets the brief instead. The API decides, and
+   * sends whichever it decided — so this page renders what it was given
+   * rather than asking who is reading.
+   */
+  audience?: "full" | "interviewer";
   sourcingMode: "direct" | "vendor" | "hybrid";
   vendorOpensAt: string | null;
   releasePolicy: { mode: string } | null;
@@ -93,6 +101,21 @@ export default function PositionDetailPage() {
   usePageIdentity(p ? { label: p.title, meta: p.reference } : null);
 
   if (!p) return <main className="wide muted">Loading…</main>;
+
+  // A panelist without positions.view gets the brief at this same URL, so
+  // every link to a role in the product is correct for whoever follows it.
+  // Branching here rather than inside the editing surface below: nothing in
+  // it applies to a reader who cannot edit, and threading a redacted shape
+  // through would put "may this reader see this?" into each of its branches.
+  if (p.audience === "interviewer") {
+    return (
+      <PositionBriefView
+        brief={p as unknown as Brief}
+        backHref="/interviews"
+        backLabel="Back to your interviews"
+      />
+    );
+  }
 
   const meta = [
     p.orgUnit.name,

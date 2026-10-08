@@ -46,12 +46,32 @@ export class PositionsController {
     );
   }
 
+  /**
+   * One URL for the role, whoever is asking.
+   *
+   * Holding `positions.view` on the unit gets the full record. Someone
+   * without it who is sitting on a panel for this role gets a brief — the
+   * work, not the commercials — because an interviewer was previously sent a
+   * candidate and then refused the job description they were assessing
+   * against. Everyone else still gets 403, unchanged.
+   *
+   * Degrading beats a second endpoint: every link in the product can point
+   * here and be right for the reader who follows it, and no caller has to
+   * know in advance which of the two it is entitled to.
+   */
   @Get(":id")
   async detail(@Tenant() tenant: TenantContext, @Param("id", ParseUUIDPipe) id: string) {
-    const position = await this.positions.detail(tenant.org!.organizationId, id);
+    const { organizationId, user } = tenant.org!;
+    const position = await this.positions.detail(organizationId, id);
     const access = await this.authz.access(tenant);
-    this.authz.require(access, "positions.view", position.orgUnitId);
-    return position;
+    if (access.can("positions.view", position.orgUnitId)) {
+      return { ...position, audience: "full", withheld: [] as string[] };
+    }
+    const brief = await this.positions.briefForOrgUser(organizationId, id, user.id);
+    // No permission and no seat on the panel: the same 403 as before, raised
+    // by the same code path, so scope stays invisible rather than probeable.
+    if (!brief) this.authz.require(access, "positions.view", position.orgUnitId);
+    return brief;
   }
 
   @Post(":id/publish")

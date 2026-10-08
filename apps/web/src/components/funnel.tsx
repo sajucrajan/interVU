@@ -86,19 +86,19 @@ export function FunnelBars({ funnel }: { funnel: Funnel }) {
     { key: "offered", label: "Offered", tone: "ok" },
   ];
   return (
-    <div className="funnel">
+    <div className="sub-funnel">
       {steps.map((s) => {
         const v = funnel[s.key];
         return (
-          <div key={s.key} className="funnel-row">
-            <div className="funnel-label mono-label">{s.label}</div>
-            <div className="funnel-track">
+          <div key={s.key} className="sub-funnel-row">
+            <div className="sub-funnel-label">{s.label}</div>
+            <div className="sub-funnel-track">
               <div
-                className={`funnel-bar${s.tone ? ` ${s.tone}` : ""}`}
+                className={`sub-funnel-bar${s.tone ? ` ${s.tone}` : ""}`}
                 style={{ width: `${(v / max) * 100}%` }}
               />
             </div>
-            <div className="funnel-value figure">{v}</div>
+            <div className="sub-funnel-value figure">{v}</div>
           </div>
         );
       })}
@@ -226,7 +226,7 @@ export function FunnelFilters({
   onChange: (next: Partial<typeof value>) => void;
 }) {
   return (
-    <div className="funnel-filters">
+    <div className="sub-funnel-filters">
       <div className="win-tabs">
         {options.windows.map((w) => (
           <button
@@ -239,7 +239,7 @@ export function FunnelFilters({
           </button>
         ))}
       </div>
-      <div className="funnel-selects">
+      <div className="sub-funnel-selects">
         <label>
           <span className="mono-label">Role</span>
           <select
