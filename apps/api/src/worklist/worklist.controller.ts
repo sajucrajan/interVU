@@ -17,6 +17,11 @@ export interface WorkItemGroup {
   oldest_at: string | null;
   sla_state: SlaState | null;
   sla_label: string | null;
+  /** How many items in this group are past their threshold. The group's
+   *  state follows its oldest item; the header counts these. */
+  late: number;
+  /** Of those, how many tipped over since Monday. */
+  late_this_week: number;
 }
 
 const STAGE_ORDER = ["submitted", "screening", "interviewing", "offer"];
@@ -241,11 +246,32 @@ export class WorklistController {
     // "Probabilistic scores between 62% and 78%" — the actual spread of what
     // is waiting, so the reviewer knows how borderline the queue is.
     const reviewScores = matchReviewRows.map((r) => r.score).sort((a, b) => a - b);
-    const reviewScoreRange = reviewScores.length
-      ? `Probabilistic scores between ${Math.round(reviewScores[0]! * 100)}% and ${Math.round(
-          reviewScores[reviewScores.length - 1]! * 100,
-        )}%`
-      : "Uncertain matches need a human call";
+    const pct = (x: number) => Math.round(x * 100);
+    const reviewScoreRange = !reviewScores.length
+      ? "Uncertain matches need a human call"
+      : pct(reviewScores[0]!) === pct(reviewScores[reviewScores.length - 1]!)
+        ? `Probabilistic ${reviewScores.length === 1 ? "score" : "scores"} of ${pct(reviewScores[0]!)}%`
+        : `Probabilistic scores between ${pct(reviewScores[0]!)}% and ${pct(
+            reviewScores[reviewScores.length - 1]!,
+          )}%`;
+
+    // Per item, not per group. The header used to add up every item in any
+    // group whose OLDEST item was late, so one overdue screen made all ten
+    // new submissions count as breached.
+    const monday = new Date(now);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const hoursSinceMonday = (now - monday.getTime()) / 3_600_000;
+    const lateness = (dates: (Date | null | undefined)[], event: keyof typeof thresholds) => {
+      const ages = (dates.filter(Boolean) as Date[]).map((d) => SlaService.hoursSince(d, now));
+      const over = ages.filter((h) => h >= thresholds[event]);
+      return {
+        late: over.length,
+        // Breached now, but younger than "threshold + time since Monday",
+        // so it tipped over during this week rather than before it.
+        late_this_week: over.filter((h) => h < thresholds[event] + hoursSinceMonday).length,
+      };
+    };
 
     const scorecardOldest = oldest(myScorecardRows.map((i) => i.scheduledAt));
     const reviewOldest = oldest(matchReviewRows.map((r) => r.createdAt));
@@ -266,6 +292,7 @@ export class WorklistController {
           tone: "warning",
           oldest_at: unscreenedOldest,
           ...stateFor(unscreenedOldest, "first_screen"),
+          ...lateness(unscreenedRows.map(enteredStageAt), "first_screen"),
         },
         {
           key: "match_reviews",
@@ -276,6 +303,7 @@ export class WorklistController {
           tone: "critical",
           oldest_at: reviewOldest,
           ...stateFor(reviewOldest, "first_screen"),
+          ...lateness(matchReviewRows.map((r) => r.createdAt), "first_screen"),
         },
         {
           key: "decisions",
@@ -286,6 +314,7 @@ export class WorklistController {
           tone: "warning",
           oldest_at: decisionOldest,
           ...stateFor(decisionOldest, "decision_due"),
+          ...lateness(awaitingDecisionRows.map(enteredStageAt), "decision_due"),
         },
         {
           key: "scorecards",
@@ -296,6 +325,7 @@ export class WorklistController {
           tone: "normal",
           oldest_at: scorecardOldest,
           ...stateFor(scorecardOldest, "scorecard_due"),
+          ...lateness(myScorecardRows.map((i) => i.scheduledAt), "scorecard_due"),
         },
         {
           key: "duplicates",
@@ -306,6 +336,7 @@ export class WorklistController {
           tone: "warning",
           oldest_at: dupOldest,
           ...stateFor(dupOldest, "vendor_ack"),
+          ...lateness(duplicateRows.map((s) => s.receivedAt), "vendor_ack"),
         },
       ] as WorkItemGroup[]
     ).filter((g) => g.count > 0);
@@ -333,24 +364,8 @@ export class WorklistController {
     // What the header counts is what the queue below it shows: the items that
     // are actually late. Counting only stage dwell here read as "0 breached"
     // directly above a row stamped "24h SLA breached".
-    // Start of the current week (Monday 00:00 local to the server).
-    const monday = new Date(now);
-    monday.setHours(0, 0, 0, 0);
-    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-    const hoursSinceMonday = (now - monday.getTime()) / 3_600_000;
-
-    const breachedSinceMonday = groups
-      .filter((g) => g.sla_state === "breached" && g.oldest_at)
-      .reduce((n, g) => {
-        const age = SlaService.hoursSince(g.oldest_at!, now);
-        // Breached now, but younger than "threshold + time since Monday" means
-        // it tipped over during this week rather than before it.
-        return n + (age < hoursSinceMonday + 24 ? g.count : 0);
-      }, 0);
-
-    const slaBreached = groups
-      .filter((g) => g.sla_state === "breached")
-      .reduce((n, g) => n + g.count, 0);
+    const slaBreached = groups.reduce((n, g) => n + g.late, 0);
+    const breachedSinceMonday = groups.reduce((n, g) => n + g.late_this_week, 0);
 
     // Median days to hire, and the same figure for the preceding window, so the
     // delta is measured rather than guessed.
@@ -419,6 +434,10 @@ export class WorklistController {
                 .join(" @ "),
             }
           : null,
+        /** The name as the agency typed it. A submission parked for a match
+         *  review has no candidate yet, and the row used to show no name at all. */
+        submitted_name:
+          (s.rawProfile as { candidate_name?: string } | null)?.candidate_name ?? null,
         position_title: s.position.title,
         position_reference: s.position.reference,
         vendor: s.vendorOrg.vendor.name,

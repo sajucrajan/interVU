@@ -368,7 +368,12 @@ export default function Dashboard() {
                             )}
                           </>
                         ) : (
-                          <span className="muted">pending review</span>
+                          <>
+                            <span>{s.submitted_name ?? "Unnamed submission"}</span>
+                            <Link href="/match-reviews" className="row-sub">
+                              Possible match · awaiting review
+                            </Link>
+                          </>
                         )}
                       </td>
                       <td>

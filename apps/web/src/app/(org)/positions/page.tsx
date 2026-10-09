@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { ActionsMenu, Modal } from "@/components/actions-menu";
 import { SectionHead } from "@/components/section-head";
+import { PageHead } from "@/components/page-head";
+import { formatRelativeDay } from "@/lib/format";
 
 interface Position {
   id: string;
@@ -67,17 +69,28 @@ export default function PositionsPage() {
 
   return (
     <main className="wide">
-      <div className="row spread">
-        <h1>Positions</h1>
-        <Link href="/positions/new">
-          <button>+ New position</button>
-        </Link>
-      </div>
+      <PageHead
+        kicker="Hiring · your scope"
+        title="Positions"
+        lede="Every role you can see, how it is sourced, and which agencies have it. Open one for its skill matrix, its release and its candidates."
+        actions={
+          <>
+            <Link href="/templates">
+              <button className="secondary">Templates</button>
+            </Link>
+            <Link href="/positions/new">
+              <button>+ New position</button>
+            </Link>
+          </>
+        }
+      />
       <input
+        type="search"
+        aria-label="Filter positions"
         placeholder="Filter by title or team…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        style={{ maxWidth: 340, marginBottom: "1rem" }}
+        style={{ maxWidth: 340 }}
       />
 
       {error && <p className="error">{error}</p>}
@@ -180,17 +193,32 @@ function PositionTable({
                   className={`channel-chip ${p.sourcingMode}`}
                   title={
                     p.sourcingMode === "hybrid" && p.vendorOpensAt
-                      ? `Vendors join ${new Date(p.vendorOpensAt).toLocaleDateString()}`
+                      ? `Agencies join ${formatRelativeDay(p.vendorOpensAt)}`
                       : undefined
                   }
                 >
                   {p.sourcingMode}
                 </span>
               </td>
-              <td className="muted">{p.releasePolicy?.mode.replaceAll("_", " ") ?? "—"}</td>
-              <td className="muted">
-                {p.releases.filter((r) => new Date(r.visibleFrom) <= now).length} / {p.releases.length}
-              </td>
+              {/* A direct-only role reaches no agency whatever its release
+                  rows say, and a hybrid one waits for its unlock date. These
+                  two columns used to read the rows raw, so a direct role
+                  showed "all at once · 3 / 3". */}
+              {p.sourcingMode === "direct" ? (
+                <>
+                  <td className="muted">—</td>
+                  <td className="muted">none</td>
+                </>
+              ) : (
+                <>
+                  <td className="muted nowrap">{p.releasePolicy?.mode.replaceAll("_", " ") ?? "—"}</td>
+                  <td className="muted nowrap">
+                    {p.sourcingMode === "hybrid" && p.vendorOpensAt && new Date(p.vendorOpensAt) > now
+                      ? `0 / ${p.releases.length} · ${formatRelativeDay(p.vendorOpensAt)}`
+                      : `${p.releases.filter((r) => new Date(r.visibleFrom) <= now).length} / ${p.releases.length}`}
+                  </td>
+                </>
+              )}
               <td>
                 <ActionsMenu
                   items={[

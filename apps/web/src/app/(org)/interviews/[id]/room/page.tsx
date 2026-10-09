@@ -7,6 +7,8 @@ import { api, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
 import { VoteButtons } from "@/components/vote";
 import { usePageIdentity } from "@/components/sticky-identity";
+import { formatDate, formatTime } from "@/lib/format";
+import { ResumeText } from "@/components/resume-text";
 
 interface Competency {
   skill_id: string;
@@ -322,7 +324,7 @@ export default function InterviewRoomPage() {
             {packet.panel.filter((p) => p.filed).length}/{packet.panel.length} filed
           </span>
           <span className="mono-label">
-            {savedAt ? `notes saved ${new Date(savedAt).toLocaleTimeString()}` : "notes autosave"}
+            {savedAt ? `notes saved ${formatTime(savedAt)}` : "notes autosave"}
           </span>
           <Link href="/interviews">Close</Link>
         </div>
@@ -398,7 +400,7 @@ export default function InterviewRoomPage() {
                 {packet.prior_rounds.map((r, i) => (
                   <li key={i}>
                     {r.round_name} ·{" "}
-                    {new Date(r.scheduled_at).toLocaleDateString()} · {r.status}
+                    {formatDate(r.scheduled_at)} · {r.status}
                     {r.scorecards_filed > 0
                       ? ` · ${r.scorecards_filed} scorecard${r.scorecards_filed === 1 ? "" : "s"} filed`
                       : ""}
@@ -458,7 +460,7 @@ export default function InterviewRoomPage() {
               {packet.resume.sections.map((s, i) => (
                 <div key={i} className="room-section">
                   {s.heading && <h3>{s.heading}</h3>}
-                  <pre>{s.body}</pre>
+                  <ResumeText body={s.body} />
                 </div>
               ))}
             </div>

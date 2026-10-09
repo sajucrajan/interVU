@@ -52,6 +52,8 @@ export interface Worklist {
   recent_submissions: {
     id: string;
     candidate: { id: string; displayName: string; title: string } | null;
+    /** As the agency typed it; the only name an unmatched submission has. */
+    submitted_name: string | null;
     position_title: string;
     position_reference: string | null;
     vendor: string;

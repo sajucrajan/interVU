@@ -75,19 +75,21 @@ Internal staff → **http://localhost:3000/login**
 |---|---|---|---|
 | `admin@acme.test` | org_admin | org-wide | Everything: settings, vendors, erasure, webhooks |
 | `recruiter@acme.test` | recruiter | org-wide | The main workflow — post roles, arbitrate duplicates, resolve match reviews |
-| `hm.eng@acme.test` | hiring_manager | Engineering vertical | Sees 8 of 11 positions; blocked from the review queue |
-| `pm.gtm@acme.test` | project_manager | GTM vertical | Read-only, 3 positions — scope isolation |
-| `pm.platform@acme.test` | project_manager | Platform team | Read-only, 4 positions — narrowest scope |
-| `interviewer1@acme.test` | interviewer | assignment-only | **0 positions**, but 2 assigned interviews at `/interviews` |
+| `hm.eng@acme.test` | hiring_manager | Engineering vertical | Sees 4 of 6 positions; blocked from the review queue |
+| `pm.gtm@acme.test` | project_manager | GTM vertical | Read-only, 2 positions — scope isolation |
+| `pm.platform@acme.test` | project_manager | Platform team | Read-only, 2 positions — narrowest scope |
+| `interviewer1@acme.test` | interviewer | assignment-only | **0 positions**, but 3 assigned interviews at `/interviews` |
 | `interviewer2@acme.test` | interviewer | assignment-only | Pair with interviewer1 to see the hide-until-submitted feedback policy |
+| `vendors@acme.test` | vendor_manager *(custom role)* | org-wide | Reads vendor performance; cannot touch contracts or candidates |
 
 Vendors (external agencies) → **http://localhost:3000/vendor/login**
 
 | Email | Vendor | Tier | Positions visible |
 |---|---|---|---|
-| `recruiter@talentbridge.test` | TalentBridge | 1 | 10 — tier 1 sees tiered releases immediately |
-| `recruiter@hireworks.test` | HireWorks | 2 | 8 — tier 2 unlocks later |
-| `recruiter@staffpro.test` | StaffPro | 2 | 8 |
+| `recruiter@talentbridge.test` | TalentBridge | 1 | 5 — a tier-1 head start and a hand-picked release |
+| `recruiter@hireworks.test` | HireWorks | 2 | 3 — tier 2 unlocks later |
+| `recruiter@staffpro.test` | StaffPro | 2 | 3 |
+| `recruiter@northstar.test` | NorthStar Talent | 2 | 3 — the fourth agency, so benchmarks have peers |
 
 ## Design docs
 

@@ -11,6 +11,7 @@ import {
   useKnownSkills,
   type SkillRow,
 } from "@/components/skill-matrix";
+import { PageHead } from "@/components/page-head";
 
 interface TemplateSummary {
   id: string;
@@ -195,18 +196,16 @@ function NewPositionForm() {
 
   return (
     <main className="wide">
-      <div className="row spread">
-        <div>
-          <h1 style={{ marginBottom: "0.2rem" }}>New position</h1>
-          <p className="muted" style={{ marginTop: 0 }}>
-            The structured posting is the single source of truth: it renders the job
-            description, drives vendor sourcing, and feeds panel matching.
-          </p>
-        </div>
-        <button type="button" className="secondary" onClick={cancel}>
-          Cancel
-        </button>
-      </div>
+      <PageHead
+        kicker="Positions · new"
+        title="New position"
+        lede="The structured posting is the single source of truth: it renders the job description, drives agency sourcing and feeds panel matching."
+        actions={
+          <button type="button" className="secondary" onClick={cancel}>
+            Cancel
+          </button>
+        }
+      />
       {templates.length > 0 && (
         <div className="card">
           <p className="chart-title">Start from a template</p>

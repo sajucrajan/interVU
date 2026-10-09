@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
 import { usePageIdentity } from "@/components/sticky-identity";
+import { formatDate } from "@/lib/format";
 
 interface Cell {
   panelist_id: string;
@@ -87,6 +88,18 @@ const cellTone = (r: number | null) =>
       : r === 3
         ? { bg: "var(--sunk)", fg: "var(--muted)" }
         : { bg: "var(--warn-wash)", fg: "var(--warn)" };
+
+/**
+ * A panelist's column header. Initials collided as soon as two people shared
+ * them (Indira Interviewer and Ivan Interviewer both read "II"), which made the
+ * one table built to show who disagreed unable to say who. First names, unless
+ * two panelists share one.
+ */
+function columnName(p: { name: string }, all: { name: string }[]) {
+  const first = (n: string) => n.split(/\s+/)[0] ?? n;
+  const clash = all.filter((o) => first(o.name) === first(p.name)).length > 1;
+  return clash ? p.name : first(p.name);
+}
 
 export default function DebriefPage() {
   const { id } = useParams<{ id: string }>();
@@ -283,7 +296,7 @@ export default function DebriefPage() {
                   <th>Competency</th>
                   {d.panelists.map((p) => (
                     <th key={p.id} className="num" title={p.name}>
-                      {p.initials}
+                      {columnName(p, d.panelists)}
                     </th>
                   ))}
                   <th className="num">Consensus</th>
@@ -496,7 +509,7 @@ export default function DebriefPage() {
 
             {d.debrief?.released_at ? (
               <p className="badge ok" style={{ display: "inline-block" }}>
-                Released {new Date(d.debrief.released_at).toLocaleDateString()}
+                Released {formatDate(d.debrief.released_at)}
               </p>
             ) : (
               <div style={{ marginTop: "var(--step-4)" }}>

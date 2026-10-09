@@ -72,28 +72,35 @@ export function VendorRail() {
 
   return (
     <>
-      <button
-        type="button"
-        className="rail-toggle"
-        onClick={() => setNavOpen((v) => !v)}
-        aria-label="Menu"
-      >
-        ☰
-      </button>
       <aside className={`rail${navOpen ? " open" : ""}`}>
         <div className="rail-head">
-          <Link href="/vendor" className="brand">
-            Inter<span className="brand-accent">/</span>VU
-          </Link>
-          {/* Whose portal, and whose client. A recruiter working four
-              agencies' systems in a day needs to know which tab this is. */}
-          <div className="rail-brand mono-label">
-            {[me?.vendor, me?.organization?.name].filter(Boolean).join(" · ") ||
-              "Vendor portal"}
+          <div className="rail-brand">
+            <Link href="/vendor" className="brand">
+              Inter<span className="brand-accent">/</span>VU
+            </Link>
+            {/* Whose portal, and whose client. A recruiter working four
+                agencies' systems in a day needs to know which tab this is. */}
+            <div className="mono-label" style={{ marginTop: 8 }}>
+              {[me?.vendor, me?.organization?.name].filter(Boolean).join(" · ") ||
+                "Vendor portal"}
+            </div>
           </div>
+          {/* Mobile only, and inside the header like the org rail's. It used
+              to sit above the rail as its own bar, so a phone showed two
+              stacked headers: the toggle, then the brand. */}
+          <button
+            type="button"
+            className="rail-toggle"
+            aria-expanded={navOpen}
+            aria-controls="vendor-rail-nav"
+            aria-label={navOpen ? "Close navigation" : "Open navigation"}
+            onClick={() => setNavOpen((v) => !v)}
+          >
+            <span aria-hidden>{navOpen ? "✕" : "☰"}</span>
+          </button>
         </div>
 
-        <nav className="rail-nav">
+        <nav className="rail-nav" id="vendor-rail-nav">
           {groups.map((group) => (
             <div key={group}>
               <div className="rail-group mono-label">{group}</div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { ZoomableSunburst, type SunburstNode } from "@/components/zoomable-sunburst";
+import { PageHead } from "@/components/page-head";
 
 interface Overview {
   totals: { submissions: number; candidates: number; open_positions: number };
@@ -13,18 +14,29 @@ interface Overview {
 
 type View = "org" | "skill";
 
-function descend(node: SunburstNode): { units: number; positions: number } {
+/**
+ * What a node holds. Candidates are the leaves of the org view and used to
+ * fall into the "else" branch here, so the whole organization reported
+ * "42 units" when it has six: two units, four teams, and 36 candidates
+ * counted as structure.
+ */
+function descend(node: SunburstNode): { units: number; positions: number; candidates: number } {
   let units = 0;
   let positions = 0;
+  let candidates = 0;
   for (const c of node.children ?? []) {
     if (c.kind === "position") positions++;
+    else if (c.kind === "candidate") candidates++;
     else units++;
     const sub = descend(c);
     units += sub.units;
     positions += sub.positions;
+    candidates += sub.candidates;
   }
-  return { units, positions };
+  return { units, positions, candidates };
 }
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export default function ExplorePage() {
   const router = useRouter();
@@ -61,17 +73,18 @@ export default function ExplorePage() {
 
   return (
     <main className="wide">
-      <div className="row spread">
-        <div>
-          <h1 style={{ marginBottom: "0.2rem" }}>Explorer</h1>
-          <p className="muted" style={{ marginTop: 0 }}>
+      <PageHead
+        kicker="Insight · your scope"
+        title="Explorer"
+        lede={
+          <>
             {view === "org"
               ? "Where candidate supply is landing across the organization."
               : "Which technologies your open demand is concentrated in."}{" "}
             Click a wedge to zoom in, the centre to zoom back out.
-          </p>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="tabs">
         <button
@@ -117,8 +130,12 @@ export default function ExplorePage() {
         <aside>
           <div className="card">
             <p className="chart-title">{current.name}</p>
-            <p className="chart-sub" style={{ textTransform: "capitalize" }}>
-              {current.kind === "org" ? "organization" : current.kind}
+            {/* The root is named "Organization", so printing its kind under
+                it read "Organization / Organization". */}
+            <p className="chart-sub">
+              {current.kind === "org"
+                ? "Everything in your scope"
+                : current.kind.charAt(0).toUpperCase() + current.kind.slice(1)}
             </p>
             <div className="tile-grid" style={{ margin: "0.5rem 0 0" }}>
               <div className="tile" style={{ boxShadow: "none" }}>
@@ -130,12 +147,16 @@ export default function ExplorePage() {
                 <div className="value">{share}%</div>
               </div>
             </div>
-            {(counts.units > 0 || counts.positions > 0) && (
+            {(counts.units > 0 || counts.positions > 0 || counts.candidates > 0) && (
               <p className="muted" style={{ fontSize: "0.85rem", marginBottom: 0 }}>
-                Contains {counts.units > 0 && `${counts.units} unit${counts.units === 1 ? "" : "s"}`}
-                {counts.units > 0 && counts.positions > 0 && " · "}
-                {counts.positions > 0 &&
-                  `${counts.positions} position${counts.positions === 1 ? "" : "s"}`}
+                Contains{" "}
+                {[
+                  counts.units > 0 && plural(counts.units, "unit or team", "units and teams"),
+                  counts.positions > 0 && plural(counts.positions, "position"),
+                  counts.candidates > 0 && plural(counts.candidates, "candidate"),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
                 .
               </p>
             )}

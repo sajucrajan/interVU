@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { ActionsMenu, Modal } from "@/components/actions-menu";
+import { PageHead } from "@/components/page-head";
+import { formatDate } from "@/lib/format";
 
 interface VendorUser {
   id: string;
@@ -39,8 +41,7 @@ const STATUS_TONE: Record<Contract["status"], string> = {
  * midnight, so formatting them in the viewer's local zone would render
  * 2026-01-01 as "31/12/2025" for anyone west of Greenwich.
  */
-const day = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString(undefined, { timeZone: "UTC" }) : "—";
+const day = (d: string | null) => (d ? formatDate(d, { utc: true }) : "—");
 const nice = (s: string) => s.replaceAll("_", " ");
 
 export default function VendorsAdminPage() {
@@ -77,16 +78,12 @@ export default function VendorsAdminPage() {
 
   return (
     <main className="wide">
-      <div className="row spread">
-        <div>
-          <h1 style={{ marginBottom: "0.2rem" }}>Vendors</h1>
-          <p className="muted" style={{ marginTop: 0 }}>
-            {rows.length} contract{rows.length === 1 ? "" : "s"}. Tier 1 is the most
-            preferred — tiered release opens a position to tiers in order.
-          </p>
-        </div>
-        <button onClick={() => setAdding(true)}>Add a vendor</button>
-      </div>
+      <PageHead
+        kicker="Admin · agencies"
+        title="Vendors"
+        lede={`${rows.length} contract${rows.length === 1 ? "" : "s"}. Tier 1 is the most preferred: a tiered release opens a position to the tiers in order.`}
+        actions={<button onClick={() => setAdding(true)}>Add a vendor</button>}
+      />
 
       {error && <p className="error">{error}</p>}
 

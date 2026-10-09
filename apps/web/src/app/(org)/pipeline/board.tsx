@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api, apiErrorMessage } from "@/lib/api";
 import { formatAge } from "@/components/age-pill";
 import { ActionsMenu, type MenuItem } from "@/components/actions-menu";
+import { formatDate } from "@/lib/format";
 
 export interface BoardCard {
   id: string;
@@ -277,7 +278,7 @@ export function PipelineBoard({
                   </td>
                   <td className="num muted">
                     {d.window_expires_at
-                      ? new Date(d.window_expires_at).toLocaleDateString()
+                      ? formatDate(d.window_expires_at)
                       : "—"}
                   </td>
                 </tr>

@@ -2,20 +2,22 @@
 
 ## Progress
 
-_Last updated 2026-07-31._ M0–M3 are **built and verified**; M4 is in progress.
+_Last updated 2026-10-09._ M0–M3 are **built and verified**; M4 is mostly done,
+and a large body of work beyond the original roadmap has landed since.
 
 | Milestone | Status | Notes |
 |---|---|---|
-| M0 skeleton | ✅ done* | monorepo, CI config, compose, session auth, tenancy+entitlements, audit, seed. *RLS backstop deferred (see M0 below) |
+| M0 skeleton | ✅ done* | monorepo, CI, compose, session auth, tenancy+entitlements, audit, seed. *RLS backstop still deferred (see M0 below) |
 | M1 MVP loop | ✅ done | positions+releases (all 3 policies), vendor portal, deterministic matching, ownership, timeline |
 | M2 interviews | ✅ done | rounds+panels, scorecards w/ feedback policy, flags, decisions, timeline UI |
 | M3 matching | ✅ done | fuzzy scoring, trgm blocking, review queue, reversible merges, eval corpus in CI, daily re-match sweep |
-| M4 integrations | 🔨 mostly done | landed: **pluggable notifications** (per-org: SMTP toggle, Slack, Teams, HMAC-signed webhooks) with **durable delivery** (retry/backoff, dead letters, log), **vendor status-change emails**, **resume upload** (S3-compatible + text extraction), **GDPR erasure with tombstones**, **daily re-match sweep**, **container images + `--profile app` full stack**. Pending: OIDC SSO, published images/Helm, RLS backstop |
-| Beyond-roadmap extras already landed | ✅ | skill-tagged panels with scoped matching, rich role postings (proficiency matrix, rate bands, JD pages), analytics dashboard (D3 sunburst), white-label branding, embedded-Postgres dev mode |
+| M4 integrations | 🔨 mostly done | landed: **pluggable notifications** (SMTP, Slack, Teams, HMAC-signed webhooks) with **durable delivery**, **vendor status-change emails**, **resume upload** (S3-compatible, or `RESUME_STORAGE=extract_only` with PDF/DOCX text extraction), **GDPR erasure with tombstones**, **daily re-match sweep**, **container images + `--profile app` full stack**, **vendor funnel stats** (both sides, one computation). Pending: OIDC SSO, published images/Helm, RLS backstop, warehouse export |
+| Hiring workflow (beyond the roadmap) | ✅ | **sourcing channels** (vendor / hybrid / direct, with the guard against stranding agency candidates), **screening screen** and the screening-vs-panel rejection split, **panel debrief** with competency matrix, divergence call-out and a composed **feedback packet** for the agency, **offers and dropouts**, the **interview room**, a shared **question bank** with votes and spread, drag-and-drop **pipeline board** with aging and SLAs |
+| Product surface | ✅ | Ledger design system with a live atoms page (`/design`), dashboard / board / dossier / analytics rebuilt to the design, command palette, responsive rail, read-only **position brief** for interviewers and agencies, **vendor portal rail and Performance page**, **custom roles** plus a read-only `vendors.view_performance` permission, white-label branding, D3 sunburst explorer |
+| Public demo | ✅ | free deployment on **Neon + Render** from a Blueprint, migrations serialised in CI, **nightly reset**, the `/demo` guide and `/how-it-works` (read live from the API), a seed whose data respects its own release rules and carries realistic history |
 
-> ⚠️ The GitHub Actions workflow is currently **disabled** by the maintainer;
-> re-enable it (Actions → CI → ⋯ → Enable workflow) once local testing is
-> declared stable — the matching eval gates run there.
+CI runs on every pull request and on `main`: build, unit tests (including the
+matching eval gates) and a `db-verify` job that migrates and seeds twice.
 
 ## 1. Milestones
 

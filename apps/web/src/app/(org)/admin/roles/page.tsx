@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { ActionsMenu, Modal } from "@/components/actions-menu";
+import { PageHead } from "@/components/page-head";
 
 interface Role {
   id: string;
@@ -56,17 +57,12 @@ export default function RolesAdminPage() {
 
   return (
     <main className="wide">
-      <div className="row spread">
-        <div>
-          <h1 style={{ marginBottom: "0.2rem" }}>Roles</h1>
-          <p className="muted" style={{ marginTop: 0, maxWidth: "68ch" }}>
-            A role is a bundle of permissions. Name them the way your
-            organization does — program manager, release train engineer,
-            managing director — then grant them at whatever scope applies.
-          </p>
-        </div>
-        <button onClick={() => setCreating(true)}>Create a role</button>
-      </div>
+      <PageHead
+        kicker="Admin · people & access"
+        title="Roles"
+        lede="A role is a bundle of permissions. Name them the way your organization does, such as program manager or managing director, then grant them at whatever scope applies."
+        actions={<button onClick={() => setCreating(true)}>Create a role</button>}
+      />
 
       {error && <p className="error">{error}</p>}
 

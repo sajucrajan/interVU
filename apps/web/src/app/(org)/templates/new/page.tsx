@@ -11,6 +11,7 @@ import {
   useKnownSkills,
   type SkillRow,
 } from "@/components/skill-matrix";
+import { PageHead } from "@/components/page-head";
 
 interface UnitNode {
   id: string;
@@ -109,18 +110,16 @@ export default function NewTemplatePage() {
 
   return (
     <main className="wide">
-      <div className="row spread">
-        <div>
-          <h1 style={{ marginBottom: "0.2rem" }}>New template</h1>
-          <p className="muted" style={{ marginTop: 0 }}>
-            A standard job description you can start future positions from. The
-            team and rate can always be overridden per opening.
-          </p>
-        </div>
-        <button type="button" className="secondary" onClick={cancel}>
-          Cancel
-        </button>
-      </div>
+      <PageHead
+        kicker="Templates · new"
+        title="New template"
+        lede="A standard job description to start future positions from. The team and the rate can always be changed per opening."
+        actions={
+          <button type="button" className="secondary" onClick={cancel}>
+            Cancel
+          </button>
+        }
+      />
 
       <form onSubmit={submit}>
         <div className="card">

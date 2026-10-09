@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { LoginForm } from "@/components/login-form";
+import { AuthShell } from "@/components/auth-shell";
 
 /**
  * External (vendor) sign-in — the internet-facing entry point. It lives under
@@ -9,14 +10,21 @@ import { LoginForm } from "@/components/login-form";
  */
 export default function VendorLoginPage() {
   return (
-    <main>
-      <h1>Vendor portal</h1>
-      <p className="muted" style={{ marginTop: 0 }}>
-        Sign in to view released positions and submit candidates.
-      </p>
+    <AuthShell
+      variant="vendor"
+      kicker="Vendor portal"
+      statement="The roles released to you, and what happened to everyone you sent."
+      points={[
+        "Open roles with their full skill matrix and rate band",
+        "Submit candidates and follow each one's status",
+        "Your own funnel, from submitted to offered",
+      ]}
+    >
+      <h1>Sign in</h1>
+      <p className="muted auth-sub">For staffing agencies supplying candidates.</p>
       <Suspense fallback={<p className="muted">Loading…</p>}>
         <LoginForm kind="vendor" />
       </Suspense>
-    </main>
+    </AuthShell>
   );
 }

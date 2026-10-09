@@ -148,6 +148,7 @@ export class PerformanceController {
         id: true,
         tier: true,
         createdAt: true,
+        contractStart: true,
         vendor: { select: { name: true } },
       },
     });
@@ -253,7 +254,9 @@ export class PerformanceController {
           id: v.id,
           name: v.vendor.name,
           tier: v.tier,
-          since: v.createdAt.getUTCFullYear(),
+          // When the contract began, not when the row was written: every
+          // seeded agency read "since 2026" whatever its contract said.
+          since: (v.contractStart ?? v.createdAt).getUTCFullYear(),
           submissions: subs.length,
           /** accept × interview × offer. NOT dropout-penalised: dropout is
            *  not modelled, so the design's penalty term cannot be applied. */

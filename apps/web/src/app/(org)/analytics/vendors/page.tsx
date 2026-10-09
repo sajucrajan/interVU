@@ -23,8 +23,8 @@ import {
  * anything — and the agency is right to distrust a number they cannot see the
  * working for.
  *
- * `vendors.manage`, not `positions.view`: this is a commercial screen, not an
- * operational one.
+ * `vendors.manage` or `vendors.view_performance`, not `positions.view`: this is
+ * a commercial screen, not an operational one.
  */
 
 interface VendorRow {

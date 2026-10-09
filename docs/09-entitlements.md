@@ -69,8 +69,15 @@ The five built-ins start with these permissions (an organization can change any 
 | `applications.reject` (screening, pre-interview) | ✓ | ✓ | ✓ | — | — |
 | `decisions.record` | ✓ | — | ✓ | — | — |
 | `vendors.manage` | ✓ | — | — | — | — |
+| `vendors.view_performance` (the agency report, read-only) | ✓ | — | — | — | — |
 | `org.manage_structure` (units/teams) | ✓ | — | — | — | — |
 | `org.manage_users`, settings, audit | ✓ | — | — | — | — |
+
+`vendors.view_performance` exists so the agency report can be granted without
+the contracts it judges. `vendors.manage` already implied it and every role
+holding that was given both by migration; the demo seeds a custom *Vendor
+manager* role (`positions.view`, `submissions.view`,
+`vendors.view_performance`) to show the combination.
 
 `project_manager` is the deliberately read-only observer role the requirement calls for: funnel visibility for the verticals/units/teams they run, no hiring actions, no candidate PII beyond what their reports need (name + stage; resumes and scorecards excluded by default — org-configurable).
 

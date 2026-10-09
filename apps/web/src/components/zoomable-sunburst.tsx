@@ -177,6 +177,9 @@ export function ZoomableSunburst({
               fill={colorFor(d)}
               fillOpacity={visible(d.current) ? (hover === d ? 1 : 0.86) : 0}
               stroke={surface}
+              // Hidden rings kept their outline, which drew stray tick marks
+              // outside the visible circle.
+              strokeOpacity={visible(d.current) ? 1 : 0}
               strokeWidth={1.5}
               style={{ cursor: d.children ? "pointer" : "default" }}
               pointerEvents={visible(d.current) ? "auto" : "none"}
@@ -195,9 +198,11 @@ export function ZoomableSunburst({
                 transform={labelTransform(d.current)}
                 dy="0.35em"
                 fill={dark ? "#ffffff" : "#0b0b0b"}
-                style={{ fontSize: 11, fontWeight: 600 }}
+                // In viewBox units. The chart is drawn at 820 and shown at
+                // about 600px, so 11 rendered near 8px; 15 lands near 11.
+                style={{ fontSize: 15, fontWeight: 600 }}
               >
-                {d.data.name.length > 18 ? `${d.data.name.slice(0, 17)}…` : d.data.name}
+                {d.data.name.length > 16 ? `${d.data.name.slice(0, 15)}…` : d.data.name}
               </text>
             ) : null,
           )}

@@ -15,6 +15,7 @@ import {
 } from "@/components/skill-matrix";
 import { usePageIdentity } from "@/components/sticky-identity";
 import { PositionBriefView, type Brief } from "@/components/position-brief";
+import { formatDate, formatDateTime, formatRelativeDay } from "@/lib/format";
 
 interface Detail {
   id: string;
@@ -60,11 +61,72 @@ interface VendorOrg {
 
 const nice = (s: string | null | undefined) => (s ? s.replaceAll("_", " ") : null);
 
+/** Just what the summary strip reads from GET /applications. */
+interface RoleApplication {
+  id: string;
+  currentStage: string;
+  status: string;
+  sourceChannel: string | null;
+}
+
+const STAGES = [
+  ["submitted", "Submitted"],
+  ["screening", "Screening"],
+  ["interviewing", "Interviewing"],
+  ["offer", "Offer"],
+  ["hired", "Hired"],
+] as const;
+
+/**
+ * Where this role's candidates are. The page described the role in detail and
+ * said nothing about how hiring for it was going; you had to leave for the
+ * pipeline to find out whether anyone was in it at all.
+ */
+function RoleCandidates({ positionId, apps }: { positionId: string; apps: RoleApplication[] }) {
+  const active = apps.filter((a) => a.status === "active");
+  const closed = apps.length - active.length;
+  const fromAgencies = apps.filter((a) => a.sourceChannel === "vendor").length;
+  return (
+    <div className="card role-cands">
+      <div className="role-cands-head">
+        <p className="chart-title" style={{ margin: 0 }}>
+          Candidates on this role
+        </p>
+        <Link href={`/pipeline?position=${positionId}`}>Open in the pipeline →</Link>
+      </div>
+      {apps.length === 0 ? (
+        <p className="muted" style={{ margin: "8px 0 0" }}>
+          Nobody yet. Candidates appear here as agencies submit or people apply.
+        </p>
+      ) : (
+        <>
+          <div className="role-cands-stages">
+            {STAGES.map(([key, label]) => {
+              const n = active.filter((a) => a.currentStage === key).length;
+              return (
+                <div key={key} className={n === 0 ? "empty" : ""}>
+                  <span className="figure">{n}</span>
+                  <span className="mono-label">{label}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="muted role-cands-foot">
+            {active.length} active · {closed} closed ·{" "}
+            {fromAgencies} of {apps.length} came from agencies
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function PositionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [p, setP] = useState<Detail | null>(null);
   const [vendors, setVendors] = useState<VendorOrg[]>([]);
+  const [apps, setApps] = useState<RoleApplication[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<
     "publish" | "release" | "template" | "edit" | "requirements" | null
@@ -72,9 +134,16 @@ export default function PositionDetailPage() {
 
   const refresh = useCallback(
     () =>
-      api<Detail>(`/positions/${id}`)
-        .then(setP)
-        .catch(() => undefined),
+      Promise.all([
+        api<Detail>(`/positions/${id}`)
+          .then(setP)
+          .catch(() => undefined),
+        // Readable by anyone who can see submissions; anyone who cannot just
+        // gets the page without the summary.
+        api<RoleApplication[]>(`/applications?position_id=${id}`)
+          .then(setApps)
+          .catch(() => setApps(null)),
+      ]),
     [id, router],
   );
 
@@ -131,9 +200,26 @@ export default function PositionDetailPage() {
 
   const musts = p.skills.filter((s) => s.level === "must_have");
   const goods = p.skills.filter((s) => s.level === "good_to_have");
-  const releasedCount = p.releases.filter(
-    (r) => new Date(r.visibleFrom) <= new Date(),
-  ).length;
+  /**
+   * When an agency can actually see the role. A release row alone is not the
+   * answer: a direct-only role is hidden whatever the rows say, and a hybrid
+   * one waits for its unlock date as well. The table used to read the rows
+   * raw, so a direct-only role reported "3 of 3 visible now".
+   */
+  const seesFrom = (visibleFrom: string): Date | null => {
+    if (p.sourcingMode === "direct") return null;
+    const from = new Date(visibleFrom);
+    if (p.sourcingMode === "hybrid" && p.vendorOpensAt) {
+      const opens = new Date(p.vendorOpensAt);
+      return opens > from ? opens : from;
+    }
+    return from;
+  };
+  const now = new Date();
+  const releasedCount = p.releases.filter((r) => {
+    const at = seesFrom(r.visibleFrom);
+    return at !== null && at <= now;
+  }).length;
   const unreleased = vendors.filter(
     (v) => v.status === "active" && !p.releases.some((r) => r.vendorOrg.id === v.id),
   );
@@ -244,6 +330,8 @@ export default function PositionDetailPage() {
         )}
       </div>
 
+      {apps && <RoleCandidates positionId={p.id} apps={apps} />}
+
       <div className="viz-grid">
         <div className="card">
           <p className="chart-title">Requirements</p>
@@ -308,18 +396,21 @@ export default function PositionDetailPage() {
               ? "Direct only — agencies never see this role."
               : p.sourcingMode === "hybrid"
                 ? p.vendorOpensAt
-                  ? `Hybrid — agencies join ${new Date(p.vendorOpensAt).toLocaleDateString(undefined, { timeZone: "UTC" })}.`
+                  ? `Hybrid — agencies join ${formatDate(p.vendorOpensAt)}.`
                   : "Hybrid — no unlock date set, so agencies can see it now."
                 : "Vendors — released to agencies under the policy below."}
           </p>
-          <div className="row" style={{ gap: 8 }}>
+          {/* A segmented control, not three buttons. The current channel used
+              to render as a disabled button, which reads as "unavailable"
+              rather than "selected". */}
+          <div className="segmented" role="group" aria-label="Sourcing channel">
             {(["vendor", "hybrid", "direct"] as const).map((mode) => (
               <button
                 key={mode}
                 type="button"
-                className={mode === p.sourcingMode ? "" : "secondary"}
-                disabled={mode === p.sourcingMode}
+                aria-pressed={mode === p.sourcingMode}
                 onClick={() =>
+                  mode !== p.sourcingMode &&
                   act(() =>
                     api(`/positions/${p.id}`, {
                       method: "PATCH",
@@ -367,9 +458,11 @@ export default function PositionDetailPage() {
         <div className="card">
           <p className="chart-title">Vendor release</p>
           <p className="chart-sub">
-            {p.releasePolicy
-              ? `Policy: ${nice(p.releasePolicy.mode)} · ${releasedCount} of ${p.releases.length} visible now`
-              : "Not published — vendors cannot see this position."}
+            {!p.releasePolicy
+              ? "Not published, so no agency can see this position."
+              : p.sourcingMode === "direct"
+                ? "Direct only, so no agency sees it, whatever the release says."
+                : `Policy: ${nice(p.releasePolicy.mode)} · ${releasedCount} of ${p.releases.length} can see it now`}
           </p>
           {p.releases.length === 0 ? (
             <p className="muted" style={{ margin: 0 }}>
@@ -381,19 +474,30 @@ export default function PositionDetailPage() {
                 <tr>
                   <th>Vendor</th>
                   <th>Tier</th>
-                  <th>Visible from</th>
+                  <th>Sees it</th>
                 </tr>
               </thead>
               <tbody>
                 {p.releases.map((r, i) => {
-                  const live = new Date(r.visibleFrom) <= new Date();
+                  const at = seesFrom(r.visibleFrom);
+                  const live = at !== null && at <= now;
                   return (
                     <tr key={i}>
                       <td>{r.vendorOrg.vendor.name}</td>
                       <td>{r.vendorOrg.tier}</td>
-                      <td className="muted">
-                        {new Date(r.visibleFrom).toLocaleString()}{" "}
-                        {!live && <span className="badge warn">scheduled</span>}
+                      <td>
+                        {at === null ? (
+                          <span className="badge">never · direct only</span>
+                        ) : live ? (
+                          <span className="badge ok">since {formatDate(at)}</span>
+                        ) : (
+                          <span
+                            className="badge warn"
+                            title={formatDateTime(at)}
+                          >
+                            {formatRelativeDay(at)}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );

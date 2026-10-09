@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { ActionsMenu, Modal } from "@/components/actions-menu";
+import { PageHead } from "@/components/page-head";
 
 interface Membership {
   id: string;
@@ -85,16 +86,12 @@ export default function PeopleAdminPage() {
 
   return (
     <main className="wide">
-      <div className="row spread">
-        <div>
-          <h1 style={{ marginBottom: "0.2rem" }}>People</h1>
-          <p className="muted" style={{ marginTop: 0 }}>
-            {people.length} user{people.length === 1 ? "" : "s"}. Access is granted as
-            a role at a scope — org-wide, or a unit and everything beneath it.
-          </p>
-        </div>
-        <button onClick={() => setInviting(true)}>Invite someone</button>
-      </div>
+      <PageHead
+        kicker="Admin · people & access"
+        title="People"
+        lede={`${people.length} user${people.length === 1 ? "" : "s"}. Access is granted as a role at a scope: org-wide, or a unit and everything beneath it.`}
+        actions={<button onClick={() => setInviting(true)}>Invite someone</button>}
+      />
 
       {error && <p className="error">{error}</p>}
 
