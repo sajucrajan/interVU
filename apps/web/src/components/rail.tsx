@@ -226,11 +226,13 @@ export function OrgRail() {
     if (l.panelOnly && caps && wl && !caps.includes("scorecards.submit") && !wl.on_panels) {
       return false;
     }
-    return (
-      !l.needs ||
-      !caps ||
-      (Array.isArray(l.needs) ? l.needs.some((n) => caps.includes(n)) : caps.includes(l.needs))
-    );
+    // Gated links wait for capabilities. Showing them while /auth/me was
+    // loading — or after it failed — offered every role the admin pages.
+    if (!l.needs) return true;
+    if (!caps) return false;
+    return Array.isArray(l.needs)
+      ? l.needs.some((n) => caps.includes(n))
+      : caps.includes(l.needs);
   });
   const groups = [...new Set(visible.map((l) => l.group))];
 
