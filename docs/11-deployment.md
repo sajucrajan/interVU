@@ -89,8 +89,9 @@ leaves the browser calling `localhost:4000` and the guide page dark. A
 ## The guide page (`/demo`)
 
 `NEXT_PUBLIC_DEMO_MODE=true` publishes a landing page that explains what the
-product is, offers **one-click sign-in** for six personas, and suggests what to
-look at. Without the flag the route 404s and the home page does not link it —
+product does through four features drawn from the real seeded data, offers
+**one-click sign-in** for seven personas, each with what they can and cannot
+do and what to try, and shows who can do what in one grid. Without the flag the route 404s and the home page does not link it —
 a self-hosted production install must never publish working credentials.
 
 **The org_admin account is deliberately absent.** That is presentation, not
@@ -100,11 +101,18 @@ demonstrable — nothing invites a visitor into org settings, vendor contracts
 or GDPR erasure, which are the operations that would quietly wreck the tour for
 whoever arrives next. The nightly reset is the actual safety net.
 
-The six personas are chosen to make the invisible parts visible: a recruiter
+The seven personas are chosen to make the invisible parts visible: a recruiter
 (the widest view), a hiring manager (the same product with a smaller world), a
 read-only project manager (scope isolation from the other side), an
-interviewer (assignment *is* the grant), and two vendors at different tiers —
-whose different views of the same day are the tiered release ladder.
+interviewer (assignment *is* the grant), and three agencies. TalentBridge
+holds a role released to it by hand, so it sees one more than HireWorks on the
+same day; StaffPro is the agency that keeps arriving second, which is what the
+duplicate contests need.
+
+The page names real seeded people, references and scores — Kavya Rao's 5-vs-2
+MLOps split, Padma Menon's overdue scorecard, the hybrid Data Engineer ladder.
+If `prisma/seed.ts` changes those, change `apps/web/src/app/demo/page.tsx` with
+it.
 
 ## 4. Seed the demo
 
