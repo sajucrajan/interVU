@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { SectionHead } from "@/components/section-head";
 
@@ -51,10 +52,13 @@ export function PositionBriefView({
   brief,
   backHref,
   backLabel,
+  action,
 }: {
   brief: Brief;
   backHref: string;
   backLabel: string;
+  /** The one thing this reader can do about the role, if anything. */
+  action?: ReactNode;
 }) {
   const musts = brief.skills.filter((s) => s.level === "must_have");
   const nice_to = brief.skills.filter((s) => s.level !== "must_have");
@@ -82,6 +86,7 @@ export function PositionBriefView({
           </div>
           <h1 style={{ marginTop: 12 }}>{brief.title}</h1>
         </div>
+        {action && <div className="page-head-actions">{action}</div>}
       </header>
 
       <dl className="brief-facts">

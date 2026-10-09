@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { ActionsMenu, Modal } from "@/components/actions-menu";
+import { PageHead } from "@/components/page-head";
 
 interface UnitNode {
   id: string;
@@ -68,16 +69,12 @@ export default function TeamsAdminPage() {
 
   return (
     <main className="wide">
-      <div className="row spread">
-        <div>
-          <h1 style={{ marginBottom: "0.2rem" }}>Teams</h1>
-          <p className="muted" style={{ marginTop: 0 }}>
-            Verticals and units contain other units or teams; positions attach to
-            teams. Access granted at any node covers everything beneath it.
-          </p>
-        </div>
-        <button onClick={() => setAdding({ parent: null })}>Add a vertical</button>
-      </div>
+      <PageHead
+        kicker="Admin · structure"
+        title="Teams"
+        lede="Verticals and units contain other units or teams, and positions attach to teams. Access granted at any node covers everything beneath it."
+        actions={<button onClick={() => setAdding({ parent: null })}>Add a vertical</button>}
+      />
 
       {error && <p className="error">{error}</p>}
 

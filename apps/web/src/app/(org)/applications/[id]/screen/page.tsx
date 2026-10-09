@@ -6,6 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
 import { usePageIdentity } from "@/components/sticky-identity";
+import { formatDate } from "@/lib/format";
+import { ResumeText } from "@/components/resume-text";
 
 interface Requirement {
   skill_id: string;
@@ -245,7 +247,7 @@ export default function ScreenPage() {
                     )}{" "}
                     {h.position.title} · {h.currentStage}
                     {h.decision ? ` · ${h.decision.outcome}` : ""} ·{" "}
-                    {new Date(h.createdAt).toLocaleDateString()}
+                    {formatDate(h.createdAt)}
                   </li>
                 ))}
               </ul>
@@ -265,7 +267,7 @@ export default function ScreenPage() {
               {p.resume.sections.map((s, i) => (
                 <div key={i} className="room-section">
                   {s.heading && <h3>{s.heading}</h3>}
-                  <pre>{s.body}</pre>
+                  <ResumeText body={s.body} />
                 </div>
               ))}
             </div>

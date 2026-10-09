@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { LoginForm } from "@/components/login-form";
+import { AuthShell } from "@/components/auth-shell";
 
 /**
  * Internal (organization) sign-in. Deployments typically restrict this route
@@ -9,18 +10,27 @@ import { LoginForm } from "@/components/login-form";
  */
 export default function OrgLoginPage() {
   return (
-    <main>
-      <h1>Sign in to InterVU</h1>
-      <p className="muted" style={{ marginTop: 0 }}>
-        Organization workspace — positions, candidates, and interviews.
+    <AuthShell
+      variant="org"
+      kicker="Organization workspace"
+      statement="Every agency candidate, one pipeline, and a record of who introduced whom."
+      points={[
+        "Positions, and when each agency gets to see them",
+        "Candidates, duplicate claims and ownership",
+        "Interviews, scorecards and the debrief",
+      ]}
+    >
+      <h1>Sign in</h1>
+      <p className="muted auth-sub">
+        For recruiters, hiring managers and interviewers.
       </p>
       <Suspense fallback={<p className="muted">Loading…</p>}>
         <LoginForm kind="org" />
       </Suspense>
-      <p className="muted" style={{ fontSize: "0.85rem" }}>
+      <p className="muted auth-alt">
         Supplying candidates as an agency?{" "}
         <Link href="/vendor/login">Go to the vendor portal</Link>
       </p>
-    </main>
+    </AuthShell>
   );
 }

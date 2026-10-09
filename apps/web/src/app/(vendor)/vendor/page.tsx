@@ -6,6 +6,8 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, API_BASE, ApiError, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
+import { PageHead } from "@/components/page-head";
+import { formatDate } from "@/lib/format";
 
 interface Me {
   kind: string;
@@ -86,36 +88,44 @@ export default function VendorHome() {
       .catch(() => undefined);
   }, [router, refresh]);
 
+  // Arriving from a role page's "Submit a candidate": open that role's form
+  // and bring it into view. Read from location rather than useSearchParams,
+  // which would force this whole page out of static rendering.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("submit");
+    if (!wanted || positions.length === 0) return;
+    const target = positions.find((p) => p.id === wanted);
+    if (!target) return;
+    setSubmitFor(target);
+    requestAnimationFrame(() =>
+      document.getElementById(`role-${wanted}`)?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
+  }, [positions]);
+
   if (!me) return <main className="wide muted">Loading…</main>;
 
   return (
     <main className="wide">
-      <div className="row spread">
-        <h1>Vendor portal</h1>
-        <div className="row">
-          {me.organization && (
-            <span className="badge">client: {me.organization.name}</span>
-          )}
-          <span className="muted">
-            {me.name} · {me.vendor}
-          </span>
-          <button
-            className="secondary"
-            onClick={() =>
-              api("/auth/logout", { method: "POST" }).then(() => router.push("/vendor/login"))
-            }
-          >
-            Sign out
-          </button>
-        </div>
-      </div>
+      {/* Identity and sign-out live in the rail now, as they do for the
+          organization. This header used to repeat both. */}
+      <PageHead
+        kicker={[me.vendor, me.organization && `client: ${me.organization.name}`]
+          .filter(Boolean)
+          .join(" · ")}
+        title="Open roles"
+        lede={
+          positions.length === 0
+            ? "Nothing has been released to you yet. New roles appear here, and by email, the moment they are."
+            : `${positions.length} role${positions.length === 1 ? "" : "s"} released to you. You only ever see your own candidates, and a plain status for each.`
+        }
+      />
 
-      <SectionHead label="Open positions" />
+      <SectionHead label={`Released to you (${positions.length})`} />
       {positions.length === 0 && (
         <p className="muted">No positions have been released to you yet.</p>
       )}
       {positions.map((p) => (
-        <div className="card" key={p.id}>
+        <div className="card" key={p.id} id={`role-${p.id}`}>
           <div className="row spread">
             <div>
               <Link href={`/vendor/positions/${p.id}`} className="ref-link">
@@ -204,7 +214,7 @@ export default function VendorHome() {
                     </span>
                   </td>
                   <td className="num muted">
-                    {new Date(s.submitted_at).toLocaleDateString()}
+                    {formatDate(s.submitted_at)}
                   </td>
                 </tr>
                 {/* A released packet expands the row it belongs to, rather
@@ -399,7 +409,7 @@ function FeedbackBlock({
 
       <div className="feedback-body">
         <div className="mono-label">
-          Feedback released {new Date(feedback.released_at).toLocaleDateString()}
+          Feedback released {formatDate(feedback.released_at)}
         </div>
         <p className="feedback-summary">{feedback.summary}</p>
 
@@ -442,7 +452,7 @@ function FeedbackBlock({
               <>
                 {" "}
                 Resubmission welcome after{" "}
-                {new Date(feedback.resubmit_after).toLocaleDateString()} — it will
+                {formatDate(feedback.resubmit_after)} — it will
                 not be treated as a duplicate.
               </>
             )}
@@ -453,7 +463,7 @@ function FeedbackBlock({
           <div className="row">
             {feedback.acknowledged_at ? (
               <span className="badge ok">
-                Acknowledged {new Date(feedback.acknowledged_at).toLocaleDateString()}
+                Acknowledged {formatDate(feedback.acknowledged_at)}
               </span>
             ) : (
               <button type="button" className="secondary" disabled={busy} onClick={acknowledge}>

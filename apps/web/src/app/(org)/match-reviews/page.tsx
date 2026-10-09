@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
+import { PageHead } from "@/components/page-head";
+import { formatDateTime } from "@/lib/format";
 
 interface ReviewItem {
   id: string;
@@ -64,14 +66,26 @@ export default function MatchReviewsPage() {
 
   return (
     <main className="wide">
-      <h1>Match reviews</h1>
-      <p className="muted" style={{ marginTop: 0 }}>
-        Uncertain identity matches wait here for a human decision. Linking merges
-        the submission into the existing candidate&apos;s history; keeping separate
-        creates a new candidate and teaches the engine not to re-ask.
-      </p>
+      <PageHead
+        kicker={`Identity · ${items.length} waiting`}
+        title="Match reviews"
+        lede="Submissions the matcher could not place with confidence. Linking merges one into the existing candidate's history; keeping them separate creates a new candidate and teaches the engine not to ask again."
+      />
       {error && <p className="error">{error}</p>}
-      {items.length === 0 && <p className="muted">Queue is empty — nothing uncertain right now. 🎉</p>}
+      {items.length === 0 && (
+        <div className="card empty-state">
+          <span className="empty-icon" aria-hidden>
+            ✓
+          </span>
+          <div>
+            <strong>Nothing uncertain right now.</strong>
+            <p className="muted" style={{ margin: 0 }}>
+              Exact matches on email or phone link automatically. Anything the
+              fuzzy scorer is unsure of lands here with the evidence side by side.
+            </p>
+          </div>
+        </div>
+      )}
       {items.map((item) => {
         const s = item.submission.raw_profile;
         const c = item.suggested_candidate;
@@ -83,7 +97,7 @@ export default function MatchReviewsPage() {
               </strong>
               <span className="muted">
                 {item.submission.vendor} → {item.submission.position} ·{" "}
-                {new Date(item.created_at).toLocaleString()}
+                {formatDateTime(item.created_at)}
               </span>
             </div>
             <div className="viz-grid" style={{ marginTop: "0.7rem" }}>
@@ -96,7 +110,7 @@ export default function MatchReviewsPage() {
                     {[s.current_title, s.current_employer].filter(Boolean).join(" @ ")}
                   </span>
                   <br />
-                  <span className="muted">{s.email} · {s.phone}</span>
+                  <span className="muted">{[s.email, s.phone].filter(Boolean).join(" · ")}</span>
                 </p>
               </div>
               <div>

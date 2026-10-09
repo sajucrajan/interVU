@@ -18,7 +18,8 @@ interface RailLink {
   href: string;
   label: string;
   icon: string;
-  needs?: string;
+  /** Shown when the user holds this permission, or any one of these. */
+  needs?: string | string[];
   queue?: string[];
 }
 
@@ -82,8 +83,8 @@ const LINKS: RailLink[] = [
     label: "Vendor performance",
     icon: "⚖",
     // Commercial, not operational — this is the screen a fee is renegotiated
-    // from, so it follows the vendor permission rather than positions.view.
-    needs: "vendors.manage",
+    // from, so it follows the vendor permissions rather than positions.view.
+    needs: ["vendors.manage", "vendors.view_performance"],
   },
   {
     group: "Insight",
@@ -216,7 +217,12 @@ export function OrgRail() {
     };
   }, [menuOpen]);
 
-  const visible = LINKS.filter((l) => !l.needs || !caps || caps.includes(l.needs));
+  const visible = LINKS.filter(
+    (l) =>
+      !l.needs ||
+      !caps ||
+      (Array.isArray(l.needs) ? l.needs.some((n) => caps.includes(n)) : caps.includes(l.needs)),
+  );
   const groups = [...new Set(visible.map((l) => l.group))];
 
   /** A badge you must open to understand is a badge that gets ignored, so the
@@ -238,6 +244,15 @@ export function OrgRail() {
   // The rail states who you are as well as where you are (design 1b).
   const role = wl?.user.roles[0];
 
+  // The most specific link wins. A plain prefix test lit up both Analytics and
+  // Vendor performance on /analytics/vendors, because one path starts the other.
+  const activeHref = visible
+    .filter((l) => pathname === l.href || pathname.startsWith(`${l.href}/`))
+    .reduce<string | null>(
+      (best, l) => (best && best.length >= l.href.length ? best : l.href),
+      null,
+    );
+
   return (
     <>
       <CommandPalette capabilities={caps ?? []} />
@@ -247,12 +262,14 @@ export function OrgRail() {
           <Link href="/dashboard" className="brand">
             Inter<span className="brand-accent">/</span>VU
           </Link>
+          {/* Organization and role on their own lines. Joined, a long role
+              name ("Organization admin") wrapped mid-phrase. */}
           {org && (
-            <div className="mono-label" style={{ marginTop: 8 }}>
+            <div className="mono-label rail-org" style={{ marginTop: 8 }}>
               {org.branding?.product_label ?? org.name}
-              {role && ` · ${role}`}
             </div>
           )}
+          {org && role && <div className="mono-label rail-role">{role}</div>}
         </div>
         {/* Mobile only. The count rides on the toggle so collapsing the nav
             never hides the fact that work is waiting. */}
@@ -281,7 +298,7 @@ export function OrgRail() {
               .filter((l) => l.group === group)
               .map((l) => {
                 const count = countFor(l);
-                const active = pathname.startsWith(l.href);
+                const active = l.href === activeHref;
                 return (
                   <Link
                     key={l.href}

@@ -50,7 +50,14 @@ export default function VendorPositionPage() {
     <PositionBriefView
       brief={brief}
       backHref="/vendor"
-      backLabel="Back to the portal"
+      backLabel="Back to open roles"
+      // Reading the role is how an agency decides whom to send, so the page
+      // that answers that question now also lets them act on it.
+      action={
+        <Link href={`/vendor?submit=${id}`}>
+          <button>Submit a candidate</button>
+        </Link>
+      }
     />
   );
 }

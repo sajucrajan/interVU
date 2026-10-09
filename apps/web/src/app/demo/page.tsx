@@ -78,12 +78,12 @@ const ORG_PERSONAS: Persona[] = [
         what: "The queue. Anything past its SLA is red, and each row opens the work it describes.",
       },
       {
-        where: "Positions → POS-004 Frontend Engineer",
-        what: "Switch sourcing to Direct only. It refuses, and tells you how many agency candidates are still active.",
+        where: "Match reviews",
+        what: "Two agencies sent someone already on file under a different name and email. The matcher scored each 81% and shows its working.",
       },
       {
-        where: "Analytics → Where hires come from",
-        what: "Cost per hire by channel, worked out from each agency's contracted fee.",
+        where: "Positions → POS-004 Frontend Engineer",
+        what: "Switch sourcing to Direct only. It refuses, and tells you how many agency candidates are still active.",
       },
     ],
     landing: "/dashboard",
@@ -152,9 +152,35 @@ const ORG_PERSONAS: Persona[] = [
     ],
     landing: "/interviews",
   },
+  {
+    key: "sasha",
+    email: "vendors@acme.test",
+    name: "Sasha Sourcing",
+    initials: "SS",
+    role: "Vendor manager",
+    scope: "Read-only · a custom role",
+    blurb: "Reviews how each agency performs. Not a built-in role: the organization defined it from three permissions.",
+    can: [
+      "Compare every agency side by side",
+      "Filter by role, technology and seniority",
+      "Read positions and the pipeline",
+    ],
+    cannot: ["Change a contract, a tier or a fee", "Move, reject or decide on a candidate"],
+    tryThis: [
+      {
+        where: "Vendor performance",
+        what: "Four agencies from one computation, the same one each agency sees for itself in its own portal.",
+      },
+    ],
+    landing: "/analytics/vendors",
+  },
 ];
 
-/** External agencies. Three, so tiers and duplicate contests both have a cast. */
+/**
+ * External agencies. Four are seeded; three are offered here, which is enough
+ * for tiers and duplicate contests to have a cast. The fourth, NorthStar,
+ * exists so the agency benchmark has the peers it requires.
+ */
 const VENDOR_PERSONAS: Persona[] = [
   {
     key: "talentbridge",
@@ -165,7 +191,7 @@ const VENDOR_PERSONAS: Persona[] = [
     scope: "Own submissions",
     blurb: "The preferred agency. First in line on tiered roles, and holds one role nobody else has.",
     can: [
-      "See 4 released roles",
+      "See 5 released roles",
       "Submit candidates and track them",
       "See what happened to everyone it sent",
     ],
@@ -173,11 +199,11 @@ const VENDOR_PERSONAS: Persona[] = [
     tryThis: [
       {
         where: "Open roles",
-        what: "Sales Operations Analyst is here and nowhere else. It was released to TalentBridge by hand.",
+        what: "Two roles nobody else has yet: Data Engineer is the tier-1 head start, and Sales Operations Analyst was released by hand.",
       },
       {
         where: "Performance",
-        what: "Its funnel from submitted to offered, with screening rejections kept apart from the costlier ones after a panel. The comparison with other agencies stays empty until enough are active that none could be singled out.",
+        what: "Its funnel from submitted to offered, then against the other three agencies, pooled so none can be singled out.",
       },
     ],
     vendor: true,
@@ -252,10 +278,10 @@ const WAITING = [
     tone: "bad",
   },
   {
-    label: "Release · POS-002 Data Engineer",
-    title: "Agencies join in 3 days",
-    meta: "Careers site first, then tier 1, then tier 2",
-    badge: "Hybrid",
+    label: "Match reviews · NorthStar",
+    title: "Noor A. Aziz",
+    meta: "Already on file as Noor Aziz? The matcher is not sure",
+    badge: "Score 81%",
     tone: "accent",
   },
 ] as const;
@@ -295,16 +321,18 @@ function WaitingStack() {
 /* ------------------------------------------------------------------------ */
 
 /**
- * POS-002's real schedule: hybrid, so direct channels first; agencies open
- * three days after a reset, tier 2 a week after. The nightly reset means the
- * ladder never visibly unlocks on the public demo, which is why it is drawn.
+ * POS-002's real schedule, as the seed writes it: hybrid, so the careers site
+ * had it first; a day later the tier-1 agency; the tier-2 agencies three days
+ * from now. The nightly reset moves the whole ladder along with it, so on the
+ * public demo the tier-2 step is always just ahead.
  */
 function ReleaseLadder() {
-  const DAYS = 10;
+  // Positions along the track, as a share of its width.
+  const TODAY = 76;
   const lanes = [
-    { who: "Careers site & referrals", note: "direct", from: 0, tone: "ink" },
-    { who: "TalentBridge", note: "tier 1", from: 3, tone: "accent" },
-    { who: "HireWorks · StaffPro", note: "tier 2", from: 7, tone: "accent2" },
+    { who: "Careers site & referrals", note: "direct", from: 0, label: "since publish", tone: "ink" },
+    { who: "TalentBridge", note: "tier 1", from: 8, label: "a day later", tone: "accent" },
+    { who: "HireWorks · StaffPro · NorthStar", note: "tier 2", from: 97, label: "in 3 days", tone: "accent2" },
   ];
   return (
     <figure className="dg-vignette dg-ladder">
@@ -321,22 +349,33 @@ function ReleaseLadder() {
             </div>
             <div className="dg-lane-track">
               <span
-                className={`dg-lane-fill ${l.tone}`}
-                style={{ left: `${(l.from / DAYS) * 100}%` }}
+                className={`dg-lane-fill ${l.tone}${l.from > TODAY ? " future" : ""}`}
+                style={{ left: `${l.from}%` }}
+              />
+              <span
+                className={`dg-lane-day${l.from > TODAY ? " future" : ""}`}
+                // A future step labels itself just before its marker, so the
+                // words never sit on top of the dashed line.
+                style={
+                  l.from > TODAY
+                    ? { right: `calc(${100 - l.from}% + 8px)` }
+                    : { left: `calc(${l.from}% + 10px)` }
+                }
               >
-                <span className="dg-lane-day">day {l.from}</span>
+                {l.label}
               </span>
+              <span className="dg-today" style={{ left: `${TODAY}%` }} aria-hidden="true" />
             </div>
           </div>
         ))}
         <div className="dg-ladder-axis" aria-hidden="true">
           <span />
           <span className="dg-axis-ticks">
-            {[0, 3, 7, 10].map((d) => (
-              <i key={d} style={{ left: `${(d / DAYS) * 100}%` }}>
-                {d === 0 ? "publish" : `+${d}d`}
-              </i>
-            ))}
+            <i style={{ left: "0%" }}>published</i>
+            <i className="today" style={{ left: `${TODAY}%` }}>
+              today
+            </i>
+            <i style={{ left: "100%" }}>+3d</i>
           </span>
         </div>
       </div>
@@ -514,7 +553,7 @@ const FEATURES: Feature[] = [
     see: {
       as: "TalentBridge, then HireWorks",
       persona: "talentbridge",
-      what: "Count the open roles. It is 4 against 3, and neither sees Data Engineer yet.",
+      what: "Count the open roles: 5 against 3. HireWorks gets Data Engineer in three days and is never told it is waiting.",
     },
   },
   {
@@ -525,7 +564,7 @@ const FEATURES: Feature[] = [
     see: {
       as: "Riley",
       persona: "riley",
-      what: "Pipeline → the Duplicates filter. Each contest shows both agencies and both timestamps.",
+      what: "Match reviews for the near-misses the matcher was unsure of; Pipeline → Duplicates for the contests it was sure of.",
     },
   },
   {
@@ -557,14 +596,17 @@ const FEATURES: Feature[] = [
 /* ------------------------------------------------------------------------ */
 
 type Cell = boolean | string;
-const GRID_COLS = ["Riley", "Harper", "Parker", "Indira", "TalentBridge", "HireWorks", "StaffPro"];
+const GRID_COLS = ["Riley", "Harper", "Parker", "Indira", "Sasha", "TalentBridge", "HireWorks", "StaffPro"];
+/** Columns from here on are agencies, drawn behind the wall. */
+const FIRST_AGENCY = 5;
 const GRID_ROWS: { what: string; cells: Cell[] }[] = [
-  { what: "Open roles they can see", cells: ["6", "4", "2", "0", "4", "3", "3"] },
-  { what: "Which agency sent a candidate", cells: [true, true, true, false, "own", "own", "own"] },
-  { what: "Move or reject candidates", cells: [true, true, false, false, false, false, false] },
-  { what: "Settle duplicate claims", cells: [true, false, false, false, false, false, false] },
-  { what: "Record hire or no-hire", cells: [false, true, false, false, false, false, false] },
-  { what: "Release roles to agencies", cells: [true, false, false, false, false, false, false] },
+  { what: "Open roles they can see", cells: ["6", "4", "2", "0", "6", "5", "3", "3"] },
+  { what: "Which agency sent a candidate", cells: [true, true, true, false, true, "own", "own", "own"] },
+  { what: "Move or reject candidates", cells: [true, true, false, false, false, false, false, false] },
+  { what: "Settle duplicate claims", cells: [true, false, false, false, false, false, false, false] },
+  { what: "Record hire or no-hire", cells: [false, true, false, false, false, false, false, false] },
+  { what: "Release roles to agencies", cells: [true, false, false, false, false, false, false, false] },
+  { what: "See vendor performance", cells: [false, false, false, false, true, "own", "own", "own"] },
 ];
 
 function AccessGrid() {
@@ -575,7 +617,7 @@ function AccessGrid() {
           <tr>
             <th />
             {GRID_COLS.map((c, i) => (
-              <th key={c} className={`mono-label ${i >= 4 ? "agency" : ""}`} scope="col">
+              <th key={c} className={`mono-label ${i >= FIRST_AGENCY ? "agency" : ""}`} scope="col">
                 {c}
               </th>
             ))}
@@ -586,7 +628,7 @@ function AccessGrid() {
             <tr key={r.what}>
               <th scope="row">{r.what}</th>
               {r.cells.map((c, i) => (
-                <td key={i} className={i >= 4 ? "agency" : ""}>
+                <td key={i} className={i >= FIRST_AGENCY ? "agency" : ""}>
                   {typeof c === "string" ? (
                     /^\d+$/.test(c) ? (
                       <span className="figure dg-count">{c}</span>
@@ -736,11 +778,11 @@ export default function DemoPage() {
             </div>
             <div>
               <dt className="mono-label">Agencies</dt>
-              <dd className="figure">3</dd>
+              <dd className="figure">4</dd>
             </div>
             <div>
               <dt className="mono-label">People to be</dt>
-              <dd className="figure">7</dd>
+              <dd className="figure">8</dd>
             </div>
             <div>
               <dt className="mono-label">Passwords to type</dt>
@@ -776,7 +818,7 @@ export default function DemoPage() {
       <section ref={peopleRef} className="dg-people-section" aria-labelledby="dg-people-h">
         <SectionHead label="Pick someone to be" />
         <h2 id="dg-people-h" className="dg-people-h">
-          Seven people, seven different products.
+          Eight people, eight different products.
         </h2>
         <p className="muted dg-people-sub">
           Same database, same moment. What each person sees is decided by their
@@ -876,8 +918,8 @@ export default function DemoPage() {
           <span className="mono-label dg-limit-tag">Data</span>
           <strong>Break anything you like.</strong>
           <span>
-            All data is made up, and the database is rebuilt from scratch every
-            night at 03:00&nbsp;UTC.
+            All data is made up, and the database is rebuilt from scratch
+            every night.
           </span>
         </li>
         <li>

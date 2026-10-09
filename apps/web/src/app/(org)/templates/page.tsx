@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { ActionsMenu } from "@/components/actions-menu";
+import { PageHead } from "@/components/page-head";
 
 interface Template {
   id: string;
@@ -43,22 +44,21 @@ export default function TemplatesPage() {
 
   return (
     <main className="wide">
-      <div className="row spread">
-        <div>
-          <h1 style={{ marginBottom: "0.2rem" }}>Job description templates</h1>
-          <p className="muted" style={{ marginTop: 0 }}>
-            Standard JDs to start a position from, so you only edit what differs.
-          </p>
-        </div>
-        <div className="row">
-          <Link href="/templates/new">
-            <button>+ New template</button>
-          </Link>
-          <Link href="/positions">
-            <button className="secondary">Positions</button>
-          </Link>
-        </div>
-      </div>
+      <PageHead
+        kicker="Hiring · shared across the organization"
+        title="Job description templates"
+        lede="Standard job descriptions to start a position from, so each new opening only edits what differs."
+        actions={
+          <>
+            <Link href="/positions">
+              <button className="secondary">Positions</button>
+            </Link>
+            <Link href="/templates/new">
+              <button>+ New template</button>
+            </Link>
+          </>
+        }
+      />
 
       {error && <p className="error">{error}</p>}
 

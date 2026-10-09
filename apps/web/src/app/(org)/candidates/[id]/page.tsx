@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api, ApiError, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
 import { usePageIdentity } from "@/components/sticky-identity";
+import { formatDate } from "@/lib/format";
 
 interface Timeline {
   candidate: {
@@ -74,12 +75,7 @@ const initials = (name: string) =>
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
 
-const dateLabel = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+const dateLabel = (iso: string) => formatDate(iso);
 
 /** A prior outcome is only bad news when it was bad news. */
 const OUTCOME = {
@@ -154,7 +150,9 @@ export default function CandidateDossierPage() {
             <h1 style={{ margin: "10px 0 0", fontSize: 40 }}>{d.display_name}</h1>
             {meta.length > 0 && <p className="dossier-meta">{meta.join(" · ")}</p>}
             <div className="dossier-chips">
-              <span className="badge">{d.identities_merged} identities merged</span>
+              <span className="badge">
+                {d.identities_merged} {d.identities_merged === 1 ? "identity" : "identities"} merged
+              </span>
               <span className="badge">
                 {d.vendors} vendor{d.vendors === 1 ? "" : "s"}
               </span>
