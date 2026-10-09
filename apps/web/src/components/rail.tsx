@@ -20,6 +20,8 @@ interface RailLink {
   icon: string;
   /** Shown when the user holds this permission, or any one of these. */
   needs?: string | string[];
+  /** Only for people who interview: scorecards.submit, or any panel seat. */
+  panelOnly?: boolean;
   queue?: string[];
 }
 
@@ -46,6 +48,9 @@ const LINKS: RailLink[] = [
     href: "/interviews",
     label: "My interviews",
     icon: "◷",
+    // Shown to people who interview, by permission or by sitting on a panel.
+    // A project manager who is never on one saw a permanently empty page.
+    panelOnly: true,
     queue: ["scorecards"],
   },
   {
@@ -217,12 +222,16 @@ export function OrgRail() {
     };
   }, [menuOpen]);
 
-  const visible = LINKS.filter(
-    (l) =>
+  const visible = LINKS.filter((l) => {
+    if (l.panelOnly && caps && wl && !caps.includes("scorecards.submit") && !wl.on_panels) {
+      return false;
+    }
+    return (
       !l.needs ||
       !caps ||
-      (Array.isArray(l.needs) ? l.needs.some((n) => caps.includes(n)) : caps.includes(l.needs)),
-  );
+      (Array.isArray(l.needs) ? l.needs.some((n) => caps.includes(n)) : caps.includes(l.needs))
+    );
+  });
   const groups = [...new Set(visible.map((l) => l.group))];
 
   /** A badge you must open to understand is a badge that gets ignored, so the

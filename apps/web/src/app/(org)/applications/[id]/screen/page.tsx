@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
 import { SectionHead } from "@/components/section-head";
 import { usePageIdentity } from "@/components/sticky-identity";
 import { formatDate } from "@/lib/format";
@@ -79,13 +80,14 @@ export default function ScreenPage() {
   const [caps, setCaps] = useState<string[] | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [denied, setDenied] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(
     () =>
       api<Packet>(`/applications/${id}/screening`)
         .then(setP)
-        .catch((e) => setError(apiErrorMessage(e))),
+        .catch((e) => (isForbidden(e) ? setDenied(true) : setError(apiErrorMessage(e)))),
     [id],
   );
 
@@ -116,6 +118,14 @@ export default function ScreenPage() {
     }
   }
 
+  if (denied) {
+    return (
+      <AccessDenied
+        what="This screening packet"
+        why="Screening is open to people who can see submissions for the team that owns this role."
+      />
+    );
+  }
   if (error && !p) {
     return (
       <main className="wide">
@@ -371,9 +381,11 @@ export default function ScreenPage() {
           )}
 
           {error && <p className="error">{error}</p>}
-          <p className="muted room-hint" style={{ marginTop: "var(--step-5)" }}>
-            <Link href={`/candidates/${c.id}`}>Full candidate history →</Link>
-          </p>
+          {caps?.includes("candidates.view_history") && (
+            <p className="muted room-hint" style={{ marginTop: "var(--step-5)" }}>
+              <Link href={`/candidates/${c.id}`}>Full candidate history →</Link>
+            </p>
+          )}
         </aside>
       </div>
     </main>

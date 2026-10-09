@@ -8,6 +8,7 @@ import { SectionHead } from "@/components/section-head";
 import { formatAge } from "@/components/age-pill";
 import type { Worklist } from "@/lib/worklist";
 import { usePageIdentity } from "@/components/sticky-identity";
+import { rolePurpose } from "@/lib/role-purpose";
 
 interface Me {
   kind: string;
@@ -60,7 +61,7 @@ const hoursSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 3_6
 export default function Dashboard() {
   const router = useRouter();
   const [wl, setWl] = useState<Worklist | null>(null);
-  const [caps, setCaps] = useState<string[]>([]);
+  const [caps, setCaps] = useState<string[] | null>(null);
 
   useEffect(() => {
     api<Worklist>("/me/worklist")
@@ -68,7 +69,7 @@ export default function Dashboard() {
       .catch(() => undefined);
     api<Me>("/auth/me")
       .then((m) => setCaps(m.capabilities ?? []))
-      .catch(() => undefined);
+      .catch(() => setCaps([]));
   }, [router]);
 
   // The heading here is a HEADLINE — "21 things are waiting on you" — which
@@ -76,12 +77,14 @@ export default function Dashboard() {
   // matters though, so it moves to the meta slot where it belongs.
   usePageIdentity({
     label: "Today",
-    meta: wl && wl.total > 0 ? `${wl.total} waiting on you` : null,
+    meta: wl && wl.actionable && wl.total > 0 ? `${wl.total} waiting on you` : null,
   });
 
-  if (!wl) return <main className="wide muted">Loading…</main>;
+  if (!wl || !caps) return <main className="wide muted">Loading…</main>;
 
   const seesPipeline = caps.includes("submissions.view");
+  const canOpenCandidates = caps.includes("candidates.view_history");
+  const role = wl.user.roles[0];
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     day: "numeric",
@@ -94,9 +97,18 @@ export default function Dashboard() {
       {/* ---- Page header: the fact, then the three numbers that frame it ---- */}
       <header className="page-head">
         <div>
-          <div className="mono-label">{today}</div>
+          <div className="mono-label">
+            {today}
+            {role ? ` · ${role}` : ""}
+          </div>
           <h1 style={{ marginTop: 12 }}>
-            {wl.total > 0 ? (
+            {!wl.actionable ? (
+              <>
+                Here is where
+                <br />
+                hiring stands.
+              </>
+            ) : wl.total > 0 ? (
               <>
                 {spell(wl.total)}
                 <br />
@@ -110,6 +122,10 @@ export default function Dashboard() {
               </>
             )}
           </h1>
+          {/* What this person is here to do. Every role used to land on the
+              same recruiter headline, so a read-only project manager was told
+              eleven things were "waiting on" them that they could not touch. */}
+          <p className="dossier-meta role-purpose">{rolePurpose(caps, wl.on_panels)}</p>
         </div>
         {seesPipeline && (
           <div className="head-stats">
@@ -157,69 +173,41 @@ export default function Dashboard() {
       </header>
 
       {/* ---- The queue: a ruled list that says how late, not just how many ---- */}
+      {wl.actionable && (
       <section>
-        <SectionHead
-          label="Your queue"
-          action={<Link href="/admin/people">Configure alerts</Link>}
-        />
+        {/* "Configure alerts" used to sit here, linking every role to the
+            admin people page — which refused all but admins, and has no
+            alert settings on it anyway. */}
+        <SectionHead label="Your queue" />
         {wl.groups.length === 0 ? (
           <div className="empty-state">
             <span className="empty-icon">✓</span>
             <div>
               <strong>You&apos;re all caught up.</strong>
               <p className="muted" style={{ margin: 0 }}>
-                New submissions, reviews and interview feedback will appear here.
+                {seesPipeline
+                  ? "New submissions, reviews and interview feedback will appear here."
+                  : "Scorecards you owe will appear here after each interview."}
               </p>
             </div>
           </div>
         ) : (
-          wl.groups.map((g) => {
-            // A breached row reads as breached whatever its resting tone: the
-            // point of the row is how late it is, not which queue it came from.
-            const tone = g.sla_state === "breached" ? "critical" : g.tone;
-            return (
-            <Link
-              key={g.key}
-              href={g.href}
-              className="queue-row"
-              style={{
-                borderLeftColor: TONE_COLOR[tone],
-                background: g.sla_state === "breached" ? TONE_WASH[tone] : undefined,
-              }}
-            >
-              <span className="figure queue-n" style={{ color: TONE_COLOR[tone] }}>
-                {g.count}
-              </span>
-              <span>
-                <span className="queue-label">{g.label}</span>
-                <span className="queue-sub">{g.sub}</span>
-              </span>
-              {g.sla_state ? (
-                <span
-                  className="queue-sla"
-                  style={{
-                    color: SLA_COLOR[g.sla_state],
-                    borderColor: SLA_COLOR[g.sla_state],
-                    background:
-                      g.sla_state === "ok" ? "transparent" : TONE_WASH[tone],
-                  }}
-                >
-                  {g.sla_label}
-                </span>
-              ) : (
-                <span />
-              )}
-              <span className="queue-oldest">
-                {g.oldest_at ? `oldest ${formatAge(hoursSince(g.oldest_at))}` : ""}
-              </span>
-              <span className="queue-go" aria-hidden>
-                →
-              </span>
-            </Link>
-            );
-          })
+          wl.groups.map((g) => <QueueRow key={g.key} g={g} />)
         )}
       </section>
+      )}
+
+      {/* ---- Everyone else's queues, for the people who follow rather than
+              work them. A read-only role sees the same rows, muted, with who
+              they wait on — the state of hiring without a to-do list. ---- */}
+      {wl.watching.length > 0 && (
+        <section>
+          <SectionHead label={wl.actionable ? "Waiting on others in your scope" : "In your scope"} />
+          {wl.watching.map((g) => (
+            <QueueRow key={g.key} g={g} watch />
+          ))}
+        </section>
+      )}
 
       <section className="dash-split">
         {/* ---- Time in stage: big is not the same as late ---- */}
@@ -271,7 +259,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ---- Next up ---- */}
+        {/* ---- Next up: only for people who sit on panels ---- */}
+        {(wl.on_panels || wl.upcoming_interviews.length > 0) && (
         <div>
           <SectionHead label="Next up" />
           {wl.upcoming_interviews.length === 0 ? (
@@ -318,6 +307,7 @@ export default function Dashboard() {
             })
           )}
         </div>
+        )}
       </section>
 
       {/* ---- Inbound ---- */}
@@ -360,9 +350,13 @@ export default function Dashboard() {
                       <td>
                         {s.candidate ? (
                           <>
-                            <Link href={`/candidates/${s.candidate.id}`}>
-                              {s.candidate.displayName}
-                            </Link>
+                            {canOpenCandidates ? (
+                              <Link href={`/candidates/${s.candidate.id}`}>
+                                {s.candidate.displayName}
+                              </Link>
+                            ) : (
+                              <span>{s.candidate.displayName}</span>
+                            )}
                             {s.candidate.title && (
                               <span className="row-sub">{s.candidate.title}</span>
                             )}
@@ -370,9 +364,13 @@ export default function Dashboard() {
                         ) : (
                           <>
                             <span>{s.submitted_name ?? "Unnamed submission"}</span>
-                            <Link href="/match-reviews" className="row-sub">
-                              Possible match · awaiting review
-                            </Link>
+                            {caps.includes("candidates.merge") ? (
+                              <Link href="/match-reviews" className="row-sub">
+                                Possible match · awaiting review
+                              </Link>
+                            ) : (
+                              <span className="row-sub">Possible match · awaiting review</span>
+                            )}
                           </>
                         )}
                       </td>
@@ -425,6 +423,52 @@ export default function Dashboard() {
         </section>
       )}
     </main>
+  );
+}
+
+function QueueRow({ g, watch = false }: { g: Worklist["groups"][number]; watch?: boolean }) {
+  // A breached row reads as breached whatever its resting tone: the point of
+  // the row is how late it is, not which queue it came from.
+  const tone = g.sla_state === "breached" ? "critical" : g.tone;
+  return (
+    <Link
+      href={g.href}
+      className={`queue-row${watch ? " watch" : ""}`}
+      style={{
+        borderLeftColor: watch ? undefined : TONE_COLOR[tone],
+        background: !watch && g.sla_state === "breached" ? TONE_WASH[tone] : undefined,
+      }}
+    >
+      <span className="figure queue-n" style={watch ? undefined : { color: TONE_COLOR[tone] }}>
+        {g.count}
+      </span>
+      <span>
+        <span className="queue-label">{g.label}</span>
+        <span className="queue-sub">
+          {watch ? `Waiting on ${g.waiting_on} · ${g.sub}` : g.sub}
+        </span>
+      </span>
+      {g.sla_state ? (
+        <span
+          className="queue-sla"
+          style={{
+            color: SLA_COLOR[g.sla_state],
+            borderColor: SLA_COLOR[g.sla_state],
+            background: g.sla_state === "ok" ? "transparent" : TONE_WASH[tone],
+          }}
+        >
+          {g.sla_label}
+        </span>
+      ) : (
+        <span />
+      )}
+      <span className="queue-oldest">
+        {g.oldest_at ? `oldest ${formatAge(hoursSince(g.oldest_at))}` : ""}
+      </span>
+      <span className="queue-go" aria-hidden>
+        →
+      </span>
+    </Link>
   );
 }
 

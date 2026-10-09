@@ -3053,6 +3053,59 @@ table.data td time {
   color: var(--accent-ink);
 }
 
+/* What you filed, then the panel's — on My interviews and in the room. */
+.psc {
+  margin-top: var(--step-4);
+  padding-top: var(--step-3);
+  border-top: 1px solid var(--border);
+}
+.psc-label {
+  margin: var(--step-3) 0 8px;
+}
+.psc-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--bg);
+}
+.psc-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.psc-overall {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.psc-who {
+  margin-left: auto;
+}
+.psc-comps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.psc-notes {
+  margin: 8px 0 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+/* Today: what a role is for, in one line under the headline. */
+.role-purpose {
+  max-width: 64ch;
+  margin-top: 10px;
+}
+.queue-row.watch {
+  border-left-color: var(--border);
+}
+.queue-row.watch .queue-n {
+  color: var(--muted);
+}
+
 /* ---- Demo guide (docs/11) --------------------------------------------
    Built from what a visitor will actually find once signed in: real seeded
    names, references and scores, drawn with the product's own tokens so the
@@ -5222,3 +5275,10 @@ main.home {
   }
 }
 
+
+/* In the room the section head already rules the column off. */
+.room-right .psc {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+}

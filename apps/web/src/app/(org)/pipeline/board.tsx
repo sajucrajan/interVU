@@ -87,7 +87,11 @@ export function PipelineBoard({
   actionsFor,
   reloadKey,
   onMove,
+  candidateLinks = true,
 }: {
+  /** False for a role without candidate history (a project manager): the
+   *  names stay, but stop linking to a page that would only refuse them. */
+  candidateLinks?: boolean;
   view: string;
   onView: (key: string) => void;
   /** Drill-downs from the dashboard and the position page narrow the board
@@ -257,10 +261,12 @@ export function PipelineBoard({
                     </Link>
                   </td>
                   <td>
-                    {d.candidate ? (
+                    {d.candidate && candidateLinks ? (
                       <Link href={`/candidates/${d.candidate.id}`}>
                         {d.candidate.displayName}
                       </Link>
+                    ) : d.candidate ? (
+                      <span>{d.candidate.displayName}</span>
                     ) : (
                       <span className="muted">pending review</span>
                     )}
@@ -376,9 +382,13 @@ export function PipelineBoard({
                   }}
                 >
                   <div className="pipe-card-top">
-                    <Link href={`/candidates/${c.candidate.id}`} className="pipe-name">
-                      {c.candidate.displayName}
-                    </Link>
+                    {candidateLinks ? (
+                      <Link href={`/candidates/${c.candidate.id}`} className="pipe-name">
+                        {c.candidate.displayName}
+                      </Link>
+                    ) : (
+                      <span className="pipe-name">{c.candidate.displayName}</span>
+                    )}
                     <span
                       className="pipe-age"
                       style={{ color: AGE_COLOR[c.age_state] }}

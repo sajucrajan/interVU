@@ -80,3 +80,94 @@ jobs:
 
       - name: Seed is idempotent
         run: pnpm --filter @intervu/api db:seed
+
+  # Every demo account follows every link it is offered, and the job fails on
+  # any that lands on a refusal, an endless "Loading…", or a refused API call
+  # (tools/link-check.mjs). Role gating lives in the rail, the palette, page
+  # actions and plain table links; this is the one check that sees them all
+  # from each role's side.
+  link-check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: intervu
+          POSTGRES_PASSWORD: intervu
+          POSTGRES_DB: intervu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U intervu"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://intervu:intervu@localhost:5432/intervu
+      DIRECT_DATABASE_URL: postgresql://intervu:intervu@localhost:5432/intervu
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm via corepack
+        run: corepack enable pnpm
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages and API
+        run: pnpm exec turbo run build --filter=!@intervu/web
+
+      # Built outside turbo: turbo drops undeclared env vars, and the web app
+      # bakes the same-origin API proxy in at build time.
+      - name: Build web
+        run: pnpm --filter @intervu/web build
+        env:
+          NEXT_PUBLIC_API_URL: /api/v1
+          API_PROXY_TARGET: http://localhost:4000
+
+      - name: Migrate and seed
+        run: |
+          pnpm --filter @intervu/api db:migrate
+          pnpm --filter @intervu/api db:seed
+
+      - name: Start API and web
+        run: |
+          (cd apps/api && PORT=4000 WEB_ORIGIN=http://localhost:3000 nohup node dist/main.js > "$RUNNER_TEMP/api.log" 2>&1 &)
+          W=apps/web/.next/standalone/apps/web
+          cp -r apps/web/.next/static "$W/.next/static"
+          cp -r apps/web/public "$W/public" 2>/dev/null || true
+          (HOSTNAME=127.0.0.1 PORT=3000 nohup node "$W/server.js" > "$RUNNER_TEMP/web.log" 2>&1 &)
+          for i in $(seq 1 60); do
+            a=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4000/healthz || true)
+            w=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/login || true)
+            [ "$a" = 200 ] && [ "$w" = 200 ] && exit 0
+            sleep 2
+          done
+          echo "Stack did not come up (api=$a web=$w)"; exit 1
+
+      # Not a workspace dependency: only this job needs a browser.
+      - name: Install Playwright
+        run: |
+          npm install --no-save --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+
+      - name: Follow every link as every demo account
+        run: node tools/link-check.mjs
+        env:
+          PLAYWRIGHT_FROM: ${{ runner.temp }}/pw/
+
+      - name: Server logs
+        if: failure()
+        run: |
+          echo "--- api"; tail -n 80 "$RUNNER_TEMP/api.log" || true
+          echo "--- web"; tail -n 80 "$RUNNER_TEMP/web.log" || true

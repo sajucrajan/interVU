@@ -12,6 +12,8 @@ export interface WorkGroup {
   oldest_at: string | null;
   sla_state: SlaState | null;
   sla_label: string | null;
+  /** "you", or the role that works this queue. */
+  waiting_on: string;
 }
 
 export interface StageHealth {
@@ -28,6 +30,12 @@ export interface StageHealth {
 export interface Worklist {
   user: { name: string; roles: string[] };
   total: number;
+  /** False for a read-only role: nothing can ever be waiting on them. */
+  actionable: boolean;
+  /** Whether the viewer sits on any interview panel. */
+  on_panels: boolean;
+  /** Queues in the viewer's scope that someone else works. */
+  watching: WorkGroup[];
   head_stats: {
     in_flight: number;
     in_flight_delta: number;

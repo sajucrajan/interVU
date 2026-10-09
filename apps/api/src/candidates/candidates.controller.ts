@@ -41,6 +41,16 @@ export class CandidatesController {
   /** Everything the dossier header and right column need, in one call. */
   @Get(":id/dossier")
   async dossier(@Tenant() tenant: TenantContext, @Param("id", ParseUUIDPipe) id: string) {
+    // The dossier carries contact identities, so it takes the same gate as
+    // the timeline. It used to have none: any signed-in member of the
+    // organization could read any candidate's email and phone.
+    const access = await this.authz.access(tenant);
+    await this.candidates.requireView(
+      tenant.org!.organizationId,
+      id,
+      access,
+      tenant.org!.user.id,
+    );
     return this.dossierService.dossier(tenant.org!.organizationId, id);
   }
 

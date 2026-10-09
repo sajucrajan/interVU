@@ -88,10 +88,17 @@ export async function api<T = unknown>(
   return body as T;
 }
 
+/** A refusal, as opposed to a failure: render <AccessDenied>, not an error. */
+export const isForbidden = (e: unknown) =>
+  e instanceof ApiError && e.status === 403;
+
 export function apiErrorMessage(e: unknown): string {
   if (e instanceof ApiError) {
     const b = e.body as { detail?: string; code?: string } | null;
     if (b?.detail) return b.detail;
+    // The raw code read as "insufficient scope", which tells nobody anything.
+    if (b?.code === "insufficient_scope")
+      return "Your role doesn't include this. Ask an admin if you need it.";
     if (b?.code === "invalid_credentials") return "Invalid email or password.";
     if (b?.code) return b.code.replaceAll("_", " ");
     return `Request failed (${e.status})`;

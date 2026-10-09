@@ -162,13 +162,15 @@ function PipelineBoard() {
           },
         );
       }
-      items.push(
-        { label: "View", heading: true },
-        {
-          label: "Candidate history",
-          onSelect: () => router.push(`/candidates/${a.candidate.id}`),
-        },
-      );
+      if (caps?.includes("candidates.view_history")) {
+        items.push(
+          { label: "View", heading: true },
+          {
+            label: "Candidate history",
+            onSelect: () => router.push(`/candidates/${a.candidate.id}`),
+          },
+        );
+      }
       return items;
     },
     // caps belongs here: without it the menu is built once while capabilities
@@ -200,6 +202,7 @@ function PipelineBoard() {
     <main className="wide">
       {error && <p className="error">{error}</p>}
       <BoardView
+        candidateLinks={caps !== null && caps.includes("candidates.view_history")}
         view={filter ?? "all"}
         stage={stageParam}
         positionId={positionParam}

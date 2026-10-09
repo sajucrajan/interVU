@@ -103,6 +103,7 @@ export class AuthController {
       const capabilities = ALL_PERMISSIONS.filter((perm) => access.can(perm));
       return {
         kind: "org",
+        id: ctx.org.user.id,
         email: ctx.org.user.email,
         name: ctx.org.user.name,
         organization_id: ctx.org.organizationId,
