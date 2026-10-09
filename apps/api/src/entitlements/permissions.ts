@@ -20,6 +20,7 @@ export type Permission =
   | "applications.reject"
   | "decisions.record"
   | "vendors.manage"
+  | "vendors.view_performance"
   | "org.manage_structure"
   | "org.manage_users"
   | "org.settings";
@@ -66,6 +67,9 @@ export const PERMISSION_GROUPS: {
     group: "Administration",
     permissions: [
       { key: "vendors.manage", label: "Manage vendors and contracts" },
+      // Reading the numbers without touching the contracts: procurement,
+      // finance, a head of talent who reviews agencies but does not run them.
+      { key: "vendors.view_performance", label: "See vendor performance" },
       { key: "org.manage_structure", label: "Manage verticals and teams" },
       { key: "org.manage_users", label: "Manage people, roles and access" },
       { key: "org.settings", label: "Change organization settings" },
@@ -109,6 +113,7 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
       "applications.reject",
       "decisions.record",
       "vendors.manage",
+      "vendors.view_performance",
       "org.manage_structure",
       "org.manage_users",
       "org.settings",

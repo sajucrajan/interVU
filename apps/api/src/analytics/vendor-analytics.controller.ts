@@ -44,8 +44,10 @@ async function filterOptions(prisma: PrismaService, organizationId: string) {
 /**
  * The organization's view: every agency, side by side.
  *
- * `vendors.manage` rather than `positions.view`, because this is the screen a
- * contract gets renegotiated from — it is commercial, not operational.
+ * `vendors.manage` or `vendors.view_performance` rather than `positions.view`,
+ * because this is the screen a contract gets renegotiated from — it is
+ * commercial, not operational. The second exists so someone can review the
+ * agencies without being able to change their contracts.
  */
 @Controller("analytics/vendors")
 @OrgScope()
@@ -62,7 +64,9 @@ export class VendorAnalyticsController {
   ) {
     const organizationId = tenant.org!.organizationId;
     const access = await this.authz.access(tenant);
-    this.authz.require(access, "vendors.manage");
+    // Managing contracts implies reading the numbers; reading them does not
+    // imply managing anything.
+    if (!access.can("vendors.manage")) this.authz.require(access, "vendors.view_performance");
     const window = parseWindow(query.window);
     return {
       window,

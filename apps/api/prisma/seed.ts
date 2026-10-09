@@ -4,6 +4,7 @@
 // Run: pnpm db:seed  (idempotent — safe to re-run)
 
 import { PrismaClient } from "@prisma/client";
+import { scorePair, T_AUTO, T_REVIEW } from "@intervu/matching-core";
 import { SYSTEM_ROLES } from "../src/entitlements/permissions";
 import { hashPassword } from "../src/auth/password";
 import { randomUUID } from "node:crypto";
@@ -99,7 +100,27 @@ async function main() {
   await orgUser("interviewer1@acme.test", "Indira Interviewer", "interviewer", null);
   await orgUser("interviewer2@acme.test", "Ivan Interviewer", "interviewer", null);
 
-  // --- Vendors: TalentBridge (tier 1), HireWorks (tier 2), StaffPro (tier 2)
+  // An organization-defined role, the way docs/09 says real ones are made: a
+  // bundle of permissions with the organization's own name on it. It reads
+  // vendor performance without being able to change a contract, which is
+  // also what lets the public demo show the agency report at all — the only
+  // other way in is the admin account, which the demo guide does not offer.
+  const vendorManager = await prisma.role.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "vendor_manager" } },
+    update: {},
+    create: {
+      organizationId: org.id,
+      key: "vendor_manager",
+      name: "Vendor manager",
+      description: "Reviews how each agency performs. Can read the pipeline; cannot change contracts or move candidates.",
+      permissions: ["positions.view", "submissions.view", "vendors.view_performance"],
+      isSystem: false,
+    },
+  });
+  roleByKey.set("vendor_manager", vendorManager.id);
+  await orgUser("vendors@acme.test", "Sasha Sourcing", "vendor_manager", null);
+
+  // --- Vendors: TalentBridge (tier 1); HireWorks, StaffPro, NorthStar (tier 2)
   async function vendor(
     name: string,
     tier: number,
@@ -137,6 +158,10 @@ async function main() {
     "HireWorks", 2, "recruiter@hireworks.test", new Date("2024-07-15"),
   );
   await vendor("StaffPro", 2, "recruiter@staffpro.test", new Date("2025-01-20"));
+  // The fourth agency. Three agencies meant each saw only two peers, below the
+  // benchmark's floor of three, so the comparison on the Performance screen
+  // was always empty in the demo.
+  await vendor("NorthStar Talent", 2, "recruiter@northstar.test", new Date("2025-09-01"));
 
   // --- Positions (idempotent: skip if org already has positions)
   const existingPositions = await prisma.position.count({ where: { organizationId: org.id } });
@@ -264,23 +289,39 @@ async function main() {
       });
     }
 
+    // Ordered by reference, so slot j of the corpus is always POS-00(j+1).
     const allPositions = await prisma.position.findMany({
       where: { organizationId: org.id },
+      orderBy: { reference: "asc" },
     });
     const firstNames = ["Aarav", "Beatriz", "Chen", "Divya", "Emeka", "Fatima", "Gustav", "Hana", "Ines", "Jorge", "Kavya", "Liam", "Mina", "Noor", "Oscar", "Padma", "Quinn", "Rohan", "Sofia", "Tariq", "Uma", "Viktor", "Wangari", "Ximena", "Yusuf", "Zara", "Anders", "Bianca", "Chidi", "Dalia", "Elias", "Freya", "Goro", "Helga", "Idris", "Jana"];
     const lastNames = ["Sharma", "Costa", "Wei", "Iyer", "Okafor", "Hassan", "Lind", "Kato", "Moreau", "Diaz", "Rao", "Byrne", "Park", "Aziz", "Nilsen", "Menon", "Reyes", "Joshi", "Rossi", "Farouk"];
     const vendorUsersAll = await prisma.vendorUser.findMany();
     const userByVendor = new Map(vendorUsersAll.map((u) => [u.vendorId, u]));
+    const orgByVendorName = new Map(vendorOrgsAll.map((vo) => [vo.vendor.name, vo]));
+    // Who sources each role, by corpus slot (POS-001 … POS-006). This used to
+    // be round-robin across all agencies, which ignored the releases above:
+    // StaffPro submitted to a role released to TalentBridge alone, HireWorks
+    // to a tier-1 head start it could not see, and TalentBridge to a role that
+    // is direct-only. A demo that breaks its own rules teaches the wrong
+    // product. Slots 4–6 keep exactly the agencies they always had.
+    //   POS-001 direct-only      → nobody; these people applied themselves
+    //   POS-002 tiered, hybrid   → TalentBridge, the only tier-1 agency
+    //   POS-003 manual release   → TalentBridge, the only agency it went to
+    //   POS-004/005/006          → TalentBridge, HireWorks, StaffPro
+    const VENDOR_FOR_SLOT = [null, "TalentBridge", "TalentBridge", "TalentBridge", "HireWorks", "StaffPro"];
+    const DIRECT_CHANNELS = ["careers", "referral", "careers", "internal", "careers", "referral"] as const;
     // Deterministic spread: statuses cycle; every 6th is a duplicate; every
     // 5th application advances; every 9th gets an offer decision.
     for (let i = 0; i < 36; i++) {
       const name = `${firstNames[i % firstNames.length]} ${lastNames[i % lastNames.length]}`;
       const email = `${name.toLowerCase().replaceAll(" ", ".")}@example.com`;
-      const pos = allPositions[i % allPositions.length]!;
-      const vo = vendorOrgsAll[i % vendorOrgsAll.length]!;
-      const vu = userByVendor.get(vo.vendorId)!;
+      const slot = i % allPositions.length;
+      const pos = allPositions[slot]!;
+      const vendorName = VENDOR_FOR_SLOT[slot];
       const receivedAt = new Date(now.getTime() - (36 - i) * 36e5 * 6);
       const isDup = i % 6 === 5;
+      const stage = i % 5 === 0 ? "interviewing" : i % 3 === 0 ? "screening" : "submitted";
       const candidate = await prisma.candidate.create({
         data: { organizationId: org.id, displayName: name },
       });
@@ -293,44 +334,110 @@ async function main() {
           valueRaw: email,
         },
       });
-      const submission = await prisma.submission.create({
-        data: {
-          organizationId: org.id,
-          positionId: pos.id,
-          vendorOrgId: vo.id,
-          vendorUserId: vu.id,
-          candidateId: candidate.id,
-          rawProfile: { candidate_name: name, email },
-          status: isDup ? "duplicate" : "accepted",
-          ownershipStatus: isDup ? "duplicate" : "owner",
-          consentConfirmed: true,
-          receivedAt,
-        },
-      });
-      if (!isDup) {
-        const stage = i % 5 === 0 ? "interviewing" : i % 3 === 0 ? "screening" : "submitted";
-        const app = await prisma.application.create({
+
+      let sourceSubmissionId: string | null = null;
+      if (vendorName) {
+        const vo = orgByVendorName.get(vendorName)!;
+        const vu = userByVendor.get(vo.vendorId)!;
+        const submission = await prisma.submission.create({
           data: {
             organizationId: org.id,
             positionId: pos.id,
+            vendorOrgId: vo.id,
+            vendorUserId: vu.id,
             candidateId: candidate.id,
-            sourceSubmissionId: submission.id,
-            currentStage: i % 9 === 0 ? "offer" : stage,
+            rawProfile: { candidate_name: name, email },
+            status: isDup ? "duplicate" : "accepted",
+            ownershipStatus: isDup ? "duplicate" : "owner",
+            consentConfirmed: true,
+            receivedAt,
           },
         });
-        if (i % 9 === 0) {
-          await prisma.decision.create({
-            data: {
-              organizationId: org.id,
-              applicationId: app.id,
-              outcome: "offer",
-              decidedById: admin.id,
-            },
-          });
-        }
+        if (isDup) continue;
+        sourceSubmissionId = submission.id;
+      }
+
+      // A direct applicant has no submission, deliberately: giving them a
+      // fake one is precisely the invoice fraud the ownership rule blocks.
+      const channel = vendorName ? "vendor" : DIRECT_CHANNELS[Math.floor(i / 6) % DIRECT_CHANNELS.length]!;
+      const app = await prisma.application.create({
+        data: {
+          organizationId: org.id,
+          positionId: pos.id,
+          candidateId: candidate.id,
+          sourceSubmissionId,
+          sourceChannel: channel,
+          sourceDetail: channel === "referral" ? "Referred by an engineer on the team" : null,
+          currentStage: i % 9 === 0 ? "offer" : stage,
+        },
+      });
+      if (i % 9 === 0) {
+        await prisma.decision.create({
+          data: {
+            organizationId: org.id,
+            applicationId: app.id,
+            outcome: "offer",
+            decidedById: admin.id,
+          },
+        });
       }
     }
-    console.log("Seeded demo analytics corpus: 3 extra positions, 36 submissions");
+
+    // Agencies' own submissions, added after the corpus so the people the
+    // demo guide names are untouched.
+    //  - NorthStar is the fourth agency: the benchmark refuses below three
+    //    other active agencies, because with fewer the "average" would
+    //    identify a rival, so with three agencies it was always empty.
+    //  - StaffPro's corpus slot is the duplicate slot, so without these it
+    //    had nothing but duplicates — zero accepted, and the role it sources
+    //    (Growth Marketer) had no candidates at all.
+    const EXTRA = [
+      { agency: "NorthStar Talent", name: "Ravi Kumar", slot: 3, daysAgo: 6, stage: "screening" },
+      { agency: "NorthStar Talent", name: "Lena Fischer", slot: 4, daysAgo: 5, stage: "screening" },
+      { agency: "NorthStar Talent", name: "Tomás Silva", slot: 5, daysAgo: 3, stage: "submitted" },
+      { agency: "NorthStar Talent", name: "Mei Lin", slot: 3, daysAgo: 1.5, stage: "submitted" },
+      { agency: "StaffPro", name: "Amara Obi", slot: 5, daysAgo: 7, stage: "screening" },
+      { agency: "StaffPro", name: "Jonas Weber", slot: 5, daysAgo: 2, stage: "submitted" },
+      { agency: "StaffPro", name: "Priya Nair", slot: 4, daysAgo: 4, stage: "screening" },
+    ] as const;
+    for (const c of EXTRA) {
+      const agency = orgByVendorName.get(c.agency);
+      if (!agency) continue;
+      const user = userByVendor.get(agency.vendorId)!;
+      const position = allPositions[c.slot]!;
+      const email = `${c.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll(" ", ".")}@example.com`;
+      const candidate = await prisma.candidate.create({
+        data: { organizationId: org.id, displayName: c.name },
+      });
+      await prisma.candidateIdentity.create({
+        data: { organizationId: org.id, candidateId: candidate.id, kind: "email", valueNorm: email, valueRaw: email },
+      });
+      const submission = await prisma.submission.create({
+        data: {
+          organizationId: org.id,
+          positionId: position.id,
+          vendorOrgId: agency.id,
+          vendorUserId: user.id,
+          candidateId: candidate.id,
+          rawProfile: { candidate_name: c.name, email },
+          status: "accepted",
+          ownershipStatus: "owner",
+          consentConfirmed: true,
+          receivedAt: new Date(now.getTime() - c.daysAgo * 86_400_000),
+        },
+      });
+      await prisma.application.create({
+        data: {
+          organizationId: org.id,
+          positionId: position.id,
+          candidateId: candidate.id,
+          sourceSubmissionId: submission.id,
+          sourceChannel: "vendor",
+          currentStage: c.stage,
+        },
+      });
+    }
+    console.log("Seeded demo analytics corpus: 3 extra positions, 36 people, 7 agency extras");
   }
 
   // --- Skills & interview panels (guarded; docs/03 skills/panels section)
@@ -574,11 +681,13 @@ ORGANIZATION — sign in at http://localhost:3000/login
   pm.platform@acme.test    project_manager  Platform     read-only, narrowest scope
   interviewer1@acme.test   interviewer      assignment   0 positions; see /interviews
   interviewer2@acme.test   interviewer      assignment   pair w/ interviewer1 for feedback policy
+  vendors@acme.test        vendor_manager   org-wide     custom role; vendor performance, read-only
 
 VENDORS — sign in at http://localhost:3000/vendor/login  (org slug: acme)
   recruiter@talentbridge.test   TalentBridge  tier 1   sees tiered releases immediately
   recruiter@hireworks.test      HireWorks     tier 2   fewer positions until tiers unlock
   recruiter@staffpro.test       StaffPro      tier 2
+  recruiter@northstar.test      NorthStar     tier 2   the fourth agency, so benchmarks have peers
 
 Outside production, dev header auth also works instead of a session:
   org:    -H "x-intervu-org: acme" -H "x-intervu-user: <email>"
@@ -611,8 +720,10 @@ Outside production, dev header auth also works instead of a session:
   // returns a different application each run, so a re-run would add a second
   // offer instead of finding the first.
   const offerCount = await prisma.offer.count({ where: { organizationId: org.id } });
+  // Agency-sourced on purpose: the hire is what makes cost per hire and the
+  // fee comparison computable, and a direct hire carries no fee.
   const offered = await prisma.application.findFirst({
-    where: { organizationId: org.id, decision: { outcome: "offer" } },
+    where: { organizationId: org.id, decision: { outcome: "offer" }, sourceChannel: "vendor" },
     orderBy: { createdAt: "asc" },
     select: { id: true },
   });
@@ -970,9 +1081,12 @@ BSc Computer Science, University of Edinburgh
       data: { sourcingMode: "direct", vendorOpensAt: null },
     });
   }
+  // Only the first time: the history block at the end dates the unlock
+  // properly, and re-running this reset it to the future, hiding the role
+  // from the tier-1 agency that had been submitting to it.
   if (openPositions[1]) {
-    await prisma.position.update({
-      where: { id: openPositions[1].id },
+    await prisma.position.updateMany({
+      where: { id: openPositions[1].id, sourcingMode: { not: "hybrid" } },
       data: {
         sourcingMode: "hybrid",
         vendorOpensAt: new Date(Date.now() + 3 * DAY),
@@ -1051,8 +1165,23 @@ BSc Computer Science, University of Edinburgh
     where: { organizationId: org.id, email: "hm.eng@acme.test" },
     select: { id: true },
   });
-  const decidable = await prisma.application.findMany({
-    where: { organizationId: org.id, decision: null, sourceSubmissionId: { not: null } },
+  // Guarded: without it every re-run found the candidates left undecided and
+  // rejected up to eight more of them, so a second `db:seed` quietly emptied
+  // the pipeline it was meant to leave unchanged.
+  const alreadyRejected = await prisma.decision.count({
+    where: { organizationId: org.id, outcome: "reject" },
+  });
+  // People with real interview records are left alone: they are the debrief,
+  // the overdue scorecard and the upcoming loop the demo guide sends visitors
+  // to, and rejecting them by position in a list made those pages vanish.
+  // Rejections at the interviewing stage still count as post-interview.
+  const decidable = alreadyRejected > 0 ? [] : await prisma.application.findMany({
+    where: {
+      organizationId: org.id,
+      decision: null,
+      sourceSubmissionId: { not: null },
+      interviews: { none: {} },
+    },
     orderBy: { createdAt: "asc" },
     select: { id: true, currentStage: true, interviews: { select: { id: true } } },
   });
@@ -1069,7 +1198,9 @@ BSc Computer Science, University of Edinburgh
     // the same board twice — screenshots and demos depend on it.
     if (i % 3 !== 0) continue;
     if (rejected >= 8) break;
-    const afterInterview = a.interviews.length > 0;
+    // A panel's verdict is the hiring manager's to record, a screening one the
+    // recruiter's; reaching the interviewing stage is what makes it the panel's.
+    const afterInterview = a.interviews.length > 0 || a.currentStage === "interviewing";
     await prisma.decision.create({
       data: {
         organizationId: org.id,
@@ -1128,6 +1259,312 @@ BSc Computer Science, University of Edinburgh
         rating: i === 1 ? (seat === 0 ? 5 : 2) : 4,
       })),
     });
+  }
+
+  // --- The match review queue (docs/04 §3). Empty on a fresh database, so
+  // the probabilistic matcher — the most unusual thing in the product — had
+  // nothing to show. Two agencies send someone already on file under a
+  // slightly different name and a different email. Each is scored by the same
+  // function the API uses and parked exactly as parkForReview() would park it;
+  // a pair that does not land in the review band is skipped rather than
+  // forced, so the queue never claims an uncertainty the matcher would not.
+  const queued = await prisma.matchReviewItem.count({ where: { organizationId: org.id } });
+  if (queued === 0) {
+    const vendorOrgNamed = async (name: string) =>
+      prisma.vendorOrg.findFirst({
+        where: { organizationId: org.id, vendor: { name } },
+        include: { vendor: { include: { vendorUsers: { take: 1 } } } },
+      });
+    const positionRef = async (reference: string) =>
+      prisma.position.findFirst({ where: { organizationId: org.id, reference } });
+    const NEAR_MISSES = [
+      {
+        existing: "Tariq Farouk",
+        known: { employer: "Halcyon Data", title: "Data Engineer", location: "Austin, TX" },
+        agency: "StaffPro",
+        position: "POS-005",
+        hoursAgo: 5,
+        incoming: {
+          candidate_name: "Tarik Farouk",
+          email: "tfarouk.dev@example.com",
+          current_employer: "Halcyon Data",
+          current_title: "Senior Data Engineer",
+          location: "Remote",
+        },
+      },
+      {
+        existing: "Noor Aziz",
+        known: { employer: "Northwind Systems", title: "Data Engineer", location: "Austin, TX" },
+        agency: "NorthStar Talent",
+        position: "POS-004",
+        hoursAgo: 26,
+        incoming: {
+          candidate_name: "Noor A. Aziz",
+          email: "n.aziz@example.com",
+          current_employer: "Northwind",
+          current_title: "Analytics Engineer",
+          location: "Austin, TX",
+        },
+      },
+    ];
+    let parked = 0;
+    for (const m of NEAR_MISSES) {
+      const existing = await prisma.candidate.findFirst({
+        where: { organizationId: org.id, displayName: m.existing },
+        include: { identities: { where: { kind: "email" }, take: 1 } },
+      });
+      const vo = await vendorOrgNamed(m.agency);
+      const pos = await positionRef(m.position);
+      const vu = vo?.vendor.vendorUsers[0];
+      if (!existing || !vo || !pos || !vu) continue;
+      await prisma.candidate.update({
+        where: { id: existing.id },
+        data: {
+          currentEmployer: m.known.employer,
+          currentTitle: m.known.title,
+          location: m.known.location,
+        },
+      });
+      const local = (e?: string | null) => (e ? e.split("@")[0]! : null);
+      const fuzzy = scorePair(
+        {
+          name: existing.displayName,
+          emailLocal: local(existing.identities[0]?.valueNorm),
+          employer: m.known.employer,
+          title: m.known.title,
+          location: m.known.location,
+        },
+        {
+          name: m.incoming.candidate_name,
+          emailLocal: local(m.incoming.email),
+          employer: m.incoming.current_employer,
+          title: m.incoming.current_title,
+          location: m.incoming.location,
+        },
+      );
+      if (fuzzy.score < T_REVIEW || fuzzy.score >= T_AUTO) {
+        console.warn(`  skipped near-miss ${m.incoming.candidate_name}: score ${fuzzy.score} is outside the review band`);
+        continue;
+      }
+      const at = new Date(Date.now() - m.hoursAgo * 3_600_000);
+      const sub = await prisma.submission.create({
+        data: {
+          organizationId: org.id,
+          positionId: pos.id,
+          vendorOrgId: vo.id,
+          vendorUserId: vu.id,
+          rawProfile: m.incoming,
+          status: "pending_review",
+          consentConfirmed: true,
+          receivedAt: at,
+        },
+      });
+      await prisma.matchReviewItem.create({
+        data: {
+          organizationId: org.id,
+          submissionId: sub.id,
+          candidateIdSuggested: existing.id,
+          score: fuzzy.score,
+          featureBreakdown: fuzzy.breakdown as unknown as object,
+          createdAt: at,
+        },
+      });
+      parked++;
+    }
+    console.log(`Seeded ${parked} near-miss submissions into the match review queue`);
+  }
+
+  // --- History. Everything above was created "now", so every card on the
+  // board read "<1h", every stage dwelled 0.0 days, the median time to offer
+  // was 0d, and time to first submission was blank (each role was released
+  // after the submissions against it). This block runs LAST, after every step
+  // that picks candidates by creation order, so it cannot change who was
+  // interviewed, rejected or hired — only when those things happened.
+  //
+  // Guarded on there being no stage history yet, so a second run is a no-op.
+  const hasHistory = await prisma.stageTransition.count({ where: { organizationId: org.id } });
+  if (hasHistory === 0) {
+    const HOUR = 3_600_000;
+    const now = Date.now();
+    const STAGES = ["submitted", "screening", "interviewing", "offer"];
+    const recruiter = await prisma.orgUser.findFirst({
+      where: { organizationId: org.id, email: "recruiter@acme.test" },
+      select: { id: true },
+    });
+    const apps = await prisma.application.findMany({
+      where: { organizationId: org.id },
+      orderBy: { createdAt: "asc" },
+      include: {
+        interviews: { select: { scheduledAt: true } },
+        decision: { select: { id: true, outcome: true } },
+        offer: { select: { id: true, acceptedAt: true } },
+      },
+    });
+    // The application only carries the submission's id; look the dates up.
+    const receivedById = new Map(
+      (
+        await prisma.submission.findMany({
+          where: { organizationId: org.id },
+          select: { id: true, receivedAt: true },
+        })
+      ).map((x) => [x.id, x.receivedAt.getTime()]),
+    );
+    // Direct applicants have no submission to date them; give them a spread.
+    const DIRECT_AGE_DAYS = [8, 6.5, 5, 3.5, 2.5, 1.5];
+    let directSeen = 0;
+
+    for (const a of apps) {
+      const backdated = a.createdAt.getTime() < now - HOUR; // set on purpose above
+      const received = a.sourceSubmissionId ? receivedById.get(a.sourceSubmissionId) : undefined;
+      let base =
+        received ?? now - DIRECT_AGE_DAYS[directSeen++ % DIRECT_AGE_DAYS.length]! * 24 * HOUR;
+      const path = STAGES.slice(1, STAGES.indexOf(a.currentStage) + 1);
+
+      // Waiting for a first screen. Compress the age into the last day or so:
+      // the corpus spans nine days, and nine-day-old unscreened candidates
+      // would put most of the board in breach. Order is preserved.
+      if (!backdated && path.length === 0 && a.status === "active") {
+        const age = now - base;
+        base = now - (2 * HOUR + (age / (9 * 24 * HOUR)) * 28 * HOUR);
+        // The dashboard ages this queue from the submission, the board from
+        // the application; both must tell the same story.
+        if (a.sourceSubmissionId) {
+          await prisma.submission.update({
+            where: { id: a.sourceSubmissionId },
+            data: { receivedAt: new Date(base) },
+          });
+        }
+      }
+      if (backdated) base = Math.min(base, a.createdAt.getTime() - path.length * 12 * HOUR);
+
+      // Stage entries spread across the time this person has been in play.
+      // Someone still in process entered their CURRENT stage recently — a few
+      // hours to a day and a half ago — or most of the board would read as
+      // breached; the deliberate breaches are the backdated rows above and
+      // the real overdue decision. Closed applications keep an even spread.
+      const span = now - base;
+      const active = a.status === "active";
+      const current = active ? now - (6 + ((apps.indexOf(a) * 7) % 30)) * HOUR : 0;
+      const times = path.map((_, j) =>
+        active && current > base
+          ? path.length === 1
+            ? current
+            : base + (current - base) * (0.35 + (0.65 * j) / (path.length - 1))
+          : base + span * (0.25 + (0.5 * j) / Math.max(path.length, 1)),
+      );
+      if (backdated && times.length) times[times.length - 1] = a.createdAt.getTime();
+
+      // Nobody is interviewed before they reach interviewing, and nobody gets
+      // an offer before their interview.
+      const firstIv = Math.min(...a.interviews.map((i) => i.scheduledAt.getTime()));
+      const lastIv = Math.max(...a.interviews.map((i) => i.scheduledAt.getTime()));
+      const ivIdx = path.indexOf("interviewing");
+      if (a.interviews.length && ivIdx >= 0 && times[ivIdx]! > firstIv - 18 * HOUR) {
+        times[ivIdx] = firstIv - 18 * HOUR;
+        for (let j = ivIdx - 1; j >= 0; j--) {
+          times[j] = Math.min(times[j]!, base + ((times[j + 1]! - base) * (j + 1)) / (j + 2));
+        }
+        base = Math.min(base, times[0]! - 6 * HOUR);
+      }
+      const offerIdx = path.indexOf("offer");
+      if (a.interviews.length && offerIdx >= 0) {
+        times[offerIdx] = Math.min(Math.max(times[offerIdx]!, lastIv + 6 * HOUR), now - HOUR);
+      }
+
+      let from = "submitted";
+      for (const [j, to] of path.entries()) {
+        await prisma.stageTransition.create({
+          data: {
+            organizationId: org.id,
+            applicationId: a.id,
+            fromStage: from,
+            toStage: to,
+            byId: recruiter?.id ?? admin.id,
+            at: new Date(times[j]!),
+          },
+        });
+        from = to;
+      }
+
+      const lastMove = times.length ? times[times.length - 1]! : base;
+      if (a.decision) {
+        const decidedAt =
+          a.decision.outcome === "offer" && offerIdx >= 0
+            ? times[offerIdx]!
+            : Math.max(lastMove + (now - lastMove) * 0.6, a.interviews.length ? lastIv + 2 * HOUR : 0);
+        await prisma.decision.update({
+          where: { id: a.decision.id },
+          data: { decidedAt: new Date(Math.min(decidedAt, now - HOUR)) },
+        });
+        if (a.offer) {
+          const extended = Math.min(decidedAt, now - 2 * HOUR);
+          await prisma.offer.update({
+            where: { id: a.offer.id },
+            data: {
+              extendedAt: new Date(extended),
+              ...(a.offer.acceptedAt ? { acceptedAt: new Date(extended + (now - extended) * 0.5) } : {}),
+            },
+          });
+        }
+      }
+      if (!backdated || base < a.createdAt.getTime()) {
+        await prisma.application.update({ where: { id: a.id }, data: { createdAt: new Date(base) } });
+      }
+    }
+
+    // Duplicate contests wait on a recruiter too. Compressed the same way,
+    // oldest first, so one or two read as overdue rather than all six.
+    const dupes = await prisma.submission.findMany({
+      where: { organizationId: org.id, status: "duplicate" },
+      orderBy: { receivedAt: "asc" },
+      select: { id: true, receivedAt: true },
+    });
+    for (const [k, d] of dupes.entries()) {
+      const age = now - d.receivedAt.getTime();
+      // The agency-acknowledgement clock is 24h, so the rest stay inside it.
+      const squeezed = k === 0 ? Math.min(age, 3 * 24 * HOUR) : 2 * HOUR + (age / (9 * 24 * HOUR)) * 18 * HOUR;
+      await prisma.submission.update({
+        where: { id: d.id },
+        data: { receivedAt: new Date(now - squeezed) },
+      });
+    }
+
+    // Roles were published, and released, before anyone submitted to them.
+    const positions = await prisma.position.findMany({
+      where: { organizationId: org.id },
+      include: {
+        submissions: { select: { receivedAt: true }, orderBy: { receivedAt: "asc" }, take: 1 },
+        applications: { select: { createdAt: true }, orderBy: { createdAt: "asc" }, take: 1 },
+        releases: true,
+      },
+    });
+    for (const p of positions) {
+      const firstSeen = Math.min(
+        p.submissions[0]?.receivedAt.getTime() ?? now,
+        p.applications[0]?.createdAt.getTime() ?? now,
+      );
+      const published = firstSeen - 2 * 24 * HOUR;
+      const hybrid = p.sourcingMode === "hybrid";
+      await prisma.position.update({
+        where: { id: p.id },
+        data: {
+          publishedAt: new Date(published),
+          // Hybrid: one day of direct-only head start, then agencies, so the
+          // first agency submission lands after the window opened.
+          ...(hybrid ? { vendorOpensAt: new Date(published + 24 * HOUR) } : {}),
+        },
+      });
+      for (const r of p.releases) {
+        const future = r.visibleFrom.getTime() > now + HOUR;
+        await prisma.positionVendorRelease.update({
+          where: { id: r.id },
+          // A tier still waiting stays waiting, a few days out, so the ladder
+          // is visible on the public demo; the nightly reset moves it with it.
+          data: { visibleFrom: new Date(future ? now + 3 * 24 * HOUR : published) },
+        });
+      }
+    }
+    console.log(`Seeded stage history for ${apps.length} applications; roles published before their first submission`);
   }
 
   void hireWorks; // referenced in docs above
