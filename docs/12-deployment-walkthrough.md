@@ -137,7 +137,8 @@ after the first deploy the database is still empty.
 2. **Actions** tab → **Reset demo data** → **Run workflow** → **Run workflow**
 3. ~2 minutes. A green tick means done.
 
-The same job runs nightly at 03:00 UTC. The demo password is public in
+The same job runs nightly (scheduled for 03:00 UTC; GitHub may start it
+hours later). The demo password is public in
 `seed.ts` on purpose so visitors can explore; the nightly reset is what keeps
 anyone's changes temporary.
 
@@ -166,10 +167,11 @@ correct. A 404 means the request never left the web service.
 | Check | Expected |
 |---|---|
 | `<web-url>/how-it-works` | twelve steps, and a role matrix read live from the API |
-| `<web-url>/demo` | seven personas, one-click sign-in |
+| `<web-url>/demo` | eight personas, one-click sign-in |
 | Sign in as Riley | dashboard with a populated queue |
 | **Analytics**, bottom | *Where hires come from*, with real figures |
-| **Pipeline** | source chips, aging colours, 2 breached of 28 |
+| **Pipeline** | source chips, aging colours, a few deliberate breaches against a mostly healthy board |
+| **Match reviews** | two near-duplicates scored 81%, with the evidence side by side |
 | `<web-url>/vendor/login` as `recruiter@talentbridge.test` | vendor portal, own submissions only |
 
 ---

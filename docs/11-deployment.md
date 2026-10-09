@@ -90,7 +90,7 @@ leaves the browser calling `localhost:4000` and the guide page dark. A
 
 `NEXT_PUBLIC_DEMO_MODE=true` publishes a landing page that explains what the
 product does through four features drawn from the real seeded data, offers
-**one-click sign-in** for seven personas, each with what they can and cannot
+**one-click sign-in** for eight personas, each with what they can and cannot
 do and what to try, and shows who can do what in one grid. Without the flag the route 404s and the home page does not link it —
 a self-hosted production install must never publish working credentials.
 
@@ -101,13 +101,16 @@ demonstrable — nothing invites a visitor into org settings, vendor contracts
 or GDPR erasure, which are the operations that would quietly wreck the tour for
 whoever arrives next. The nightly reset is the actual safety net.
 
-The seven personas are chosen to make the invisible parts visible: a recruiter
+The eight personas are chosen to make the invisible parts visible: a recruiter
 (the widest view), a hiring manager (the same product with a smaller world), a
 read-only project manager (scope isolation from the other side), an
-interviewer (assignment *is* the grant), and three agencies. TalentBridge
-holds a role released to it by hand, so it sees one more than HireWorks on the
-same day; StaffPro is the agency that keeps arriving second, which is what the
-duplicate contests need.
+interviewer (assignment *is* the grant), a vendor manager on a custom role
+(the agency report without the contracts), and three agencies. TalentBridge
+sees two roles HireWorks does not on the same day — one a tier-1 head start,
+one released to it by hand; StaffPro is the agency that keeps arriving second,
+which is what the duplicate contests need. A fourth agency, NorthStar, is
+seeded but not offered; it exists so the agency benchmark has the peers it
+requires.
 
 The page names real seeded people, references and scores — Kavya Rao's 5-vs-2
 MLOps split, Padma Menon's overdue scorecard, the hybrid Data Engineer ladder.
@@ -121,7 +124,10 @@ tab — **Reset demo data → Run workflow** — to populate the fresh database.
 
 ## 5. Nightly reset
 
-`.github/workflows/demo-reseed.yml` drops and rebuilds the demo at 03:00 UTC.
+`.github/workflows/demo-reseed.yml` drops and rebuilds the demo every night.
+It is scheduled for 03:00 UTC, but GitHub starts scheduled jobs late when it is
+busy — this one has been running around 10:00 UTC — so the demo guide says
+"every night" rather than promising an hour.
 
 The demo password is published in `seed.ts`, so anyone can sign in and change
 or delete things. That is deliberate — visitors should be able to click
