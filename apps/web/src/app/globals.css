@@ -2920,266 +2920,852 @@ table.data td time {
 }
 
 /* ---- Demo guide (docs/11) --------------------------------------------
-   Artwork here is drawn with the product's own tokens rather than
-   screenshotted, so it follows the accent and dark mode instead of going
-   quietly stale. ---------------------------------------------------------- */
+   Built from what a visitor will actually find once signed in: real seeded
+   names, references and scores, drawn with the product's own tokens so the
+   vignettes follow the accent and dark mode instead of going quietly stale.
+   Every class is prefixed dg- so nothing here can leak into the app. ----- */
 
-.demo-page {
-  max-width: 1120px;
+.dg-page {
+  max-width: 1180px;
 }
 
-.demo-hero {
+/* --- hero --- */
+.dg-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.9fr);
+  gap: clamp(2rem, 5vw, 4.5rem);
+  align-items: center;
   padding: var(--step-6) 0 var(--step-5);
+  border-bottom: 2px solid var(--fg);
 }
-.demo-hero h1 {
-  font-size: clamp(2.6rem, 6.5vw, 4.6rem);
+.dg-hero h1 {
+  font-size: clamp(2.4rem, 5.6vw, 4.4rem);
   line-height: 0.98;
-  letter-spacing: -0.035em;
-  margin: 14px 0 0;
+  letter-spacing: -0.04em;
+  margin: 16px 0 0;
 }
-.demo-lede {
+.dg-h1-accent {
+  color: var(--accent);
+}
+.dg-lede {
   font-size: 18px;
-  max-width: 58ch;
-  margin-top: var(--step-4);
+  line-height: 1.55;
+  max-width: 54ch;
+  margin: var(--step-4) 0 0;
+  color: var(--fg);
 }
-.demo-sub {
-  max-width: 58ch;
-  font-size: 14px;
+.dg-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--step-3) var(--step-4);
+  margin-top: var(--step-5);
+}
+.dg-cta button {
+  padding: 14px 20px;
+  font-size: 15px;
+}
+.dg-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--fg);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 2px;
+}
+.dg-cta-secondary:hover {
+  text-decoration: none;
+  border-bottom-color: var(--fg);
+}
+.dg-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--step-4);
+  margin: var(--step-5) 0 0;
+  padding-top: var(--step-4);
+  border-top: 1px solid var(--border);
+  max-width: 560px;
+}
+.dg-facts div {
+  margin: 0;
+}
+.dg-facts dt {
+  white-space: nowrap;
+}
+.dg-facts dd {
+  margin: 8px 0 0;
+  font-size: 34px;
+  line-height: 1;
 }
 
-/* --- ownership diagram --- */
-.demo-diagram {
+/* The receipts: four real things waiting once you sign in. */
+.dg-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--step-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--sunk);
+}
+.dg-stack-head {
+  margin-bottom: 4px;
+}
+.dg-receipt {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--faint);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+  animation: dg-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.dg-receipt.tone-dup {
+  border-left-color: var(--warn);
+}
+.dg-receipt.tone-warn {
+  border-left-color: var(--warn);
+}
+.dg-receipt.tone-bad {
+  border-left-color: var(--bad);
+}
+.dg-receipt.tone-accent {
+  border-left-color: var(--accent);
+}
+.dg-receipt:nth-child(odd) {
+  margin-left: 14px;
+}
+.dg-receipt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+.dg-receipt-row strong {
+  font-size: 16px;
+}
+.dg-receipt-meta {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.dg-badge-dup {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+.dg-badge-accent {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+@keyframes dg-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- features --- */
+.dg-features {
+  display: flex;
+  flex-direction: column;
+}
+.dg-feature {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  align-items: center;
+  padding: var(--step-5) 0;
+  border-top: 1px solid var(--border);
+}
+.dg-feature:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+/* Alternate sides so four rows read as a sequence, not a form. */
+.dg-feature:nth-child(even) .dg-feature-copy {
+  order: 2;
+}
+.dg-feature-n {
+  font-size: 15px;
+  color: var(--accent);
+  letter-spacing: 0;
+}
+.dg-feature h2 {
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  line-height: 1.08;
+  margin: 8px 0 var(--step-3);
+}
+.dg-feature-copy > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15.5px;
+  max-width: 48ch;
+}
+
+/* "See it" jumps to that person in the picker below. */
+button.dg-see {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 48ch;
+  margin-top: var(--step-4);
+  padding: 12px 14px;
+  text-align: left;
+  background: transparent;
+  color: var(--fg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+}
+button.dg-see .mono-label {
+  color: var(--accent);
+}
+button.dg-see:hover {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+.dg-see-what {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.dg-vignette {
+  margin: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--step-4);
+  box-shadow: var(--shadow-pop);
+}
+.dg-vignette figcaption {
+  margin-top: var(--step-3);
+  padding-top: var(--step-3);
+  border-top: 1px solid var(--hairline);
+  font-size: 13px;
+  color: var(--muted);
+}
+.dg-vignette-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: var(--step-4);
+}
+
+/* release ladder */
+.dg-ladder-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dg-lane,
+.dg-ladder-axis {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+.dg-lane-who {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13.5px;
+  line-height: 1.2;
+}
+.dg-lane-track {
+  position: relative;
+  height: 30px;
+  background: var(--sunk);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.dg-lane-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 9px;
+  border-left: 2px solid currentColor;
+}
+.dg-lane-fill.ink {
+  color: var(--fg);
+  background: var(--hatch);
+}
+.dg-lane-fill.accent {
+  color: var(--accent);
+  background: var(--accent-wash);
+}
+.dg-lane-fill.accent2 {
+  color: var(--accent);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--accent-wash),
+    var(--accent-wash) 5px,
+    transparent 5px,
+    transparent 9px
+  );
+}
+.dg-lane-day {
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.dg-axis-ticks {
+  position: relative;
+  height: 14px;
+}
+.dg-axis-ticks i {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font: 500 10px/1 var(--font-mono);
+  font-style: normal;
+  color: var(--faint);
+  white-space: nowrap;
+}
+.dg-axis-ticks i:first-child {
+  transform: none;
+}
+.dg-axis-ticks i:last-child {
+  transform: translateX(-100%);
+}
+
+/* ownership */
+.dg-own-svg {
+  display: block;
   width: 100%;
   height: auto;
-  max-width: 780px;
-  margin-top: var(--step-3);
 }
-.demo-diagram .d-box rect {
+.dg-own .d-box rect {
   fill: var(--bg);
   stroke: var(--border);
   stroke-width: 1;
 }
-.demo-diagram .d-box.accent rect {
+.dg-own .d-box.accent rect {
   stroke: var(--accent);
   fill: var(--accent-wash);
 }
-.demo-diagram .d-box.ok rect {
+.dg-own .d-box.ok rect {
   stroke: var(--ok);
+  fill: var(--ok-wash);
 }
-.demo-diagram .d-box.warn rect {
+.dg-own .d-box.warn rect {
   stroke: var(--warn);
 }
-.demo-diagram .d-title {
-  font: 600 14px/1 var(--font-ui), sans-serif;
+.dg-own .d-title {
+  font: 600 15px/1 var(--font-ui), sans-serif;
   fill: var(--fg);
 }
-.demo-diagram .d-meta {
-  font: 500 11px/1 var(--font-mono), monospace;
+.dg-own .d-meta {
+  font: 600 10px/1 var(--font-mono), monospace;
   fill: var(--muted);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
-.demo-diagram .mid {
+.dg-own .mid {
   text-anchor: middle;
 }
-.demo-diagram .d-line {
+.dg-own .d-line {
   fill: none;
-  stroke: var(--border);
-  stroke-width: 1.5;
+  stroke: var(--faint);
+  stroke-width: 1.4;
 }
 
-.demo-hint {
-  font-size: 14px;
-  margin-bottom: var(--step-4);
+/* debrief */
+.dg-matrix {
+  width: 100%;
+  border-collapse: collapse;
+}
+.dg-matrix th {
+  text-align: left;
+  padding: 0 8px 10px;
+  border-bottom: 1px solid var(--fg);
+}
+.dg-matrix td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--hairline);
+  font-weight: 600;
+}
+.dg-matrix tr.split td {
+  background: var(--warn-wash);
+}
+.dg-score {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 28px;
+  border-radius: 5px;
+  background: var(--sunk);
+  font: 700 14px/1 var(--font-mono);
+}
+.dg-score.hi {
+  background: var(--ok-wash);
+  color: var(--ok);
+}
+.dg-score.lo {
+  background: var(--bad-wash);
+  color: var(--bad);
+}
+.dg-verdict.ok {
+  color: var(--ok);
+}
+.dg-verdict.warn {
+  color: var(--warn);
 }
 
-/* --- two sides, matching the two doors --- */
-.demo-sides {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
-  gap: var(--step-5);
-  align-items: start;
-}
-.demo-side {
+/* the wall */
+.dg-wall-grid {
   display: flex;
   flex-direction: column;
-  gap: var(--step-3);
 }
-.demo-side-head {
-  padding-bottom: var(--step-3);
-  border-bottom: 2px solid var(--fg);
-}
-/* The external column carries the accent edge the vendor portal uses, so the
-   wall is legible before you have signed in as either side. */
-.demo-side.vendor .demo-side-head {
-  border-bottom-color: var(--accent);
-}
-.demo-side-head h2 {
-  margin: 8px 0;
-}
-.demo-side-head p {
-  margin: 0;
+.dg-wall-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 1.1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
   font-size: 14px;
-  color: var(--muted);
-  max-width: 46ch;
+}
+.dg-wall-row.head {
+  padding-top: 0;
+  border-bottom: 1px solid var(--fg);
+}
+/* The agency column sits behind the wall: its own tint, its own edge. */
+.dg-wall-agency {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+  border-left: 2px solid var(--accent);
+}
+.dg-wall-row.head .dg-wall-agency {
+  color: var(--accent);
+}
+.dg-none {
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
 }
 
-.demo-persona {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  padding: var(--step-4);
+/* --- people --- */
+.dg-people-h {
+  font-size: clamp(1.7rem, 3.4vw, 2.5rem);
+  line-height: 1.08;
+  margin: 0;
 }
-.demo-side.vendor .demo-persona {
-  border-left: 3px solid var(--accent);
+.dg-people-sub {
+  max-width: 60ch;
+  margin: 10px 0 var(--step-5);
 }
-.demo-persona-head {
+.dg-people {
+  display: grid;
+  grid-template-columns: minmax(0, 290px) minmax(0, 1fr);
+  gap: var(--step-4);
+  align-items: start;
+}
+.dg-tabs {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--step-3);
+  flex-direction: column;
+  gap: 4px;
 }
-.demo-notice {
+.dg-tabs-group {
+  padding: 14px 10px 6px;
+}
+.dg-tabs-group:first-child {
+  padding-top: 0;
+}
+button.dg-tab {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font: inherit;
+}
+button.dg-tab:hover {
+  background: var(--sunk);
+}
+button.dg-tab[aria-selected="true"] {
+  background: var(--bg);
+  border-color: var(--border);
+  box-shadow: inset 3px 0 0 var(--fg);
+}
+button.dg-tab.agency[aria-selected="true"] {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.dg-tab-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.dg-tab-text strong {
+  font-size: 14.5px;
+}
+.dg-tab-text span {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.dg-avatar {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--fg);
+  color: var(--page);
+  font: 700 11px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+}
+.agency .dg-avatar {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.dg-avatar.lg {
+  width: 52px;
+  height: 52px;
+  font-size: 15px;
+}
+
+.dg-person {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--fg);
+  border-radius: var(--radius-lg);
+  padding: clamp(1.25rem, 3vw, 2rem);
+  animation: dg-rise 0.3s ease-out both;
+}
+.dg-person.agency {
+  border-top-color: var(--accent);
+}
+.dg-person-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.dg-person-head h3 {
+  font-size: 28px;
+  margin: 6px 0 0;
+  line-height: 1.05;
+}
+.dg-person-blurb {
+  font-size: 16px;
+  margin: var(--step-4) 0;
+  max-width: 60ch;
+}
+.dg-person-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--step-4);
+  padding: var(--step-4) 0;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: var(--step-4);
+}
+.dg-col-label {
+  margin-bottom: 10px;
+}
+.dg-col-label.ok {
+  color: var(--ok);
+}
+.dg-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   font-size: 14px;
-  margin: var(--step-3) 0 10px;
 }
-.demo-email {
+.dg-list li {
+  position: relative;
+  padding-left: 22px;
+  line-height: 1.4;
+}
+.dg-list li::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font: 700 13px/1.4 var(--font-mono);
+}
+.dg-list.can li::before {
+  content: "✓";
+  color: var(--ok);
+}
+.dg-list.cannot li {
+  color: var(--muted);
+}
+.dg-list.cannot li::before {
+  content: "×";
+  color: var(--faint);
+}
+.dg-try {
+  list-style: none;
+  counter-reset: dg-try;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dg-try li {
+  counter-increment: dg-try;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+  font-size: 14px;
+}
+.dg-try li::before {
+  content: counter(dg-try);
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  font: 700 11px/1 var(--font-mono);
+  color: var(--muted);
+}
+.dg-try strong {
+  font-size: 14.5px;
+}
+.dg-try span {
+  color: var(--muted);
+}
+.dg-person-go {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  margin-top: var(--step-5);
+}
+.dg-person-go button {
+  padding: 13px 18px;
+  font-size: 15px;
+}
+.dg-cred {
   font-size: 12px;
   color: var(--muted);
 }
 
-/* --- screen abstractions --- */
-.demo-screens {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--step-4);
+/* --- who can do what --- */
+.dg-grid-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
 }
-.demo-screen {
+.dg-grid {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
+.dg-grid th,
+.dg-grid td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--hairline);
+  text-align: center;
+}
+.dg-grid thead th {
+  border-bottom: 1px solid var(--fg);
+  white-space: nowrap;
+}
+.dg-grid thead th.agency {
+  color: var(--accent);
+}
+/* The row label stays put while the columns scroll under it on a phone. */
+.dg-grid tbody th,
+.dg-grid thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg);
+}
+.dg-grid tbody th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  padding-left: 16px;
+  white-space: nowrap;
+}
+.dg-grid tbody tr:last-child th,
+.dg-grid tbody tr:last-child td {
+  border-bottom: 0;
+}
+/* A faint wall between staff and agency columns. */
+.dg-grid th.agency:nth-child(6),
+.dg-grid td.agency:nth-child(6) {
+  border-left: 2px solid var(--accent);
+}
+.dg-grid td.agency {
+  background: var(--accent-wash);
+}
+.dg-count {
+  font-size: 20px;
+}
+.dg-yes {
+  color: var(--ok);
+  font-size: 14px;
+}
+.dg-no {
+  color: var(--faint);
+  font-size: 20px;
+  line-height: 0;
+}
+.dg-own-only {
+  color: var(--accent);
+}
+.dg-grid-note {
+  font-size: 13.5px;
+  margin-top: var(--step-3);
+}
+
+/* --- limits --- */
+.dg-limits {
+  list-style: none;
   margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--step-3);
 }
-.demo-screen-art {
-  height: 160px;
+.dg-limits li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--step-4);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg);
-  padding: 14px;
-  overflow: hidden;
-}
-.demo-screen figcaption {
-  margin-top: 10px;
-  font-size: 13px;
-  color: var(--muted);
-  max-width: 42ch;
-}
-
-.demo-screen-art.board {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-.mini-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.mini-head {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--fg);
-  opacity: 0.75;
-}
-.mini-card {
-  border-radius: 4px;
-  background: var(--sunk);
-  border-left: 2px solid var(--border);
-}
-.mini-card.warn {
-  border-left-color: var(--warn);
-  background: var(--warn-wash);
-}
-.mini-card.bad {
-  border-left-color: var(--bad);
-  background: var(--bad-wash);
-}
-
-.demo-screen-art.chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-}
-.mini-bar {
-  flex: 1;
-  border-radius: 3px 3px 0 0;
-  background: var(--accent-wash);
-  border-top: 2px solid var(--accent);
-}
-
-.demo-screen-art.matrix {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 12px;
-}
-.mini-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.mini-label {
-  width: 64px;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--sunk);
-  flex: none;
-}
-.mini-dot {
-  width: 26px;
-  height: 20px;
-  border-radius: 4px;
-  background: var(--sunk);
-  border: 1px solid var(--border);
-}
-.mini-dot.v5 { background: var(--ok-wash); border-color: var(--ok); }
-.mini-dot.v4 { background: var(--ok-wash); }
-.mini-dot.v2 { background: var(--bad-wash); border-color: var(--bad); }
-/* The row the debrief would wash in warn: panelists disagreed on it. */
-.mini-row:has(.diverged) {
-  background: var(--warn-wash);
-  border-radius: 4px;
-  padding: 4px 6px;
-  margin: -4px -6px;
-}
-
-.demo-tour {
-  padding-left: 1.1rem;
-  max-width: 72ch;
-}
-.demo-tour li {
-  margin-bottom: var(--step-4);
-}
-.demo-tour-where {
-  font-weight: 600;
-}
-.demo-tour p {
-  margin: 6px 0 0;
-  font-size: 14px;
-  color: var(--muted);
-}
-
-.demo-limits {
-  padding-left: 1.1rem;
-  max-width: 72ch;
-}
-.demo-limits li {
-  margin-bottom: 10px;
   font-size: 14px;
 }
+.dg-limits li span:last-child {
+  color: var(--muted);
+}
+.dg-limit-tag {
+  color: var(--accent);
+  margin-bottom: 4px;
+}
 
-.demo-foot {
+.dg-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
   margin-top: var(--step-6);
   padding-top: var(--step-4);
   border-top: 1px solid var(--border);
   font-size: 14px;
+}
+
+/* --- narrow screens --- */
+@media (max-width: 900px) {
+  .dg-hero {
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: var(--step-5);
+  }
+  .dg-feature {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dg-feature:nth-child(even) .dg-feature-copy {
+    order: 0;
+  }
+  .dg-people {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* The vertical list becomes a swipeable strip above the card. */
+  .dg-tabs {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+  }
+  .dg-tabs-group {
+    display: none;
+  }
+  button.dg-tab {
+    flex: none;
+    width: auto;
+    padding: 8px 12px 8px 8px;
+  }
+  button.dg-tab[aria-selected="true"],
+  button.dg-tab.agency[aria-selected="true"] {
+    box-shadow: inset 0 -3px 0 var(--fg);
+  }
+  button.dg-tab.agency[aria-selected="true"] {
+    box-shadow: inset 0 -3px 0 var(--accent);
+  }
+}
+
+@media (max-width: 560px) {
+  .dg-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dg-person-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dg-receipt:nth-child(odd) {
+    margin-left: 0;
+  }
+  .dg-lane,
+  .dg-ladder-axis {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .dg-ladder-axis > span:first-child {
+    display: none;
+  }
+  .dg-wall-row {
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1fr);
+    font-size: 13px;
+    gap: 8px;
+  }
+  .dg-wall-agency {
+    padding-left: 8px;
+  }
+  .dg-grid {
+    min-width: 600px;
+  }
+  .dg-grid th,
+  .dg-grid td {
+    padding: 10px 6px;
+  }
+  .dg-grid tbody th {
+    white-space: normal;
+    min-width: 130px;
+    max-width: 130px;
+    font-size: 13px;
+    padding-left: 12px;
+    box-shadow: 1px 0 0 var(--border);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dg-receipt,
+  .dg-person {
+    animation: none;
+  }
 }
 
 /* ---- Interview room --------------------------------------------------
@@ -3890,59 +4476,6 @@ table.data td time {
   .hiw-step {
     grid-template-columns: 1fr;
     gap: var(--step-2);
-  }
-}
-
-/* ---- Demo: start-here card ---------------------------------------------
-   The one link on the page that competes with the sign-in buttons, so it is
-   the only block that gets the accent wash. Whole card is the target — a
-   4px "read more" is a target you have to aim at. -------------------------- */
-
-.demo-start {
-  display: flex;
-  align-items: center;
-  gap: var(--step-4);
-  margin: var(--step-5) 0 var(--step-6);
-  padding: var(--step-4) var(--step-5);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-lg);
-  background: var(--accent-wash);
-  color: inherit;
-  text-decoration: none;
-  transition: box-shadow 120ms ease, transform 120ms ease;
-}
-.demo-start:hover {
-  box-shadow: var(--shadow-pop);
-  transform: translateY(-1px);
-}
-/* --accent, not --accent-ink: "ink" is the colour for text ON a solid accent
-   fill and is plain white, which on a 10% wash is white-on-paper. */
-.demo-start .mono-label {
-  color: var(--accent);
-}
-.demo-start h2 {
-  margin: var(--step-2) 0 0;
-}
-.demo-start p {
-  margin: var(--step-2) 0 0;
-  max-width: 62ch;
-}
-.demo-start-body {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.demo-start-go {
-  flex: none;
-  font-size: 28px;
-  color: var(--accent);
-}
-
-@media (max-width: 640px) {
-  .demo-start {
-    padding: var(--step-4);
-  }
-  .demo-start-go {
-    display: none;
   }
 }
 
