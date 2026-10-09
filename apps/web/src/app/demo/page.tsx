@@ -164,12 +164,20 @@ const VENDOR_PERSONAS: Persona[] = [
     role: "Agency · tier 1",
     scope: "Own submissions",
     blurb: "The preferred agency. First in line on tiered roles, and holds one role nobody else has.",
-    can: ["See 4 released roles", "Submit candidates and track them"],
-    cannot: ["See stage names, interviewers or scores", "Know any other agency exists"],
+    can: [
+      "See 4 released roles",
+      "Submit candidates and track them",
+      "See what happened to everyone it sent",
+    ],
+    cannot: ["See stage names, interviewers or scores", "See another agency's name or numbers"],
     tryThis: [
       {
-        where: "Open positions",
+        where: "Open roles",
         what: "Sales Operations Analyst is here and nowhere else. It was released to TalentBridge by hand.",
+      },
+      {
+        where: "Performance",
+        what: "Its funnel from submitted to offered, with screening rejections kept apart from the costlier ones after a panel. The comparison with other agencies stays empty until enough are active that none could be singled out.",
       },
     ],
     vendor: true,
@@ -203,11 +211,11 @@ const VENDOR_PERSONAS: Persona[] = [
     scope: "Own submissions",
     blurb: "The agency that keeps arriving second, which is what ownership rules exist for.",
     can: ["See 3 released roles", "Submit candidates and track them"],
-    cannot: ["Learn who submitted a candidate first", "See another agency's candidates"],
+    cannot: ["Learn which agency got there first", "See another agency's candidates"],
     tryThis: [
       {
-        where: "My submissions",
-        what: "Its duplicate claims read “Not eligible”. Nothing says another agency got there first.",
+        where: "My submissions, then Performance",
+        what: "Duplicate claims read “Not eligible”. Performance counts them as already claimed by another agency, and never says which one.",
       },
     ],
     vendor: true,
