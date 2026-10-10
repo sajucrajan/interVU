@@ -18,6 +18,7 @@
  *
  * Usage (stack running, seeded with `pnpm --filter @intervu/api db:seed`):
  *   WEB_URL=http://localhost:3000 node tools/link-check.mjs
+ *   ONLY=hm.eng@acme.test node tools/link-check.mjs   # one account, comma-separated
  *
  * Playwright is not a workspace dependency (it is only needed here). Point
  * PLAYWRIGHT_FROM at any directory whose node_modules holds it — CI installs
@@ -59,7 +60,10 @@ const pattern = (u) => u.replace(UUID, ":id").replace(/\?.*/, "");
 const browser = await chromium.launch();
 let failures = 0;
 
-for (const [email, kind, start] of PERSONAS) {
+const only = process.env.ONLY?.split(",").map((e) => e.trim()).filter(Boolean);
+const selected = only?.length ? PERSONAS.filter(([email]) => only.includes(email)) : PERSONAS;
+
+for (const [email, kind, start] of selected) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await ctx.newPage();
   const apiErrors = [];
