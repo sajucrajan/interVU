@@ -14,6 +14,7 @@ import {
   type SkillRow,
 } from "@/components/skill-matrix";
 import { usePageIdentity } from "@/components/sticky-identity";
+import { can, useMe } from "@/lib/me";
 import { PositionBriefView, type Brief } from "@/components/position-brief";
 import { formatDate, formatDateTime, formatRelativeDay } from "@/lib/format";
 
@@ -125,6 +126,7 @@ export default function PositionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [p, setP] = useState<Detail | null>(null);
+  const me = useMe();
   const [vendors, setVendors] = useState<VendorOrg[]>([]);
   const [apps, setApps] = useState<RoleApplication[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -395,7 +397,11 @@ export default function PositionDetailPage() {
         </div>
 
         {/* Channel sits directly above the release panel, because changing it
-            is what decides whether that panel means anything at all. */}
+            is what decides whether that panel means anything at all. The two
+            share a column: as siblings in the grid, the release panel wrapped
+            under Requirements, below the fold, and recruiters asked how to
+            add an agency at all. */}
+        <div className="viz-col">
         <div className="card">
           <p className="chart-title">Sourcing channel</p>
           <p className="chart-sub">
@@ -405,7 +411,7 @@ export default function PositionDetailPage() {
                 ? p.vendorOpensAt
                   ? `Hybrid — agencies join ${formatDate(p.vendorOpensAt)}.`
                   : "Hybrid — no unlock date set, so agencies can see it now."
-                : "Vendors — released to agencies under the policy below."}
+                : "Vendors — only the agencies listed below can see it."}
           </p>
           {/* A segmented control, not three buttons. The current channel used
               to render as a disabled button, which reads as "unavailable"
@@ -463,7 +469,16 @@ export default function PositionDetailPage() {
         </div>
 
         <div className="card">
-          <p className="chart-title">Vendor release</p>
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+            <p className="chart-title">Vendor release</p>
+            {/* The same action as the ⋯ menu's, where the list is: a release
+                is added by looking at who already has one. */}
+            {p.status === "open" && unreleased.length > 0 && can(me, "positions.release") && (
+              <button type="button" className="secondary" onClick={() => setDialog("release")}>
+                Release to a vendor…
+              </button>
+            )}
+          </div>
           <p className="chart-sub">
             {!p.releasePolicy
               ? "Not published, so no agency can see this position."
@@ -473,7 +488,8 @@ export default function PositionDetailPage() {
           </p>
           {p.releases.length === 0 ? (
             <p className="muted" style={{ margin: 0 }}>
-              No vendors yet.
+              No agencies yet — release it to one above, or switch the channel
+              to Direct only if agencies should never see it.
             </p>
           ) : (
             <table className="data">
@@ -512,6 +528,7 @@ export default function PositionDetailPage() {
               </tbody>
             </table>
           )}
+        </div>
         </div>
       </div>
 

@@ -5375,3 +5375,11 @@ main.home {
 .rail-menu-count {
   margin-left: 8px;
 }
+
+/* Two cards stacked in one grid column (position page: channel + release). */
+.viz-col {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  min-width: 0;
+}
