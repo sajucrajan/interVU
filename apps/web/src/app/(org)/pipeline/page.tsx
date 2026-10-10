@@ -179,6 +179,38 @@ function PipelineBoard() {
     [act, router, caps],
   );
 
+  /**
+   * What a card most needs next, from its stage and what the viewer may do.
+   * One button, not a menu: a recruiter screens, then schedules; once the
+   * loop has run, the hiring manager decides. Anyone else gets the debrief
+   * to read, or nothing.
+   */
+  const primaryFor = (a: Application): { label: string; onSelect: () => void } | null => {
+    if (a.decision || caps === null) return null;
+    const go = (path: string) => () => router.push(path);
+    const done = a.interviews.filter((i) => i.status === "completed").length;
+    const loopDone = a.interviews.length > 0 && done === a.interviews.length;
+    switch (a.currentStage) {
+      case "submitted":
+      case "screening":
+        if (can("applications.transition") || can("applications.reject"))
+          return { label: "Screen", onSelect: go(`/applications/${a.id}/screen`) };
+        if (can("interviews.schedule"))
+          return { label: "Schedule interview", onSelect: () => setScheduleFor(a) };
+        return null;
+      case "interviewing":
+        if (a.interviews.length === 0 && can("interviews.schedule"))
+          return { label: "Schedule interview", onSelect: () => setScheduleFor(a) };
+        if (loopDone && can("decisions.record"))
+          return { label: "Decide", onSelect: go(`/applications/${a.id}/debrief`) };
+        return { label: a.interviews.length === 0 ? "Open debrief" : "Debrief", onSelect: go(`/applications/${a.id}/debrief`) };
+      case "offer":
+        return { label: "Open debrief", onSelect: go(`/applications/${a.id}/debrief`) };
+      default:
+        return null;
+    }
+  };
+
   if (!apps) return <main className="wide muted">Loading…</main>;
 
   let visible = apps.filter((a) => a.status === "active");
@@ -223,6 +255,10 @@ function PipelineBoard() {
         actionsFor={(card) => {
           const app = apps.find((a) => a.id === card.id);
           return app ? menuFor(app) : [];
+        }}
+        primaryFor={(card) => {
+          const app = apps.find((a) => a.id === card.id);
+          return app ? primaryFor(app) : null;
         }}
         onView={(key: string) =>
           router.push(key === "all" ? "/pipeline" : `/pipeline?filter=${key}`)
