@@ -112,8 +112,8 @@ which is what the duplicate contests need. A fourth agency, NorthStar, is
 seeded but not offered; it exists so the agency benchmark has the peers it
 requires.
 
-The page names real seeded people, references and scores — Kavya Rao's 5-vs-2
-MLOps split, Padma Menon's overdue scorecard, the hybrid Data Engineer ladder.
+The page names real seeded people, references and scores — Lucía Fernández's 5-vs-2
+MLOps split, Jordan Mitchell's overdue scorecard, the hybrid Data Engineer ladder.
 If `prisma/seed.ts` changes those, change `apps/web/src/app/demo/page.tsx` with
 it.
 

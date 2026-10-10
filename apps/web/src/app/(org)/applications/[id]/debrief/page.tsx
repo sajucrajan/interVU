@@ -92,7 +92,7 @@ const cellTone = (r: number | null) =>
 
 /**
  * A panelist's column header. Initials collided as soon as two people shared
- * them (Indira Interviewer and Ivan Interviewer both read "II"), which made the
+ * them (two panelists named "I… Interviewer" both read "II"), which made the
  * one table built to show who disagreed unable to say who. First names, unless
  * two panelists share one.
  */

@@ -93,12 +93,12 @@ async function main() {
     return user;
   }
   const admin = await orgUser("admin@acme.test", "Avery Admin", "org_admin", null);
-  await orgUser("recruiter@acme.test", "Riley Recruiter", "recruiter", null);
+  await orgUser("recruiter@acme.test", "Rafael Recruiter", "recruiter", null);
   await orgUser("hm.eng@acme.test", "Harper Manager", "hiring_manager", engineering.id); // vertical-scoped
   await orgUser("pm.gtm@acme.test", "Parker PM", "project_manager", gtm.id); // vertical-scoped, read-only
-  await orgUser("pm.platform@acme.test", "Peyton PM", "project_manager", platform.id); // single-team scope
-  await orgUser("interviewer1@acme.test", "Indira Interviewer", "interviewer", null);
-  await orgUser("interviewer2@acme.test", "Ivan Interviewer", "interviewer", null);
+  await orgUser("pm.platform@acme.test", "Priya PM", "project_manager", platform.id); // single-team scope
+  await orgUser("interviewer1@acme.test", "Ingrid Interviewer", "interviewer", null);
+  await orgUser("interviewer2@acme.test", "Ikenna Interviewer", "interviewer", null);
 
   // An organization-defined role, the way docs/09 says real ones are made: a
   // bundle of permissions with the organization's own name on it. It reads
@@ -118,7 +118,7 @@ async function main() {
     },
   });
   roleByKey.set("vendor_manager", vendorManager.id);
-  await orgUser("vendors@acme.test", "Sasha Sourcing", "vendor_manager", null);
+  await orgUser("vendors@acme.test", "Mei Sourcing", "vendor_manager", null);
 
   // --- Vendors: TalentBridge (tier 1); HireWorks, StaffPro, NorthStar (tier 2)
   async function vendor(
@@ -294,8 +294,26 @@ async function main() {
       where: { organizationId: org.id },
       orderBy: { reference: "asc" },
     });
-    const firstNames = ["Aarav", "Beatriz", "Chen", "Divya", "Emeka", "Fatima", "Gustav", "Hana", "Ines", "Jorge", "Kavya", "Liam", "Mina", "Noor", "Oscar", "Padma", "Quinn", "Rohan", "Sofia", "Tariq", "Uma", "Viktor", "Wangari", "Ximena", "Yusuf", "Zara", "Anders", "Bianca", "Chidi", "Dalia", "Elias", "Freya", "Goro", "Helga", "Idris", "Jana"];
-    const lastNames = ["Sharma", "Costa", "Wei", "Iyer", "Okafor", "Hassan", "Lind", "Kato", "Moreau", "Diaz", "Rao", "Byrne", "Park", "Aziz", "Nilsen", "Menon", "Reyes", "Joshi", "Rossi", "Farouk"];
+    // Full names, not a first × last grid: the grid paired a Kenyan first name
+    // with a Chinese surname and so on, and its order decided which people the
+    // demo features. About a third North American (Acme is a US company), the
+    // rest spread across regions, with genders mixed in each. Index matters —
+    // offers land on 0/9/18/27, duplicate claims on every 6th from 5, and the
+    // first three in the interviewing lane (10, 15, 20) are the debrief, the
+    // overdue scorecard and the upcoming interview the demo guide points to.
+    // The rejection step further down takes every third undecided agency
+    // application in this order (slots 2, 4, 13, 19, 25, 31, 34, plus one
+    // agency extra), so those slots are spread across regions too, and the
+    // two near-duplicate originals (22, 32) sit outside them. Re-check the
+    // spread with the query in docs/10 if you reorder anything.
+    const corpusNames = [
+      "Emily Carter", "Diego Ramírez", "Marcus Johnson", "Sakura Tanaka", "Oluwaseun Adeyemi", "Ryan Sullivan",
+      "Ananya Gupta", "Taylor Brooks", "Karim Mansour", "Arjun Mehta", "Lucía Fernández", "Sophie Dubois",
+      "Brandon Hayes", "Lukas Becker", "Grace Kim", "Jordan Mitchell", "Thandiwe Ndlovu", "Mateo Silva",
+      "Kwame Mensah", "Rahul Verma", "Amira Haddad", "Megan Price", "Catherine Walsh", "Siti Rahman",
+      "Wei Zhang", "Ashley Morgan", "Kevin Lawson", "Yuna Choi", "Isabella Rossi", "Layla Nasser",
+      "Chinedu Okeke", "Jin Park", "Nguyen Van An", "Maria Santos", "Tyler Reed", "Camila Torres",
+    ];
     const vendorUsersAll = await prisma.vendorUser.findMany();
     const userByVendor = new Map(vendorUsersAll.map((u) => [u.vendorId, u]));
     const orgByVendorName = new Map(vendorOrgsAll.map((vo) => [vo.vendor.name, vo]));
@@ -314,8 +332,8 @@ async function main() {
     // Deterministic spread: statuses cycle; every 6th is a duplicate; every
     // 5th application advances; every 9th gets an offer decision.
     for (let i = 0; i < 36; i++) {
-      const name = `${firstNames[i % firstNames.length]} ${lastNames[i % lastNames.length]}`;
-      const email = `${name.toLowerCase().replaceAll(" ", ".")}@example.com`;
+      const name = corpusNames[i]!;
+      const email = `${name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll(" ", ".")}@example.com`;
       const slot = i % allPositions.length;
       const pos = allPositions[slot]!;
       const vendorName = VENDOR_FOR_SLOT[slot];
@@ -394,11 +412,11 @@ async function main() {
     const EXTRA = [
       { agency: "NorthStar Talent", name: "Ravi Kumar", slot: 3, daysAgo: 6, stage: "screening" },
       { agency: "NorthStar Talent", name: "Lena Fischer", slot: 4, daysAgo: 5, stage: "screening" },
-      { agency: "NorthStar Talent", name: "Tomás Silva", slot: 5, daysAgo: 3, stage: "submitted" },
-      { agency: "NorthStar Talent", name: "Mei Lin", slot: 3, daysAgo: 1.5, stage: "submitted" },
+      { agency: "NorthStar Talent", name: "Tomás Herrera", slot: 5, daysAgo: 3, stage: "submitted" },
+      { agency: "NorthStar Talent", name: "Haruto Sato", slot: 3, daysAgo: 1.5, stage: "submitted" },
       { agency: "StaffPro", name: "Amara Obi", slot: 5, daysAgo: 7, stage: "screening" },
       { agency: "StaffPro", name: "Jonas Weber", slot: 5, daysAgo: 2, stage: "submitted" },
-      { agency: "StaffPro", name: "Priya Nair", slot: 4, daysAgo: 4, stage: "screening" },
+      { agency: "StaffPro", name: "Noah Bennett", slot: 4, daysAgo: 4, stage: "screening" },
     ] as const;
     for (const c of EXTRA) {
       const agency = orgByVendorName.get(c.agency);
@@ -1279,28 +1297,32 @@ BSc Computer Science, University of Edinburgh
       prisma.position.findFirst({ where: { organizationId: org.id, reference } });
     const NEAR_MISSES = [
       {
-        existing: "Tariq Farouk",
+        // A spelling variant: the commonest near-miss there is.
+        existing: "Catherine Walsh",
         known: { employer: "Halcyon Data", title: "Data Engineer", location: "Austin, TX" },
         agency: "StaffPro",
         position: "POS-005",
         hoursAgo: 5,
         incoming: {
-          candidate_name: "Tarik Farouk",
-          email: "tfarouk.dev@example.com",
+          candidate_name: "Katherine Walsh",
+          email: "kwalsh.dev@example.com",
           current_employer: "Halcyon Data",
           current_title: "Senior Data Engineer",
           location: "Remote",
         },
       },
       {
-        existing: "Noor Aziz",
+        // Family name first on one CV, last on the other — routine for
+        // Vietnamese, Chinese, Korean and Hungarian names, and exactly where
+        // a matcher that assumes "first last" splits one person into two.
+        existing: "Nguyen Van An",
         known: { employer: "Northwind Systems", title: "Data Engineer", location: "Austin, TX" },
         agency: "NorthStar Talent",
         position: "POS-004",
         hoursAgo: 26,
         incoming: {
-          candidate_name: "Noor A. Aziz",
-          email: "n.aziz@example.com",
+          candidate_name: "An Nguyen",
+          email: "an.nguyen@example.com",
           current_employer: "Northwind",
           current_title: "Analytics Engineer",
           location: "Austin, TX",

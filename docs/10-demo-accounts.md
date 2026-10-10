@@ -23,21 +23,21 @@ demonstrate the entitlement model (`role @ scope`, see [09](09-entitlements.md))
 | Email | Name | Role | Scope | Sees | Notes |
 |---|---|---|---|---|---|
 | `admin@acme.test` | Avery Admin | `org_admin` | org-wide | all 6 positions, review queue, settings | Only role that can erase candidates, manage vendors/settings/webhooks |
-| `recruiter@acme.test` | Riley Recruiter | `recruiter` | org-wide | all 6 positions, review queue | The everyday driver: create/publish positions, arbitrate duplicates, resolve match reviews |
+| `recruiter@acme.test` | Rafael Recruiter | `recruiter` | org-wide | all 6 positions, review queue | The everyday driver: create/publish positions, arbitrate duplicates, resolve match reviews |
 | `hm.eng@acme.test` | Harper Manager | `hiring_manager` | **Engineering** vertical | 4 positions | Platform + Data teams only; **403** on the match-review queue; can record decisions |
 | `pm.gtm@acme.test` | Parker PM | `project_manager` | **GTM** vertical | 2 positions | Read-only observer; GTM only — cannot see Engineering roles |
-| `pm.platform@acme.test` | Peyton PM | `project_manager` | **Platform** team | 2 positions | Read-only, single team — the narrowest scope |
-| `interviewer1@acme.test` | Indira Interviewer | `interviewer` | org-wide | **0 positions**, 3 assigned interviews | Interviewers are *assignment*-scoped, not tree-scoped |
-| `interviewer2@acme.test` | Ivan Interviewer | `interviewer` | org-wide | **0 positions**, 2 assigned interviews | Use to see the hide-until-submitted feedback policy |
-| `vendors@acme.test` | Sasha Sourcing | `vendor_manager` *(custom)* | org-wide | all 6 positions, vendor performance | An organization-defined role: `positions.view`, `submissions.view`, `vendors.view_performance`. Reads the agency report; **403** on vendor contracts and the review queue |
+| `pm.platform@acme.test` | Priya PM | `project_manager` | **Platform** team | 2 positions | Read-only, single team — the narrowest scope |
+| `interviewer1@acme.test` | Ingrid Interviewer | `interviewer` | org-wide | **0 positions**, 3 assigned interviews | Interviewers are *assignment*-scoped, not tree-scoped |
+| `interviewer2@acme.test` | Ikenna Interviewer | `interviewer` | org-wide | **0 positions**, 2 assigned interviews | Use to see the hide-until-submitted feedback policy |
+| `vendors@acme.test` | Mei Sourcing | `vendor_manager` *(custom)* | org-wide | all 6 positions, vendor performance | An organization-defined role: `positions.view`, `submissions.view`, `vendors.view_performance`. Reads the agency report; **403** on vendor contracts and the review queue |
 
 ### Things worth trying
 
 - **Scoped visibility** — sign in as `pm.gtm` and then `pm.platform`; the positions list changes with the scope. Neither is offered `/match-reviews`; typing the URL gets a page saying whose job it is, with a way back (403 by design).
 - **A Today per role** — Today opens with one line on what the role is for. Recruiters, hiring managers and interviewers get *"N things are waiting on you"*, counting only work they can do. Read-only roles (`pm.gtm`, `vendors`) get *"Here is where hiring stands"*: the same queues, muted, each labelled with who it waits on.
-- **Assignment-scoped access** — `interviewer1` sees no positions at all, but `/interviews` lists their panels: one scorecard to file (Padma Menon), one upcoming (Uma Sharma), one filed (Kavya Rao). Opening a candidate from there shows their history, from scheduling until a decision is recorded (docs/09 §4.2). An interview that has not happened yet is never counted as owed.
-- **Feedback policy** — Padma Menon's debrief stays sealed until `interviewer1` files the overdue scorecard. File it with *Quick file*, then *View scorecards* on the filed row: your card, then Ivan's, which was hidden until yours was in. Kavya Rao's is open, and splits 5 to 2 on MLOps.
-- **Match review queue** — two near-misses are waiting: *Tarik Farouk* (StaffPro) and *Noor A. Aziz* (NorthStar), each scored 81% against someone already on file. Scored by the real matcher at seed time; a pair that ever falls outside the review band is skipped rather than forced.
+- **Assignment-scoped access** — `interviewer1` sees no positions at all, but `/interviews` lists their panels: one scorecard to file (Jordan Mitchell), one upcoming (Amira Haddad), one filed (Lucía Fernández). Opening a candidate from there shows their history, from scheduling until a decision is recorded (docs/09 §4.2). An interview that has not happened yet is never counted as owed.
+- **Feedback policy** — Jordan Mitchell's debrief stays sealed until `interviewer1` files the overdue scorecard. File it with *Quick file*, then *View scorecards* on the filed row: your card, then Ikenna's, which was hidden until yours was in. Lucía Fernández's is open, and splits 5 to 2 on MLOps.
+- **Match review queue** — two near-misses are waiting, each a real reason a matcher cannot decide alone: *Katherine Walsh* (StaffPro), a spelling variant of Catherine Walsh already on file, scored 77%; and *An Nguyen* (NorthStar), the same person as Nguyen Van An with the family name moved, scored 81%. Scored by the real matcher at seed time; a pair that ever falls outside the review band is skipped rather than forced.
 - **Sourcing guard** — on POS-004 Frontend Engineer, switch sourcing to *Direct only*: it refuses and counts the agency candidates still active.
 - **Custom roles** — `/admin/roles` (as the admin) lists *Vendor manager* beside the built-ins; it is an ordinary row the organization could have made itself.
 
@@ -57,7 +57,7 @@ candidates applied through the careers site, a referral or internally.
 
 ### Things worth trying
 
-- **Duplicate probe** — submit a candidate from HireWorks using an email another vendor already used (try `jane.doe@gmail.com`, or a `+tag`/googlemail variant — normalization sees through both). You get *"not eligible: already in process from another source"* with no hint of who owns them; the org side sees the full contest.
+- **Duplicate probe** — submit a candidate from HireWorks using an email another vendor already used on the same role — try *POS-004 Frontend Engineer* with `sakura.tanaka@example.com`, whom TalentBridge already submitted there, or a `+tag` variant of it (normalization sees through it). You get *"not eligible: already in process from another source"* with no hint of who owns them; the org side sees the full contest.
 - **Fuzzy review queue** — submit a near-match (slightly misspelled name, different email, same employer). It lands in `/match-reviews` for a human instead of auto-linking.
 - **Vendor blindness** — nothing in the portal exposes other vendors, interviewer names, scorecards, or internal stages; statuses are coarse only.
 - **Performance** — each agency's funnel, with screening rejections kept apart from post-panel ones, and a pooled comparison against the other three that never names them.
