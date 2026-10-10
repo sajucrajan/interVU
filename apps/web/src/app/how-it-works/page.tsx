@@ -78,7 +78,7 @@ const STEPS: {
     body:
       "Invite each person by email; they choose their own password from the link they receive. Then give them a role and say where it applies: a recruiter across the whole company, or a hiring manager for Engineering only.",
     aside:
-      "Someone can have more than one role, and gets everything each role allows. Removing one role never takes away what another one gives.",
+      "Someone can have more than one role. They work as one at a time — InterVU asks which when they sign in, remembers the answer, and flags anything waiting in the other. Interviewing is its own persona: being put on a panel is all it takes.",
   },
   {
     n: "03",
@@ -364,8 +364,10 @@ export default function HowItWorksPage() {
           from other teams don&apos;t appear at all — not even as a locked item.
         </li>
         <li>
-          <strong>Several roles add up.</strong> Someone with two roles can do
-          everything either role allows.
+          <strong>One job at a time.</strong> Someone with two roles picks
+          which one they are working as, and only that role&apos;s permissions
+          apply until they switch. Work waiting in the other is flagged, not
+          hidden.
         </li>
         <li>
           <strong>The first agency to submit a candidate is on record.</strong>{" "}

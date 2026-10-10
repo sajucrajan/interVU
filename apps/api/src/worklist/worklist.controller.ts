@@ -1,5 +1,7 @@
 import { Controller, Get } from "@nestjs/common";
 import { AuthzService } from "../entitlements/authz.service";
+import { isInterviewer } from "../entitlements/persona";
+import { PersonaService } from "../entitlements/persona.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { SlaService, median, type SlaState } from "../sla/sla.service";
 import { OrgScope, Tenant } from "../tenancy/scope.decorator";
@@ -53,6 +55,7 @@ export class WorklistController {
     private readonly prisma: PrismaService,
     private readonly authz: AuthzService,
     private readonly sla: SlaService,
+    private readonly personas: PersonaService,
   ) {}
 
   @Get("worklist")
@@ -61,6 +64,9 @@ export class WorklistController {
     const userId = tenant.org!.user.id;
     const access = await this.authz.access(tenant);
     const now = Date.now();
+    // Panel seats count only while acting as interviewer (docs/09 §7); in a
+    // role persona the scorecard queue is reported under `other_personas`.
+    const interviewer = isInterviewer(tenant.org!.persona);
 
     const viewScope = access.unitIdsFor("submissions.view");
     const inScope =
@@ -100,7 +106,8 @@ export class WorklistController {
       // end-time cut is applied below, since the duration lives on the row.
       // Counting next week's interview here told an interviewer who had just
       // filed everything that a scorecard was still outstanding.
-      this.prisma.interview.findMany({
+      interviewer
+        ? this.prisma.interview.findMany({
         where: {
           organizationId,
           panelists: { some: { orgUserId: userId } },
@@ -109,7 +116,8 @@ export class WorklistController {
           scheduledAt: { lte: new Date(now) },
         },
         select: { scheduledAt: true, durationMin: true },
-      }),
+      })
+        : [],
       canDecide || seesPipeline
         ? this.prisma.application.findMany({
             where: {
@@ -137,7 +145,8 @@ export class WorklistController {
           stageTransitions: { orderBy: { at: "desc" }, take: 1, select: { at: true } },
         },
       }),
-      this.prisma.interview.findMany({
+      interviewer
+        ? this.prisma.interview.findMany({
         where: {
           organizationId,
           panelists: { some: { orgUserId: userId } },
@@ -158,7 +167,8 @@ export class WorklistController {
         },
         orderBy: { scheduledAt: "asc" },
         take: 5,
-      }),
+      })
+        : [],
       this.prisma.submission.findMany({
         where: { organizationId, ...inScope },
         include: {
@@ -179,9 +189,11 @@ export class WorklistController {
       }),
       // Whether this person ever sits on a panel. It decides whether "My
       // interviews" means anything to them.
-      this.prisma.interviewPanelist.count({
+      interviewer
+        ? this.prisma.interviewPanelist.count({
         where: { orgUserId: userId, interview: { organizationId } },
-      }),
+      })
+        : 0,
       // Time to OFFER, not to hire: offer acceptance is not modelled yet
       // (handoff item #16), so claiming "time to hire" would overstate it.
       this.prisma.decision.findMany({
@@ -349,7 +361,7 @@ export class WorklistController {
         },
         {
           key: "scorecards",
-          mine: true,
+          mine: interviewer,
           waiting_on: "you",
           label: "Your scorecards not submitted",
           sub: "Feedback stays hidden until you file yours",
@@ -423,8 +435,17 @@ export class WorklistController {
     return {
       user: {
         name: tenant.org!.user.name,
-        roles: [...new Set(tenant.org!.memberships.map((m) => m.roleName))],
+        roles: [tenant.org!.persona!.label],
+        persona: tenant.org!.persona,
       },
+      /** Work waiting in the personas this person is NOT using right now. */
+      other_personas: await this.personas.pendingElsewhere(
+        organizationId,
+        userId,
+        tenant.org!.persona,
+        tenant.org!.personas,
+        tenant.org!.allMemberships,
+      ),
       total: groups.reduce((n, g) => n + g.count, 0),
       /** False for a read-only role: nothing can ever wait on them, so Today
        *  shows them where things stand instead of an empty to-do list. */

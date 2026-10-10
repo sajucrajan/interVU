@@ -2,6 +2,12 @@ import { createHash, randomBytes } from "node:crypto";
 import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { WITH_ROLES, resolveMemberships } from "../entitlements/membership";
+import {
+  type Persona,
+  membershipsFor,
+  personasFor,
+  resolvePersona,
+} from "../entitlements/persona";
 import type { TenantContext } from "../tenancy/tenant-context";
 import { hashPassword, verifyPassword } from "./password";
 
@@ -24,7 +30,88 @@ export class AuthService {
         })
       : null;
     this.checkCredentials(user?.passwordHash, password, user?.status);
-    return this.createSession({ orgUserId: user!.id, organizationId: org!.id });
+    const session = await this.createSession({ orgUserId: user!.id, organizationId: org!.id });
+    // Which job to open on. One persona needs no choice; a remembered default
+    // is honoured unless the person asked to be asked; otherwise the web
+    // sends them to the picker before anything else.
+    const personas = await this.personasOf(user!.id, org!.id);
+    const persona = resolvePersona(personas, {
+      stored: null,
+      preferred: user!.defaultPersona,
+      askEachTime: user!.askPersonaAtLogin,
+    });
+    if (persona) {
+      await this.prisma.session.update({
+        where: { tokenHash: sha256(session.token) },
+        data: { persona: persona.key },
+      });
+    }
+    return { ...session, persona, personas };
+  }
+
+  /**
+   * Every persona this person can act as, from their grants and panel seats
+   * (entitlements/persona.ts). Unit names make the picker say "Engineering"
+   * rather than an id.
+   */
+  async personasOf(orgUserId: string, organizationId: string): Promise<Persona[]> {
+    const [user, seats, units] = await Promise.all([
+      this.prisma.orgUser.findUnique({ where: { id: orgUserId }, include: WITH_ROLES }),
+      this.prisma.interviewPanelist.count({
+        where: { orgUserId, interview: { organizationId } },
+      }),
+      this.prisma.orgUnit.findMany({
+        where: { organizationId },
+        select: { id: true, name: true },
+      }),
+    ]);
+    if (!user) return [];
+    return personasFor(
+      resolveMemberships(user.memberships),
+      seats > 0,
+      new Map(units.map((u) => [u.id, u.name])),
+    );
+  }
+
+  /** Switch the session to another of the caller's personas. */
+  async setPersona(token: string, key: string): Promise<Persona> {
+    const session = await this.prisma.session.findUnique({
+      where: { tokenHash: sha256(token) },
+      select: { orgUserId: true, organizationId: true },
+    });
+    if (!session?.orgUserId || !session.organizationId) {
+      throw new UnauthorizedException({ code: "not_authenticated" });
+    }
+    const persona = (await this.personasOf(session.orgUserId, session.organizationId)).find(
+      (p) => p.key === key,
+    );
+    if (!persona) {
+      throw new BadRequestException({
+        code: "unknown_persona",
+        detail: "You do not hold that persona.",
+      });
+    }
+    await this.prisma.session.update({
+      where: { tokenHash: sha256(token) },
+      data: { persona: persona.key },
+    });
+    return persona;
+  }
+
+  /** "Open as X next time", or "ask me every time". */
+  async setPersonaPreference(
+    orgUserId: string,
+    pref: { default_persona?: string | null; ask_at_login?: boolean },
+  ) {
+    const user = await this.prisma.orgUser.update({
+      where: { id: orgUserId },
+      data: {
+        ...(pref.default_persona !== undefined ? { defaultPersona: pref.default_persona } : {}),
+        ...(pref.ask_at_login !== undefined ? { askPersonaAtLogin: pref.ask_at_login } : {}),
+      },
+      select: { defaultPersona: true, askPersonaAtLogin: true },
+    });
+    return { default_persona: user.defaultPersona, ask_at_login: user.askPersonaAtLogin };
   }
 
   /**
@@ -181,11 +268,22 @@ export class AuthService {
     if (!session || session.expiresAt < new Date()) return null;
 
     if (session.orgUser && session.orgUser.status === "active") {
+      const user = session.orgUser;
+      const all = resolveMemberships(user.memberships);
+      const personas = await this.personasOf(user.id, user.organizationId);
+      const persona = resolvePersona(personas, {
+        stored: session.persona,
+        preferred: user.defaultPersona,
+        askEachTime: user.askPersonaAtLogin,
+      });
       return {
         org: {
-          organizationId: session.orgUser.organizationId,
-          user: session.orgUser,
-          memberships: resolveMemberships(session.orgUser.memberships),
+          organizationId: user.organizationId,
+          user,
+          memberships: membershipsFor(persona, all),
+          allMemberships: all,
+          persona,
+          personas,
         },
       };
     }

@@ -28,7 +28,13 @@ export interface StageHealth {
 }
 
 export interface Worklist {
-  user: { name: string; roles: string[] };
+  user: {
+    name: string;
+    roles: string[];
+    persona: { key: string; label: string; kind: "role" | "interviewer" } | null;
+  };
+  /** Work waiting in the personas the viewer is NOT using right now. */
+  other_personas: { key: string; label: string; kind: "role" | "interviewer"; pending: number }[];
   total: number;
   /** False for a read-only role: nothing can ever be waiting on them. */
   actionable: boolean;

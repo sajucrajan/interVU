@@ -26,7 +26,7 @@ InterVU is built for organizations that run high volumes of interviews across ma
 
 ✅ **Working implementation — M0–M3 complete, M4 mostly done** (see [progress](docs/07-roadmap.md#progress)). What runs today:
 
-- Session auth (org + vendor portals), org-unit hierarchy (verticals/units/teams), scoped entitlements incl. project-manager role
+- Session auth (org + vendor portals), org-unit hierarchy (verticals/units/teams), scoped entitlements incl. project-manager role; **personas** for people with several roles — one job at a time, server-enforced, with anything waiting in the others flagged
 - Rich role postings: seniority, employment type, location policy, vendor-facing rate bands, skill matrix (must/good × proficiency × years), non-skill must-haves, rendered JD pages, posting form
 - Tiered/manual/all-at-once vendor release with query-time visibility
 - Vendor submissions with deterministic **and** probabilistic candidate matching: gmail-alias-proof identity resolution, trigram blocking, explainable scoring, human review queue, reversible master merges, CI-gated eval corpus

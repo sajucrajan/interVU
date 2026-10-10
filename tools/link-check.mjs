@@ -52,7 +52,7 @@ const REFUSED =
   /not available to your role|insufficient scope|don.t have access|forbidden|something went wrong|unauthori[sz]ed|cannot GET|failed to load|application error|client-side exception|request failed/i;
 
 /** Where a link leaves the signed-in app, or would sign the crawler out. */
-const SKIP = [/^\/api\//, /^\/demo/, /^\/login/, /^\/vendor\/login/, /^\/activate/, /^\/how-it-works/, /^\/design/];
+const SKIP = [/^\/api\//, /^\/demo/, /^\/login/, /^\/vendor\/login/, /^\/activate/, /^\/how-it-works/, /^\/design/, /^\/choose-persona/];
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
 const pattern = (u) => u.replace(UUID, ":id").replace(/\?.*/, "");
@@ -93,6 +93,20 @@ for (const [email, kind, start] of selected) {
     await ctx.close();
     continue;
   }
+
+  // A person with several personas is crawled as each one (docs/09 §7):
+  // the menus, Today and every gate differ per persona.
+  const me = await page.evaluate(() => fetch("/api/v1/auth/me").then((r) => r.json()));
+  const personas = me.personas?.length > 1 ? me.personas.map((p) => p.key) : [null];
+  for (const persona of personas) {
+    if (persona) {
+      await page.evaluate(
+        (persona) =>
+          fetch("/api/v1/auth/persona", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ persona }) }),
+        persona,
+      );
+    }
+    const who = persona ? `${email} as ${persona}` : email;
 
   const seen = new Set();
   const perPattern = new Map();
@@ -140,8 +154,9 @@ for (const [email, kind, start] of selected) {
 
   const unique = [...new Set(problems)];
   failures += unique.length;
-  console.log(`\n${unique.length ? "✗" : "✓"} ${email}: ${seen.size} pages`);
+  console.log(`\n${unique.length ? "✗" : "✓"} ${who}: ${seen.size} pages`);
   for (const p of unique) console.log(`    ${p}`);
+  }
   await ctx.close();
 }
 

@@ -1,4 +1,5 @@
-import { Module } from "@nestjs/common";
+import { type MiddlewareConsumer, Module, type NestModule } from "@nestjs/common";
+import { requestContextMiddleware } from "./tenancy/request-context";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { ApplicationsModule } from "./applications/applications.module";
 import { AuthModule } from "./auth/auth.module";
@@ -60,4 +61,9 @@ import { WorklistModule } from "./worklist/worklist.module";
     WorklistModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Opens the per-request store before any guard runs (request-context.ts).
+    consumer.apply(requestContextMiddleware).forRoutes("*");
+  }
+}

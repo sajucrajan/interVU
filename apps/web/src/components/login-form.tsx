@@ -49,7 +49,10 @@ export function LoginForm({ kind }: { kind: "org" | "vendor" }) {
     setBusy(true);
     try {
       const body = { org_slug: orgSlug, email, password };
-      await api(`/auth/${kind}/login`, { method: "POST", body });
+      const result = await api<{ needs_persona?: boolean }>(`/auth/${kind}/login`, {
+        method: "POST",
+        body,
+      });
       // Return them to whatever expired under them, if it was a page on this
       // side of the wall. Only same-origin relative paths are honoured: `next`
       // comes from the URL, so an absolute one would make this an open
@@ -61,7 +64,13 @@ export function LoginForm({ kind }: { kind: "org" | "vendor" }) {
         next.startsWith("/") &&
         !next.startsWith("//") &&
         (kind === "vendor") === next.startsWith("/vendor");
-      router.replace(safe ? next : kind === "org" ? "/dashboard" : "/vendor");
+      const dest = safe ? next : kind === "org" ? "/dashboard" : "/vendor";
+      // More than one job and no remembered choice: ask which, then continue.
+      if (result.needs_persona) {
+        router.replace(`/choose-persona?next=${encodeURIComponent(dest)}`);
+        return;
+      }
+      router.replace(dest);
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {

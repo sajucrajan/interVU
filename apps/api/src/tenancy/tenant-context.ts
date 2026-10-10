@@ -1,5 +1,6 @@
 import type { OrgUser, Vendor, VendorUser } from "@prisma/client";
 import type { Permission } from "../entitlements/permissions";
+import type { Persona } from "../entitlements/persona";
 
 /**
  * One `role @ scope` grant, with the role's permissions already resolved.
@@ -24,7 +25,17 @@ export interface TenantContext {
   org?: {
     organizationId: string;
     user: OrgUser;
+    /**
+     * The grants of the ACTIVE persona only (entitlements/persona.ts), so
+     * everything downstream — AuthzService, the worklist, the role label —
+     * is scoped to the job the person is doing without knowing personas
+     * exist. `allMemberships` is the full set, for the picker.
+     */
     memberships: ResolvedMembership[];
+    allMemberships: ResolvedMembership[];
+    /** Null while unchosen; @OrgScope routes refuse until it is set. */
+    persona: Persona | null;
+    personas: Persona[];
   };
   /**
    * Vendor sessions are org-scoped: a vendor serving several organizations

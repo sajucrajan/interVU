@@ -24,7 +24,7 @@ demonstrate the entitlement model (`role @ scope`, see [09](09-entitlements.md))
 |---|---|---|---|---|---|
 | `admin@acme.test` | Avery Admin | `org_admin` | org-wide | all 6 positions, review queue, settings | Only role that can erase candidates, manage vendors/settings/webhooks |
 | `recruiter@acme.test` | Rafael Recruiter | `recruiter` | org-wide | all 6 positions, review queue | The everyday driver: create/publish positions, arbitrate duplicates, resolve match reviews |
-| `hm.eng@acme.test` | Harper Manager | `hiring_manager` | **Engineering** vertical | 4 positions | Platform + Data teams only; **403** on the match-review queue; can record decisions |
+| `hm.eng@acme.test` | Harper Manager | `hiring_manager` + a panel seat | **Engineering** vertical | 4 positions | **Two personas** (docs/09 §7): asked which job on sign-in; Hiring manager sees the pipeline and records decisions, Interviewer owes a scorecard. Platform + Data teams only; **403** on the match-review queue |
 | `pm.gtm@acme.test` | Parker PM | `project_manager` | **GTM** vertical | 2 positions | Read-only observer; GTM only — cannot see Engineering roles |
 | `pm.platform@acme.test` | Priya PM | `project_manager` | **Platform** team | 2 positions | Read-only, single team — the narrowest scope |
 | `interviewer1@acme.test` | Ingrid Interviewer | `interviewer` | org-wide | **0 positions**, 3 assigned interviews | Interviewers are *assignment*-scoped, not tree-scoped |
@@ -34,6 +34,7 @@ demonstrate the entitlement model (`role @ scope`, see [09](09-entitlements.md))
 ### Things worth trying
 
 - **Scoped visibility** — sign in as `pm.gtm` and then `pm.platform`; the positions list changes with the scope. Neither is offered `/match-reviews`; typing the URL gets a page saying whose job it is, with a way back (403 by design).
+- **Personas** — sign in as `hm.eng`: the picker asks *Hiring manager* or *Interviewer*. Pick Hiring manager and Today says "You also have 1 thing waiting as Interviewer". Open the account menu (⋯) to switch, make one the default, or ask to be asked every time. Deep links are honoured too: open an interview room while acting as Hiring manager and the page offers "Switch to Interviewer and continue". Every other account holds one persona and is never asked.
 - **A Today per role** — Today opens with one line on what the role is for. Recruiters, hiring managers and interviewers get *"N things are waiting on you"*, counting only work they can do. Read-only roles (`pm.gtm`, `vendors`) get *"Here is where hiring stands"*: the same queues, muted, each labelled with who it waits on.
 - **Assignment-scoped access** — `interviewer1` sees no positions at all, but `/interviews` lists their panels: one scorecard to file (Jordan Mitchell), one upcoming (Amira Haddad), one filed (Lucía Fernández). Opening a candidate from there shows their history, from scheduling until a decision is recorded (docs/09 §4.2). An interview that has not happened yet is never counted as owed.
 - **Feedback policy** — Jordan Mitchell's debrief stays sealed until `interviewer1` files the overdue scorecard. File it with *Quick file*, then *View scorecards* on the filed row: your card, then Ikenna's, which was hidden until yours was in. Lucía Fernández's is open, and splits 5 to 2 on MLOps.

@@ -120,6 +120,10 @@ model OrgUser {
   name           String
   passwordHash   String?    @map("password_hash")
   status         UserStatus @default(invited)
+  /// Persona preferences (entitlements/persona.ts): which job to open on,
+  /// and whether to ask at every sign-in instead.
+  defaultPersona    String?  @map("default_persona")
+  askPersonaAtLogin Boolean  @default(false) @map("ask_persona_at_login")
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
 
@@ -289,6 +293,9 @@ model Session {
   /// never sees two orgs' data in one session. Org sessions derive it from
   /// the user, and store it here for symmetry.
   organizationId String? @map("organization_id") @db.Uuid
+  /// The persona this session acts as (entitlements/persona.ts). Null until
+  /// chosen; org routes refuse with persona_required while it is.
+  persona      String?  @map("persona")
   expiresAt    DateTime @map("expires_at")
   createdAt    DateTime @default(now()) @map("created_at")
 
@@ -1061,6 +1068,8 @@ model AuditLog {
   organizationId String   @map("organization_id") @db.Uuid
   actorType      String   @map("actor_type") // org_user | vendor_user | system
   actorId        String?  @map("actor_id") @db.Uuid
+  /// Which persona the actor was using: "decided as hiring manager".
+  actorPersona   String?  @map("actor_persona")
   event          String
   entityType     String   @map("entity_type")
   entityId       String   @map("entity_id") @db.Uuid

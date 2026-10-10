@@ -138,7 +138,13 @@ const positions = (await call(admin, "GET", "/positions")).json;
 const applications = (await call(admin, "GET", "/applications")).json;
 const unitOfPosition = new Map(positions.map((p) => [p.id, p.orgUnitId]));
 
-/** One account's facts, from the server's own view of it. */
+/**
+ * One account's facts, from the server's own view of it, for the persona the
+ * session is currently acting as (docs/09 §7). `/auth/me` reports the active
+ * persona's capabilities and memberships only, and `/interviews/mine` is
+ * empty outside the interviewer persona — so the expectations below follow
+ * the persona without knowing it exists.
+ */
 async function facts(session) {
   const me = (await call(session, "GET", "/auth/me")).json;
   const roles = (await call(admin, "GET", "/roles")).json;
@@ -152,9 +158,12 @@ async function facts(session) {
       else scope.set(p, [...(scope.get(p) ?? []), ...subtree(m.org_unit_id)]);
     }
   }
-  const mine = (await call(session, "GET", "/interviews/mine")).json;
+  const mine = (await call(session, "GET", "/interviews/mine")).json ?? [];
   return {
     ...session,
+    email: me.persona ? `${session.email} as ${me.persona.key}` : session.email,
+    account: session.email,
+    persona: me.persona?.key ?? null,
     id: me.id,
     can: (perm, unitId) => {
       const s = scope.get(perm);
@@ -170,14 +179,41 @@ async function facts(session) {
   };
 }
 
+// One row per (account, persona): a person with two jobs is checked as each.
+// PERSONA: a persona-less session is refused everywhere, and a role persona
+// never gets the seats-based grants its interviewer persona has.
 const accounts = [];
 for (const email of ORG_ACCOUNTS) {
-  accounts.push(await facts(email === admin.email ? admin : await login("org", "acme", email)));
+  const session = email === admin.email ? admin : await login("org", "acme", email);
+  const me = (await call(session, "GET", "/auth/me")).json;
+  if (me.persona === null) {
+    const r = await call(session, "GET", "/me/worklist");
+    checks += 1;
+    if (r.status !== 403 || r.json?.code !== "persona_required") {
+      failures.push(`PERSONA ${email.padEnd(31)} GET /me/worklist with no persona → ${r.status}, expected 403 persona_required`);
+    }
+  }
+  for (const persona of me.personas) {
+    // Its own session per persona: the rows are checked later, side by side,
+    // and a shared cookie would act as whichever persona was switched last.
+    const own = me.personas.length > 1 ? await login("org", "acme", email) : session;
+    const r = await call(own, "POST", "/auth/persona", { persona: persona.key });
+    checks += 1;
+    if (!ok(r.status)) failures.push(`PERSONA ${email.padEnd(31)} could not switch to ${persona.key} (${r.status})`);
+    accounts.push(await facts(own));
+  }
+}
+// Someone else's persona is refused.
+{
+  const r = await call(admin, "POST", "/auth/persona", { persona: "interviewer" });
+  checks += 1;
+  if (ok(r.status)) failures.push(`PERSONA ${admin.email.padEnd(31)} switched to a persona they do not hold`);
+  await call(admin, "POST", "/auth/persona", { persona: "org_admin" });
 }
 
 // Fixtures: one undecided application in Engineering and one in GTM, each with
 // an interview someone sits on — the two places scope and assignment cross.
-const indira = accounts.find((a) => a.email === "interviewer1@acme.test");
+const indira = accounts.find((a) => a.account === "interviewer1@acme.test");
 const seatApps = new Set(indira.seats.map((s) => s.application_id));
 const byUnitRoot = (rootName) => {
   const root = units.find((u) => u.name === rootName && u.parentId === null);
@@ -390,6 +426,8 @@ for (const acc of accounts) {
 // ---------------------------------------------------------------- TENANT
 
 const globex = await login("org", "globex", "admin@globex.test");
+// Globex's admin also sits on a panel there, so has two personas; act as admin.
+await call(globex, "POST", "/auth/persona", { persona: "org_admin" });
 const gPositions = (await call(globex, "GET", "/positions")).json;
 const gApps = (await call(globex, "GET", "/applications")).json;
 if (!gApps?.length) throw new Error("tenant B is not seeded: pnpm --filter @intervu/api db:seed:tenant-b");
@@ -448,7 +486,7 @@ expect("TENANT", tb.email, "GET", `/vendor/positions/${gPositions[0].id}`, false
 
 // ---------------------------------------------------------------- report
 
-console.log(`${checks} checks across ${accounts.length} org accounts, ${VENDOR_ACCOUNTS.length + 1} agencies and 2 organizations.`);
+console.log(`${checks} checks across ${accounts.length} account-persona pairs, ${VENDOR_ACCOUNTS.length + 1} agencies and 2 organizations.`);
 if (failures.length) {
   console.log(`\n${failures.length} access failure${failures.length === 1 ? "" : "s"}:\n`);
   for (const f of failures) console.log(`  ${f}`);

@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { api, apiErrorMessage, isForbidden } from "@/lib/api";
+import { api, apiErrorMessage, isForbidden, personaMismatch } from "@/lib/api";
+import { PersonaMismatch } from "@/components/persona-switch";
 import { AccessDenied } from "@/components/access-denied";
 import { SectionHead } from "@/components/section-head";
 import { VoteButtons } from "@/components/vote";
@@ -209,13 +210,19 @@ export default function InterviewRoomPage() {
   // as if the scorecard had been lost.
   const [revising, setRevising] = useState(false);
   const [denied, setDenied] = useState(false);
+  const [mismatch, setMismatch] = useState<string | null>(null);
   const me = useMe();
   const loaded = useRef(false);
 
   useEffect(() => {
     api<Packet>(`/interviews/${id}/room`)
       .then(setPacket)
-      .catch((e) => (isForbidden(e) ? setDenied(true) : setError(apiErrorMessage(e))));
+      .catch((e) => {
+        const required = personaMismatch(e);
+        if (required) setMismatch(required);
+        else if (isForbidden(e)) setDenied(true);
+        else setError(apiErrorMessage(e));
+      });
     api<{ payload: DraftPayload }>(`/interviews/${id}/draft`)
       .then((d) => {
         setRatings(d.payload?.ratings ?? {});
@@ -289,6 +296,16 @@ export default function InterviewRoomPage() {
       : null,
   );
 
+  if (mismatch) {
+    return (
+      <PersonaMismatch
+        what="This interview room"
+        required={mismatch}
+        label="Interviewer"
+        back={{ href: "/dashboard", label: "Back to Today" }}
+      />
+    );
+  }
   if (denied) {
     return (
       <AccessDenied

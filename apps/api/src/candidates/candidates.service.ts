@@ -63,7 +63,8 @@ export class CandidatesService {
     organizationId: string,
     candidateId: string,
     access: Access,
-    viewerId: string,
+    /** The viewer's id while acting as interviewer; null in a role persona. */
+    panelistId: string | null,
   ): Promise<Exclude<CandidateGrant, null>> {
     const candidate = await this.prisma.candidate.findFirst({
       where: { id: candidateId, organizationId },
@@ -82,7 +83,7 @@ export class CandidatesService {
     const grant = candidateGrant(
       applicationFacts(candidate.applications),
       access.unitIdsFor("candidates.view_history"),
-      viewerId,
+      panelistId,
     );
     if (!grant) {
       throw new ForbiddenException({
@@ -98,7 +99,13 @@ export class CandidatesService {
    * (docs/09 §4.1): candidates.view_history on ANY of the candidate's
    * applications inside the viewer's scope unlocks the whole timeline.
    */
-  async timeline(organizationId: string, candidateId: string, access: Access, viewerId: string) {
+  async timeline(
+    organizationId: string,
+    candidateId: string,
+    access: Access,
+    viewerId: string,
+    panelistId: string | null,
+  ) {
     const candidate = await this.prisma.candidate.findFirst({
       where: { id: candidateId, organizationId },
       include: {
@@ -129,7 +136,7 @@ export class CandidatesService {
     const grant = candidateGrant(
       applicationFacts(candidate.applications),
       access.unitIdsFor("candidates.view_history"),
-      viewerId,
+      panelistId,
     );
     if (!grant) {
       throw new ForbiddenException({

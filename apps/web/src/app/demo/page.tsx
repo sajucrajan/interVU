@@ -95,7 +95,7 @@ const ORG_PERSONAS: Persona[] = [
     initials: "HM",
     role: "Hiring manager",
     scope: "Engineering only",
-    blurb: "Owns the outcome for the engineering teams. The same product with a smaller world.",
+    blurb: "Owns the outcome for the engineering teams, and sits on one panel — so this is the account with two personas.",
     can: [
       "See the 4 engineering roles",
       "Move and reject candidates",
@@ -109,6 +109,10 @@ const ORG_PERSONAS: Persona[] = [
       {
         where: "Pipeline → Lucía Fernández → Open debrief",
         what: "MLOps splits the panel 5 to 2. The right-hand column previews exactly what the agency will be told.",
+      },
+      {
+        where: "Sign in",
+        what: "You are asked: Hiring manager or Interviewer? Pick Hiring manager. Today flags the scorecard waiting in your Interviewer persona; the account menu (⋯) switches.",
       },
     ],
     landing: "/pipeline",
@@ -695,11 +699,19 @@ export default function DemoPage() {
     setBusy(p.email);
     setError(null);
     try {
-      await api(p.vendor ? "/auth/vendor/login" : "/auth/org/login", {
-        method: "POST",
-        body: { org_slug: ORG_SLUG, email: p.email, password: PASSWORD },
-      });
-      router.push(p.landing);
+      const result = await api<{ needs_persona?: boolean }>(
+        p.vendor ? "/auth/vendor/login" : "/auth/org/login",
+        {
+          method: "POST",
+          body: { org_slug: ORG_SLUG, email: p.email, password: PASSWORD },
+        },
+      );
+      // Harper holds two personas; the picker is part of the demo.
+      router.push(
+        result.needs_persona
+          ? `/choose-persona?next=${encodeURIComponent(p.landing)}`
+          : p.landing,
+      );
     } catch (e) {
       setError(apiErrorMessage(e));
       setBusy(null);

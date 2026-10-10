@@ -20,7 +20,9 @@ export interface ApplicationFacts {
  * - `panel`: the viewer sits on a panel for one of the candidate's
  *   applications that has not been decided yet. Assignment IS the grant
  *   (§4.2) — an interviewer holds no tree scope at all, and used to be
- *   refused the person they were about to interview.
+ *   refused the person they were about to interview. `panelistId` is null
+ *   when the viewer is acting as a role persona (§7): seats then count for
+ *   nothing, however many they hold.
  * - `null`: neither; the caller refuses.
  */
 export type CandidateGrant = "history" | "panel" | null;
@@ -28,11 +30,14 @@ export type CandidateGrant = "history" | "panel" | null;
 export function candidateGrant(
   applications: readonly ApplicationFacts[],
   historyScope: "org" | readonly string[],
-  viewerId: string,
+  panelistId: string | null,
 ): CandidateGrant {
   if (historyScope === "org") return "history";
   if (applications.some((a) => historyScope.includes(a.orgUnitId))) return "history";
-  if (applications.some((a) => !a.decided && a.panelistIds.includes(viewerId))) {
+  if (
+    panelistId !== null &&
+    applications.some((a) => !a.decided && a.panelistIds.includes(panelistId))
+  ) {
     return "panel";
   }
   return null;
@@ -46,10 +51,10 @@ export function candidateGrant(
 export function canReadScorecards(
   application: ApplicationFacts,
   historyScope: "org" | readonly string[],
-  viewerId: string,
+  panelistId: string | null,
 ): boolean {
   if (historyScope === "org" || historyScope.includes(application.orgUnitId)) return true;
-  return application.panelistIds.includes(viewerId);
+  return panelistId !== null && application.panelistIds.includes(panelistId);
 }
 
 /**

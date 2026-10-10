@@ -20,13 +20,13 @@ export class InterviewsController {
    */
   @Get(":id/room")
   packet(@Tenant() tenant: TenantContext, @Param("id", ParseUUIDPipe) id: string) {
-    return this.room.packet(tenant.org!.organizationId, id, tenant.org!.user.id);
+    return this.room.packet(tenant.org!.organizationId, id, tenant.org!.user.id, tenant.org!.persona);
   }
 
   /** Notes taken live, autosaved. Private to their author. */
   @Get(":id/draft")
   getDraft(@Tenant() tenant: TenantContext, @Param("id", ParseUUIDPipe) id: string) {
-    return this.room.draft(id, tenant.org!.user.id);
+    return this.room.draft(id, tenant.org!.user.id, tenant.org!.persona);
   }
 
   @Put(":id/draft")
@@ -39,6 +39,7 @@ export class InterviewsController {
       tenant.org!.organizationId,
       id,
       tenant.org!.user.id,
+      tenant.org!.persona,
       body,
     );
   }
@@ -46,7 +47,7 @@ export class InterviewsController {
   /** The interviewer home screen — assignment-scoped, no tree grants needed. */
   @Get("mine")
   mine(@Tenant() tenant: TenantContext) {
-    return this.interviews.mine(tenant.org!.organizationId, tenant.org!.user.id);
+    return this.interviews.mine(tenant.org!.organizationId, tenant.org!.user.id, tenant.org!.persona);
   }
 
   @Post(":id/scorecards")
@@ -60,6 +61,7 @@ export class InterviewsController {
       tenant.org!.organizationId,
       id,
       tenant.org!.user.id,
+      tenant.org!.persona,
       input,
     );
   }
