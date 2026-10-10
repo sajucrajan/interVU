@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { type Persona, requireInterviewer } from "../entitlements/persona";
 import { PrismaService } from "../prisma/prisma.service";
 import { QuestionsService } from "../questions/questions.service";
 import { requirementFit, sections } from "../applications/requirement-fit";
@@ -30,7 +31,13 @@ export class RoomService {
     private readonly questions: QuestionsService,
   ) {}
 
-  async packet(organizationId: string, interviewId: string, orgUserId: string) {
+  async packet(
+    organizationId: string,
+    interviewId: string,
+    orgUserId: string,
+    persona: Persona | null,
+  ) {
+    requireInterviewer(persona);
     const interview = await this.prisma.interview.findFirst({
       where: { id: interviewId, organizationId },
       include: {
@@ -180,8 +187,10 @@ export class RoomService {
     organizationId: string,
     interviewId: string,
     orgUserId: string,
+    persona: Persona | null,
     payload: unknown,
   ) {
+    requireInterviewer(persona);
     const panelist = await this.prisma.interviewPanelist.findFirst({
       where: { interviewId, orgUserId, interview: { organizationId } },
       select: { id: true },
@@ -202,7 +211,8 @@ export class RoomService {
     return { saved_at: draft.updatedAt };
   }
 
-  async draft(interviewId: string, orgUserId: string) {
+  async draft(interviewId: string, orgUserId: string, persona: Persona | null) {
+    requireInterviewer(persona);
     const row = await this.prisma.scorecardDraft.findUnique({
       where: { interviewId_orgUserId: { interviewId, orgUserId } },
       select: { payload: true, updatedAt: true },

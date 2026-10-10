@@ -8,6 +8,7 @@ import { SectionHead } from "@/components/section-head";
 import { PageHead } from "@/components/page-head";
 import { PanelScorecards } from "@/components/panel-scorecards";
 import { useMe } from "@/lib/me";
+import { SwitchPersonaButton } from "@/components/persona-switch";
 
 interface Competency {
   skill_id: string;
@@ -166,9 +167,24 @@ export default function MyInterviewsPage() {
         </>
       )}
 
-      {interviews.length === 0 && (
-        <p className="muted">No interviews assigned to you.</p>
-      )}
+      {interviews.length === 0 &&
+        (me?.persona?.kind !== "interviewer" &&
+        me?.personas.some((p) => p.kind === "interviewer") ? (
+          // The seats exist; this just is not the job being done right now.
+          <div className="persona-banner">
+            <span>
+              Your interviews are in your <strong>Interviewer</strong> persona
+              {(() => {
+                const iv = me.personas.find((p) => p.kind === "interviewer")!;
+                return iv.pending > 0 ? ` — ${iv.pending} scorecard${iv.pending === 1 ? "" : "s"} to file` : "";
+              })()}
+              .
+            </span>
+            <SwitchPersonaButton persona="interviewer" label="Interviewer" next="/interviews" />
+          </div>
+        ) : (
+          <p className="muted">No interviews assigned to you.</p>
+        ))}
     </main>
   );
 }

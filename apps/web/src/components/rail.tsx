@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette } from "@/components/command-palette";
 import type { Worklist } from "@/lib/worklist";
+import { switchPersona } from "@/components/persona-switch";
 
 /**
  * `needs` is the permission that makes a destination useful; links a user
@@ -119,6 +120,9 @@ interface OrgMe {
   name?: string;
   capabilities?: string[];
   organization?: { name: string; branding?: { accent?: string; product_label?: string } };
+  persona?: { key: string; label: string } | null;
+  personas?: { key: string; label: string; scope: string; pending: number }[];
+  persona_preference?: { default_persona: string | null; ask_at_login: boolean };
 }
 
 /** Relative luminance → readable text colour on an arbitrary brand accent. */
@@ -164,6 +168,12 @@ export function OrgRail() {
     api<OrgMe>("/auth/me")
       .then((m) => {
         if (m.kind !== "org") return;
+        // Signed in, but which job? The picker, with a way back here.
+        if (m.persona === null && (m.personas?.length ?? 0) > 1) {
+          const here = window.location.pathname + window.location.search;
+          window.location.replace(`/choose-persona?next=${encodeURIComponent(here)}`);
+          return;
+        }
         setMe(m);
         setCaps(m.capabilities ?? []);
         // White-labelling: the org may override the accent, so both derived
@@ -252,8 +262,18 @@ export function OrgRail() {
     : 0;
 
   const org = me?.organization;
-  // The rail states who you are as well as where you are (design 1b).
-  const role = wl?.user.roles[0];
+  // The rail states who you are as well as where you are (design 1b). With
+  // personas, "who" is the job being done, not the sum of every grant.
+  const role = me?.persona?.label ?? wl?.user.roles[0];
+  const others = wl?.other_personas ?? [];
+  const elsewhere = others.reduce((n, p) => n + p.pending, 0);
+  const pref = me?.persona_preference;
+  const isDefault = !!me?.persona && pref?.default_persona === me.persona.key;
+
+  const setPreference = (body: { default_persona?: string | null; ask_at_login?: boolean }) =>
+    api<OrgMe["persona_preference"]>("/auth/persona-preference", { method: "PATCH", body })
+      .then((p) => setMe((m) => (m ? { ...m, persona_preference: p } : m)))
+      .catch(() => undefined);
 
   // The most specific link wins. A plain prefix test lit up both Analytics and
   // Vendor performance on /analytics/vendors, because one path starts the other.
@@ -347,9 +367,45 @@ export function OrgRail() {
           aria-label="Account menu"
         >
           ⋯
+          {/* Work waiting in another persona rides on the menu button, so
+              the hiring manager never forgets the scorecard they owe. */}
+          {elsewhere > 0 && <span className="rail-count critical rail-elsewhere">{elsewhere}</span>}
         </button>
         {menuOpen && (
           <div className="rail-menu">
+            {me?.persona && (me.personas?.length ?? 0) > 1 && (
+              <>
+                <div className="rail-menu-head mono-label">
+                  Acting as {me.persona.label}
+                </div>
+                {others.map((p) => (
+                  <button key={p.key} type="button" onClick={() => switchPersona(p.key)}>
+                    Switch to {p.label}
+                    {p.pending > 0 && (
+                      <span className="badge warn rail-menu-count">{p.pending} waiting</span>
+                    )}
+                  </button>
+                ))}
+                <div className="rail-menu-sep" />
+                {pref?.ask_at_login ? (
+                  <button type="button" onClick={() => setPreference({ ask_at_login: false, default_persona: me.persona!.key })}>
+                    Stop asking; open as {me.persona.label}
+                  </button>
+                ) : (
+                  <>
+                    {!isDefault && (
+                      <button type="button" onClick={() => setPreference({ default_persona: me.persona!.key })}>
+                        Open as {me.persona.label} next time
+                      </button>
+                    )}
+                    <button type="button" onClick={() => setPreference({ ask_at_login: true })}>
+                      Ask me which persona at sign-in
+                    </button>
+                  </>
+                )}
+                <div className="rail-menu-sep" />
+              </>
+            )}
             <button
               type="button"
               onClick={() =>

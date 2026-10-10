@@ -107,6 +107,7 @@ export class ApplicationsController {
       id,
       access,
       tenant.org!.user.id,
+      tenant.org!.persona,
     );
   }
 

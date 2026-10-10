@@ -11,6 +11,7 @@ grant  = (user, role, scope)
 scope  = org-wide | any org_unit (vertical/unit/team)
 effect = role's permissions apply to the scope node and ALL descendants
 access = UNION of all the user's grants (no deny rules — see §5)
+         … of which ONE persona is active per session (see §7)
 ```
 
 Examples the model must express (all verified in seed/tests):
@@ -216,3 +217,16 @@ login (session / SSO)            [docs/06 §5]
 ### Vendor-side entitlements (simpler by policy)
 
 Vendors get exactly two roles — `vendor_admin` (manage own users, see all own submissions) and `vendor_recruiter` (submit, see own submissions). No unit scoping: vendors never see org structure at all. The vendor wall (docs/05) dominates everything on that side.
+
+## 7. Personas: one person, several jobs, one at a time
+
+Grants still union (§1) — that is what the person *holds*. What they *use* is one persona at a time, the way Workday or Dayforce ask "manager or employee?" at sign-in.
+
+- **A persona is a job.** One per distinct role the person holds, at every scope it is granted ("Hiring manager" covers Engineering and GTM together), plus **Interviewer** for anyone who sits on a panel or whose only permission is `scorecards.submit`. Admin is a persona like any other, so an admin who also recruits switches between the two.
+- **The server enforces the active persona, not the union.** `TenantContext.memberships` carries the active persona's grants only; `AuthzService` and every scoped query read nothing else. Panel seats (§4.2) count only while acting as Interviewer: the room, drafts, `/interviews/mine`, filing a scorecard and the panelist's brief and candidate access all refuse from a role persona with `persona_mismatch` and the persona that can — which the web turns into "Switch to Interviewer and continue".
+- **Choosing.** One persona needs no choice. Otherwise, after sign-in the person picks one on `/choose-persona` and it is remembered as their default (`org_user.default_persona`); they can instead ask to be asked every time (`ask_persona_at_login`). The choice lives on the session (`session.persona`); until it is made, every `@OrgScope` route refuses with `persona_required`. `POST /auth/persona` switches; `PATCH /auth/persona-preference` changes the default or the ask-each-time setting.
+- **Nothing is hidden by the split.** Today and the account menu show what is waiting in the person's other personas ("1 waiting as Interviewer"), counted by the worklist's own rules (`entitlements/persona.service.ts`), with a one-click switch.
+- **Audited.** Every audit row records `actor_persona`: a decision reads "recorded as hiring manager", never merely "by Harper".
+- **Agencies have no personas.** A vendor user is one job by construction.
+
+Derivation and resolution are pure functions in `entitlements/persona.ts`, covered by `persona.test.ts`.

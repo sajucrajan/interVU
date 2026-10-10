@@ -41,6 +41,11 @@ describe("candidateGrant", () => {
     expect(candidateGrant([decided], [], "indira")).toBeNull();
   });
 
+  it("ignores panel seats while acting as a role persona (docs/09 §7)", () => {
+    expect(candidateGrant([app({ panelistIds: ["indira"] })], [], null)).toBeNull();
+    expect(canReadScorecards(app({ panelistIds: ["indira"] }), [], null)).toBe(false);
+  });
+
   it("refuses a read-only role that is neither in scope nor on a panel", () => {
     expect(candidateGrant([app({ panelistIds: ["indira"] })], ["team-gtm"], "parker")).toBeNull();
     expect(candidateGrant([app()], [], "parker")).toBeNull();

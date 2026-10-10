@@ -37,27 +37,27 @@ export class WorkflowMetaController {
         {
           key: "submitted",
           label: "Submitted",
-          blurb: "A vendor sent a candidate, or someone applied directly.",
+          blurb: "An agency sent the candidate, or they applied directly.",
         },
         {
           key: "screening",
           label: "Screening",
-          blurb: "A recruiter is comparing the CV against what the role needs.",
+          blurb: "A recruiter is checking the CV against what the role needs.",
         },
         {
           key: "interviewing",
           label: "Interviewing",
-          blurb: "A panel is assigned; scorecards are being filed.",
+          blurb: "Interviews are scheduled or done, and interviewers are filing scorecards.",
         },
         {
           key: "offer",
           label: "Offer",
-          blurb: "The debrief concluded and an offer is out.",
+          blurb: "The interviewers have compared notes and an offer has been made.",
         },
         {
           key: "hired",
           label: "Hired",
-          blurb: "Accepted. The fee and any guarantee period start counting.",
+          blurb: "The candidate accepted. Any agency fee and guarantee period start from here.",
         },
       ].map((s) => ({ ...s, panel_owned: PANEL_STAGES.includes(s.key) })),
 
@@ -66,18 +66,18 @@ export class WorkflowMetaController {
         {
           key: "vendor",
           label: "Vendor-sourced",
-          blurb: "Released to agencies. They submit; ownership decides whose fee it is.",
+          blurb: "Shared with agencies, who submit candidates. The first agency to submit someone is on record for the fee.",
         },
         {
           key: "direct",
           label: "Direct only",
-          blurb: "Careers page and referrals. No vendor ever sees it.",
+          blurb: "Only your careers page and referrals. No agency ever sees the role.",
         },
         {
           key: "hybrid",
           label: "Hybrid",
           blurb:
-            "Direct first, vendors join at a set date — the head start that makes hybrid worth having.",
+            "Your own channels first; agencies join on a date you choose. Hires made before then cost no agency fee.",
         },
       ],
 

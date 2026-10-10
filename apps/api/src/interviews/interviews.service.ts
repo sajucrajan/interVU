@@ -8,6 +8,7 @@ import type { InterviewCreate, ScorecardCreate } from "@intervu/contracts";
 import type { Access } from "../entitlements/access";
 import { ApplicationsService } from "../applications/applications.service";
 import { canReadScorecards, visibleScorecards } from "../candidates/candidate-access";
+import { type Persona, isInterviewer, requireInterviewer } from "../entitlements/persona";
 import { PrismaService } from "../prisma/prisma.service";
 import { QuestionsService } from "../questions/questions.service";
 
@@ -74,8 +75,13 @@ export class InterviewsService {
     return filed;
   }
 
-  /** The interviewer home screen: interviews I'm on the panel of. */
-  async mine(organizationId: string, orgUserId: string) {
+  /**
+   * The interviewer home screen: interviews I'm on the panel of. Empty in a
+   * role persona (docs/09 §7): the seats are there, but this is not the job
+   * being done. The web says so and offers the switch.
+   */
+  async mine(organizationId: string, orgUserId: string, persona: Persona | null) {
+    if (!isInterviewer(persona)) return [];
     const interviews = await this.prisma.interview.findMany({
       where: { organizationId, panelists: { some: { orgUserId } } },
       include: {
@@ -162,8 +168,10 @@ export class InterviewsService {
     organizationId: string,
     interviewId: string,
     orgUserId: string,
+    persona: Persona | null,
     input: ScorecardCreate,
   ) {
+    requireInterviewer(persona);
     const interview = await this.prisma.interview.findFirst({
       where: { id: interviewId, organizationId },
       include: { panelists: true },
@@ -254,6 +262,7 @@ export class InterviewsService {
     applicationId: string,
     access: Access,
     viewerId: string,
+    persona: Persona | null,
   ) {
     const application = await this.prisma.application.findFirst({
       where: { id: applicationId, organizationId },
@@ -275,7 +284,8 @@ export class InterviewsService {
       decided: application.decision !== null,
       panelistIds,
     };
-    if (!canReadScorecards(facts, access.unitIdsFor("candidates.view_history"), viewerId)) {
+    const panelistId = isInterviewer(persona) ? viewerId : null;
+    if (!canReadScorecards(facts, access.unitIdsFor("candidates.view_history"), panelistId)) {
       throw new ForbiddenException({
         code: "insufficient_scope",
         permission: "candidates.view_history",

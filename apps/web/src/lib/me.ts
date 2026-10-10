@@ -3,13 +3,27 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
+export interface Persona {
+  key: string;
+  label: string;
+  kind: "role" | "interviewer";
+  scope: string;
+  /** Work waiting in this persona, by the worklist's rules. */
+  pending: number;
+}
+
 export interface OrgMe {
   kind: "org";
   id: string;
   name: string;
   email: string;
+  /** Of the ACTIVE persona only (docs/09 §7). */
   capabilities: string[];
   memberships: { role: string; role_name: string; org_unit_id: string | null }[];
+  /** Null until chosen; the org shell sends such a session to /choose-persona. */
+  persona: Omit<Persona, "pending"> | null;
+  personas: Persona[];
+  persona_preference: { default_persona: string | null; ask_at_login: boolean };
 }
 
 /**

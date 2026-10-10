@@ -12,6 +12,7 @@ import { PositionCreate, PositionUpdate, ReleasePolicy } from "@intervu/contract
 import { z } from "zod";
 import { parseBody } from "../common/zod";
 import { AuthzService } from "../entitlements/authz.service";
+import { isInterviewer } from "../entitlements/persona";
 import { PrismaService } from "../prisma/prisma.service";
 import { OrgScope, Tenant } from "../tenancy/scope.decorator";
 import type { TenantContext } from "../tenancy/tenant-context";
@@ -67,7 +68,10 @@ export class PositionsController {
     if (access.can("positions.view", position.orgUnitId)) {
       return { ...position, audience: "full", withheld: [] as string[] };
     }
-    const brief = await this.positions.briefForOrgUser(organizationId, id, user.id);
+    // The panelist's brief is the interviewer persona's view (docs/09 §7).
+    const brief = isInterviewer(tenant.org!.persona)
+      ? await this.positions.briefForOrgUser(organizationId, id, user.id)
+      : null;
     // No permission and no seat on the panel: the same 403 as before, raised
     // by the same code path, so scope stays invisible rather than probeable.
     if (!brief) this.authz.require(access, "positions.view", position.orgUnitId);

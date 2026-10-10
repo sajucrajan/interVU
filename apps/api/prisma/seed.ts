@@ -802,9 +802,17 @@ Outside production, dev header auth also works instead of a session:
     //   0 — done, both filed        → the debrief has a full matrix
     //   1 — done, iv1 has NOT filed → "waiting on you", and the room to use
     //   2 — still ahead             → "upcoming"
+    // Harper, the hiring manager, also sits on Jordan Mitchell's panel and has
+    // not filed either: the one demo account with two personas (docs/09 §7),
+    // so the picker, the switcher and "1 waiting as Interviewer" on Today
+    // all have something real to show.
+    const hm = await prisma.orgUser.findFirst({
+      where: { organizationId: org.id, email: "hm.eng@acme.test" },
+      select: { id: true },
+    });
     const plan = [
       { hoursAgo: 72, panel: [iv1.id, iv2.id], filed: [iv1.id, iv2.id], status: "completed" },
-      { hoursAgo: 30, panel: [iv1.id, iv2.id], filed: [iv2.id], status: "completed" },
+      { hoursAgo: 30, panel: [iv1.id, iv2.id, ...(hm ? [hm.id] : [])], filed: [iv2.id], status: "completed" },
       { hoursAgo: -48, panel: [iv1.id], filed: [], status: "scheduled" },
     ];
 

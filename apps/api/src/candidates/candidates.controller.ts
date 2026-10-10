@@ -3,11 +3,16 @@ import { z } from "zod";
 import { FlagCreate } from "@intervu/contracts";
 import { parseBody } from "../common/zod";
 import { AuthzService } from "../entitlements/authz.service";
+import { isInterviewer } from "../entitlements/persona";
 import { OrgScope, Tenant } from "../tenancy/scope.decorator";
 import type { TenantContext } from "../tenancy/tenant-context";
 import { CandidatesService } from "./candidates.service";
 import { ErasureService } from "./erasure.service";
 import { DossierService } from "./dossier.service";
+
+/** Panel seats open a candidate only while acting as interviewer (docs/09 §7). */
+const panelistId = (tenant: TenantContext) =>
+  isInterviewer(tenant.org!.persona) ? tenant.org!.user.id : null;
 
 @Controller("candidates")
 @OrgScope()
@@ -49,7 +54,7 @@ export class CandidatesController {
       tenant.org!.organizationId,
       id,
       access,
-      tenant.org!.user.id,
+      panelistId(tenant),
     );
     return this.dossierService.dossier(tenant.org!.organizationId, id);
   }
@@ -62,6 +67,7 @@ export class CandidatesController {
       id,
       access,
       tenant.org!.user.id,
+      panelistId(tenant),
     );
   }
 

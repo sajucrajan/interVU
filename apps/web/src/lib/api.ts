@@ -34,6 +34,7 @@ const isCredentialEndpoint = (path: string) =>
 const isPublicRoute = (pathname: string) =>
   pathname === "/" ||
   pathname === "/login" ||
+  pathname === "/choose-persona" ||
   pathname === "/vendor/login" ||
   pathname.startsWith("/activate") ||
   pathname === "/demo";
@@ -65,6 +66,14 @@ function toSignIn() {
   window.location.replace(`${target}?next=${next}`);
 }
 
+function toChoosePersona() {
+  if (typeof window === "undefined" || redirecting) return;
+  const { pathname, search } = window.location;
+  if (isPublicRoute(pathname)) return;
+  redirecting = true;
+  window.location.replace(`/choose-persona?next=${encodeURIComponent(`${pathname}${search}`)}`);
+}
+
 /** Cookie-credentialed JSON fetch against the InterVU API. */
 export async function api<T = unknown>(
   path: string,
@@ -83,6 +92,12 @@ export async function api<T = unknown>(
   // that did redirect caught EVERY error, so a 500 also looked like a lost
   // session. One place, one rule, and only for 401.
   if (res.status === 401 && !isCredentialEndpoint(path)) toSignIn();
+  // A signed-in person who has not said which job they are doing: every org
+  // route refuses until they do, so send them to the picker once, with a way
+  // back to the page they wanted.
+  if (res.status === 403 && (body as { code?: string } | null)?.code === "persona_required") {
+    toChoosePersona();
+  }
 
   if (!res.ok) throw new ApiError(res.status, body);
   return body as T;
@@ -91,6 +106,16 @@ export async function api<T = unknown>(
 /** A refusal, as opposed to a failure: render <AccessDenied>, not an error. */
 export const isForbidden = (e: unknown) =>
   e instanceof ApiError && e.status === 403;
+
+/**
+ * "Yours, but in another persona": the key of the persona that can open it,
+ * or null for any other error. Rendered as a switch, not a refusal.
+ */
+export function personaMismatch(e: unknown): string | null {
+  if (!(e instanceof ApiError) || e.status !== 403) return null;
+  const b = e.body as { code?: string; required_persona?: string } | null;
+  return b?.code === "persona_mismatch" && b.required_persona ? b.required_persona : null;
+}
 
 export function apiErrorMessage(e: unknown): string {
   if (e instanceof ApiError) {

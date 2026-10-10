@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -8,6 +9,8 @@ import { Reflector } from "@nestjs/core";
 import { AuthService, SESSION_COOKIE } from "../auth/auth.service";
 import { readCookie } from "../common/cookies";
 import { WITH_ROLES, resolveMemberships } from "../entitlements/membership";
+import { membershipsFor, resolvePersona } from "../entitlements/persona";
+import { requestContext } from "./request-context";
 import { PrismaService } from "../prisma/prisma.service";
 import { SCOPE_KEY, type RequiredScope } from "./scope.decorator";
 import { TENANT_CONTEXT_KEY, type TenantContext } from "./tenant-context";
@@ -46,6 +49,18 @@ export class AuthGuard implements CanActivate {
       });
     }
 
+    // An org session acts as one persona at a time (docs/09 §7). Until the
+    // person has chosen, every org route refuses with a code the web turns
+    // into the picker rather than an error.
+    if (scope === "org" && !tenant.org!.persona) {
+      throw new ForbiddenException({
+        code: "persona_required",
+        personas: tenant.org!.personas,
+      });
+    }
+    const store = requestContext.getStore();
+    if (store) store.persona = tenant.org?.persona?.key ?? null;
+
     req[TENANT_CONTEXT_KEY] = tenant;
     return true;
   }
@@ -67,11 +82,25 @@ export class AuthGuard implements CanActivate {
         include: WITH_ROLES,
       });
       if (!user || user.status === "disabled") return null;
+      const all = resolveMemberships(user.memberships);
+      const personas = await this.auth.personasOf(user.id, org.id);
+      // Scripts name a persona with x-intervu-persona; otherwise the default,
+      // then the first one, so existing curl examples keep working.
+      const asked = req.headers["x-intervu-persona"];
+      const persona =
+        resolvePersona(personas, {
+          stored: typeof asked === "string" ? asked : null,
+          preferred: user.defaultPersona,
+          askEachTime: false,
+        }) ?? personas[0] ?? null;
       return {
         org: {
           organizationId: org.id,
           user,
-          memberships: resolveMemberships(user.memberships),
+          memberships: membershipsFor(persona, all),
+          allMemberships: all,
+          persona,
+          personas,
         },
       };
     }

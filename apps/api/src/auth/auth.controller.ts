@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -14,6 +15,7 @@ import { ActivateAccount } from "@intervu/contracts";
 import { parseBody } from "../common/zod";
 import { readCookie } from "../common/cookies";
 import { AuthzService } from "../entitlements/authz.service";
+import { PersonaService } from "../entitlements/persona.service";
 import { ALL_PERMISSIONS } from "../entitlements/permissions";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthService, SESSION_COOKIE } from "./auth.service";
@@ -36,6 +38,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly prisma: PrismaService,
     private readonly authz: AuthzService,
+    private readonly personas: PersonaService,
   ) {}
 
   @Post("org/login")
@@ -43,7 +46,14 @@ export class AuthController {
     const input = parseBody(OrgLogin, body);
     const session = await this.auth.loginOrg(input.org_slug, input.email, input.password);
     this.setCookie(res, session);
-    return { ok: true, expires_at: session.expiresAt.toISOString() };
+    return {
+      ok: true,
+      expires_at: session.expiresAt.toISOString(),
+      // Null when the person must choose which job to open on (docs/09 §7).
+      persona: session.persona,
+      personas: session.personas,
+      needs_persona: session.persona === null && session.personas.length > 1,
+    };
   }
 
   @Post("vendor/login")
@@ -73,6 +83,45 @@ export class AuthController {
   async activate(@Body() body: unknown) {
     const input = parseBody(ActivateAccount, body);
     return this.auth.activate(input.token, input.password);
+  }
+
+  /** Switch this session to another of the caller's personas. */
+  @Post("persona")
+  async setPersona(@Req() req: Request, @Body() body: unknown) {
+    const input = parseBody(
+      z.object({
+        persona: z.string().min(1).max(80),
+        /** "default": open as this next time; "ask": ask at every sign-in. */
+        remember: z.enum(["default", "ask"]).optional(),
+      }),
+      body,
+    );
+    const token = readCookie(req, SESSION_COOKIE);
+    if (!token) throw new UnauthorizedException({ code: "not_authenticated" });
+    const persona = await this.auth.setPersona(token, input.persona);
+    if (input.remember) {
+      const ctx = await this.auth.resolveSession(token);
+      await this.auth.setPersonaPreference(ctx!.org!.user.id, {
+        default_persona: input.remember === "default" ? persona.key : null,
+        ask_at_login: input.remember === "ask",
+      });
+    }
+    return { ok: true, persona };
+  }
+
+  @Patch("persona-preference")
+  async personaPreference(@Req() req: Request, @Body() body: unknown) {
+    const input = parseBody(
+      z.object({
+        default_persona: z.string().min(1).max(80).nullable().optional(),
+        ask_at_login: z.boolean().optional(),
+      }),
+      body,
+    );
+    const token = readCookie(req, SESSION_COOKIE);
+    const ctx = token ? await this.auth.resolveSession(token) : null;
+    if (!ctx?.org) throw new UnauthorizedException({ code: "not_authenticated" });
+    return this.auth.setPersonaPreference(ctx.org.user.id, input);
   }
 
   @Post("logout")
@@ -109,6 +158,30 @@ export class AuthController {
         organization_id: ctx.org.organizationId,
         organization: { name: org.name, branding },
         capabilities,
+        /** The job this session is doing, and every job the person can do. */
+        persona: ctx.org.persona,
+        // Every persona with what is waiting in it, so the picker and the
+        // switcher can say "1 waiting as Interviewer" before anything else
+        // loads. Only computed for people who have a choice to make.
+        personas:
+          ctx.org.personas.length > 1
+            ? await this.personas.pendingElsewhere(
+                ctx.org.organizationId,
+                ctx.org.user.id,
+                null,
+                ctx.org.personas,
+                ctx.org.allMemberships,
+              ).then((rows) =>
+                ctx.org!.personas.map((p) => ({
+                  ...p,
+                  pending: rows.find((r) => r.key === p.key)?.pending ?? 0,
+                })),
+              )
+            : ctx.org.personas.map((p) => ({ ...p, pending: 0 })),
+        persona_preference: {
+          default_persona: ctx.org.user.defaultPersona,
+          ask_at_login: ctx.org.user.askPersonaAtLogin,
+        },
         memberships: ctx.org.memberships.map((m) => ({
           role_id: m.roleId,
           role: m.roleKey,

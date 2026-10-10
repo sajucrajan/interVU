@@ -9,6 +9,7 @@ import { formatAge } from "@/components/age-pill";
 import type { Worklist } from "@/lib/worklist";
 import { usePageIdentity } from "@/components/sticky-identity";
 import { rolePurpose } from "@/lib/role-purpose";
+import { SwitchPersonaButton } from "@/components/persona-switch";
 
 interface Me {
   kind: string;
@@ -171,6 +172,19 @@ export default function Dashboard() {
           </div>
         )}
       </header>
+
+      {/* ---- Waiting in another persona: flagged, never hidden (docs/09 §7) ---- */}
+      {wl.other_personas
+        .filter((p) => p.pending > 0)
+        .map((p) => (
+          <div key={p.key} className="persona-banner">
+            <span>
+              You also have <strong>{p.pending}</strong> thing{p.pending === 1 ? "" : "s"} waiting as{" "}
+              <strong>{p.label}</strong>.
+            </span>
+            <SwitchPersonaButton persona={p.key} label={p.label} next="/dashboard" />
+          </div>
+        ))}
 
       {/* ---- The queue: a ruled list that says how late, not just how many ---- */}
       {wl.actionable && (
