@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api, apiErrorMessage } from "@/lib/api";
 import { formatAge } from "@/components/age-pill";
@@ -119,18 +119,44 @@ export function PipelineBoard({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /**
+   * Cards moved while a view was open. A view like "New to screen" shows
+   * only the New column, so moving a card to Screening made it vanish from
+   * the board with no trace — it looked lost, not moved. Moved cards stay on
+   * the board, in their new column, marked as outside the view, until the
+   * view changes. Detected by comparing stages across reloads, so it covers
+   * the bulk bar, a drag and the card menu alike.
+   */
+  const [kept, setKept] = useState<Set<string>>(new Set());
+  const stageOf = useRef<Map<string, string>>(new Map());
 
   const load = useCallback(() => {
     api<BoardData>("/pipeline/board")
-      .then(setData)
+      .then((next) => {
+        const moved = next.columns
+          .flatMap((col) => col.cards)
+          .filter((c) => {
+            const before = stageOf.current.get(c.id);
+            return before !== undefined && before !== c.stage;
+          })
+          .map((c) => c.id);
+        stageOf.current = new Map(
+          next.columns.flatMap((col) => col.cards.map((c) => [c.id, c.stage] as const)),
+        );
+        if (moved.length) setKept((k) => new Set([...k, ...moved]));
+        setData(next);
+      })
       .catch((e) => setError(apiErrorMessage(e)));
   }, []);
 
   useEffect(load, [load, reloadKey]);
 
+  // A new view is a new question; what was moved under the old one is done.
+  useEffect(() => setKept(new Set()), [view, stage, positionId]);
+
   if (!data) return <p className="muted">Loading…</p>;
 
-  const matches = (c: BoardCard) => {
+  const inView = (c: BoardCard) => {
     if (positionId && c.position_id !== positionId) return false;
     if (stage && c.stage !== stage) return false;
     if (view === "unscreened") return c.stage === "submitted";
@@ -139,6 +165,7 @@ export function PipelineBoard({
       return c.flags.some((f) => f.label === "Decision due");
     return true;
   };
+  const matches = (c: BoardCard) => inView(c) || kept.has(c.id);
 
   const visibleColumns = stage
     ? data.columns.filter((c) => c.stage === stage)
@@ -197,29 +224,41 @@ export function PipelineBoard({
 
       {error && <p className="error">{error}</p>}
 
-      {/* Selecting anything reveals the actions that only make sense in bulk. */}
-      {selected.size > 0 && (
-        <div className="bulk-bar">
-          <span className="bulk-count">{selected.size} selected</span>
-          <span className="bulk-sep" />
-          {BULK_STAGES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              className="bulk-action"
-              disabled={busy}
-              onClick={() => move(s)}
-            >
-              Move to {STAGE_LABEL[s]}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="bulk-action bulk-clear"
-            onClick={() => setSelected(new Set())}
-          >
-            Clear
-          </button>
+      {/* Always present at one height: the bar used to appear on the first
+          click and vanish after the move, shoving every card down and back
+          up. Idle, it says what selecting is for; nothing else changes. */}
+      {view !== "duplicates" && (
+        <div className={`bulk-bar${selected.size === 0 ? " idle" : ""}`}>
+          {selected.size === 0 ? (
+            <span className="bulk-hint">
+              {onMove
+                ? "Click cards to select several, then move them together."
+                : "Click a card to select it."}
+            </span>
+          ) : (
+            <>
+              <span className="bulk-count">{selected.size} selected</span>
+              <span className="bulk-sep" />
+              {BULK_STAGES.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className="bulk-action"
+                  disabled={busy}
+                  onClick={() => move(s)}
+                >
+                  Move to {STAGE_LABEL[s]}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="bulk-action bulk-clear"
+                onClick={() => setSelected(new Set())}
+              >
+                Clear
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -397,6 +436,11 @@ export function PipelineBoard({
                       {formatAge(c.age_hours)}
                     </span>
                   </div>
+                  {kept.has(c.id) && !inView(c) && (
+                    <div className="mono-label pipe-moved">
+                      Moved · outside this view
+                    </div>
+                  )}
                   <div className="pipe-meta">
                     {c.position_reference && (
                       <span className="ref-code">{c.position_reference}</span>

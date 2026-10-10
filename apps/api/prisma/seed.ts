@@ -77,7 +77,9 @@ async function main() {
     const roleId = roleByKey.get(roleKey)!;
     const user = await prisma.orgUser.upsert({
       where: { organizationId_email: { organizationId: org.id, email } },
-      update: { status: "active", passwordHash: demoHash },
+      // Persona preferences are reset too: a visitor who picked "open as
+      // Hiring manager next time" must not decide what the next visitor sees.
+      update: { status: "active", passwordHash: demoHash, defaultPersona: null, askPersonaAtLogin: false },
       create: { organizationId: org.id, email, name, status: "active", passwordHash: demoHash },
     });
     // find-or-create: the composite unique includes a nullable column,
@@ -1314,6 +1316,7 @@ BSc Computer Science, University of Edinburgh
         incoming: {
           candidate_name: "Katherine Walsh",
           email: "kwalsh.dev@example.com",
+          phone: "+1 512 555 0171",
           current_employer: "Halcyon Data",
           current_title: "Senior Data Engineer",
           location: "Remote",
@@ -1331,6 +1334,7 @@ BSc Computer Science, University of Edinburgh
         incoming: {
           candidate_name: "An Nguyen",
           email: "an.nguyen@example.com",
+          phone: "+1 512 555 0188",
           current_employer: "Northwind",
           current_title: "Analytics Engineer",
           location: "Austin, TX",

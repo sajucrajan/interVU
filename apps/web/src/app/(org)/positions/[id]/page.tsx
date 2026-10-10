@@ -14,6 +14,7 @@ import {
   type SkillRow,
 } from "@/components/skill-matrix";
 import { usePageIdentity } from "@/components/sticky-identity";
+import { can, useMe } from "@/lib/me";
 import { PositionBriefView, type Brief } from "@/components/position-brief";
 import { formatDate, formatDateTime, formatRelativeDay } from "@/lib/format";
 
@@ -125,6 +126,7 @@ export default function PositionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [p, setP] = useState<Detail | null>(null);
+  const me = useMe();
   const [vendors, setVendors] = useState<VendorOrg[]>([]);
   const [apps, setApps] = useState<RoleApplication[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -230,13 +232,41 @@ export default function PositionDetailPage() {
   const unreleased = vendors.filter(
     (v) => v.status === "active" && !p.releases.some((r) => r.vendorOrg.id === v.id),
   );
+  /** Every agency, shared or not — the list people actually want to read. */
+  const agencyRows = [
+    ...vendors.filter((v) => v.status === "active"),
+    // Still listed if it was shared before being deactivated.
+    ...p.releases
+      .filter((r) => !vendors.some((v) => v.id === r.vendorOrg.id))
+      .map((r) => ({ id: r.vendorOrg.id, tier: r.vendorOrg.tier, status: "inactive", vendor: r.vendorOrg.vendor })),
+  ].map((v) => {
+    const r = p.releases.find((x) => x.vendorOrg.id === v.id);
+    return { id: v.id, name: v.vendor.name, tier: v.tier, seesAt: r ? seesFrom(r.visibleFrom) : null };
+  });
+  const list = (names: string[]) =>
+    names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  const seeing = agencyRows.filter((r) => r.seesAt !== null && r.seesAt <= now).map((r) => r.name);
+  const soon = agencyRows.filter((r) => r.seesAt !== null && r.seesAt > now);
+  const notShared = agencyRows.filter((r) => r.seesAt === null).map((r) => r.name);
+  const visibilitySummary =
+    p.status === "draft"
+      ? "Not published yet, so no agency can see it. Publish it from the ⋯ menu and choose who should."
+      : p.sourcingMode === "direct"
+        ? "Only your own channels. Agencies never see this role."
+        : [
+            seeing.length ? `Shared with ${list(seeing)}.` : "No agency can see it yet.",
+            ...soon.map((r) => `${r.name} sees it from ${formatDate(r.seesAt!)}.`),
+            notShared.length ? `${list(notShared)} ${notShared.length === 1 ? "can't" : "can't"} see it.` : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
 
   const items: MenuItem[] = [{ label: "Edit", heading: true }];
   items.push({ label: "Edit details…", onSelect: () => setDialog("edit") });
   items.push({ label: "Edit requirements…", onSelect: () => setDialog("requirements") });
   if (p.status === "draft") {
     items.push({
-      label: "Publish to vendors…",
+      label: "Publish…",
       tone: "primary",
       onSelect: () => setDialog("publish"),
     });
@@ -245,7 +275,7 @@ export default function PositionDetailPage() {
     items.push(
       { label: "Lifecycle", heading: true },
       {
-        label: "Pause (hide from vendors)",
+        label: "Pause — hide from agencies",
         onSelect: () =>
           act(() => api(`/positions/${p.id}`, { method: "PATCH", body: { status: "paused" } })),
       },
@@ -265,7 +295,7 @@ export default function PositionDetailPage() {
     items.push(
       { label: "Lifecycle", heading: true },
       {
-        label: "Reopen to vendors",
+        label: "Reopen — agencies see it again",
         tone: "primary",
         onSelect: () =>
           act(() => api(`/positions/${p.id}`, { method: "PATCH", body: { status: "open" } })),
@@ -280,8 +310,8 @@ export default function PositionDetailPage() {
   }
   if (p.status === "open" && unreleased.length > 0) {
     items.push(
-      { label: "Vendors", heading: true },
-      { label: "Release to a vendor…", onSelect: () => setDialog("release") },
+      { label: "Agencies", heading: true },
+      { label: "Share with agencies…", onSelect: () => setDialog("release") },
     );
   }
   items.push(
@@ -394,23 +424,29 @@ export default function PositionDetailPage() {
           )}
         </div>
 
-        {/* Channel sits directly above the release panel, because changing it
-            is what decides whether that panel means anything at all. */}
+        {/* One card for the whole question "who can see this role?": the
+            channel, every agency with its status, and the one action that
+            changes it. It used to be three ideas — a sourcing channel, a
+            release policy and per-agency releases with tiers — spread over two
+            cards and a ⋯ menu, and recruiters could not find how to add an
+            agency at all. The model underneath is unchanged; the words are
+            the ones people use. */}
         <div className="card">
-          <p className="chart-title">Sourcing channel</p>
-          <p className="chart-sub">
-            {p.sourcingMode === "direct"
-              ? "Direct only — agencies never see this role."
-              : p.sourcingMode === "hybrid"
-                ? p.vendorOpensAt
-                  ? `Hybrid — agencies join ${formatDate(p.vendorOpensAt)}.`
-                  : "Hybrid — no unlock date set, so agencies can see it now."
-                : "Vendors — released to agencies under the policy below."}
-          </p>
-          {/* A segmented control, not three buttons. The current channel used
-              to render as a disabled button, which reads as "unavailable"
-              rather than "selected". */}
-          <div className="segmented" role="group" aria-label="Sourcing channel">
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+            <p className="chart-title">Who can see this role</p>
+            {p.status === "open" &&
+              p.sourcingMode !== "direct" &&
+              unreleased.length > 0 &&
+              can(me, "positions.release") && (
+                <button type="button" onClick={() => setDialog("release")}>
+                  Share with agencies…
+                </button>
+              )}
+          </div>
+          <p className="chart-sub">{visibilitySummary}</p>
+
+          <p className="mono-label" style={{ marginTop: "0.75rem" }}>Who can send candidates?</p>
+          <div className="segmented" role="group" aria-label="Who can send candidates" style={{ marginTop: 6 }}>
             {(["vendor", "hybrid", "direct"] as const).map((mode) => (
               <button
                 key={mode}
@@ -431,17 +467,20 @@ export default function PositionDetailPage() {
                   )
                 }
               >
-                {mode === "vendor"
-                  ? "Vendors"
-                  : mode === "hybrid"
-                    ? "Hybrid"
-                    : "Direct only"}
+                {mode === "vendor" ? "Agencies" : mode === "hybrid" ? "Both" : "Only us"}
               </button>
             ))}
           </div>
+          <p className="muted" style={{ fontSize: 13, margin: "6px 0 0" }}>
+            {p.sourcingMode === "direct"
+              ? "Only your careers page and referrals. Agencies never see this role."
+              : p.sourcingMode === "hybrid"
+                ? "Your careers page and referrals first; the agencies you share it with join on the date below."
+                : "The agencies you share it with."}
+          </p>
           {p.sourcingMode === "hybrid" && (
             <div style={{ marginTop: "0.75rem", maxWidth: 220 }}>
-              <label>Vendors join on</label>
+              <label>Agencies join on</label>
               <input
                 type="date"
                 defaultValue={p.vendorOpensAt ? p.vendorOpensAt.slice(0, 10) : ""}
@@ -460,55 +499,42 @@ export default function PositionDetailPage() {
               />
             </div>
           )}
-        </div>
 
-        <div className="card">
-          <p className="chart-title">Vendor release</p>
-          <p className="chart-sub">
-            {!p.releasePolicy
-              ? "Not published, so no agency can see this position."
-              : p.sourcingMode === "direct"
-                ? "Direct only, so no agency sees it, whatever the release says."
-                : `Policy: ${nice(p.releasePolicy.mode)} · ${releasedCount} of ${p.releases.length} can see it now`}
-          </p>
-          {p.releases.length === 0 ? (
-            <p className="muted" style={{ margin: 0 }}>
-              No vendors yet.
+          {agencyRows.length === 0 ? (
+            <p className="muted" style={{ margin: "1rem 0 0" }}>
+              You have no agencies yet. An admin adds them under Admin → Vendors.
             </p>
           ) : (
-            <table className="data">
+            <table className="data" style={{ marginTop: "1rem" }}>
               <thead>
                 <tr>
-                  <th>Vendor</th>
+                  <th>Agency</th>
                   <th>Tier</th>
-                  <th>Sees it</th>
+                  <th>Can see it</th>
                 </tr>
               </thead>
               <tbody>
-                {p.releases.map((r, i) => {
-                  const at = seesFrom(r.visibleFrom);
-                  const live = at !== null && at <= now;
-                  return (
-                    <tr key={i}>
-                      <td>{r.vendorOrg.vendor.name}</td>
-                      <td>{r.vendorOrg.tier}</td>
-                      <td>
-                        {at === null ? (
-                          <span className="badge">never · direct only</span>
-                        ) : live ? (
-                          <span className="badge ok">since {formatDate(at)}</span>
-                        ) : (
-                          <span
-                            className="badge warn"
-                            title={formatDateTime(at)}
-                          >
-                            {formatRelativeDay(at)}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {agencyRows.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.name}</td>
+                    <td>{row.tier}</td>
+                    <td>
+                      {p.status === "draft" ? (
+                        <span className="badge">not published</span>
+                      ) : p.sourcingMode === "direct" ? (
+                        <span className="badge">never · only us</span>
+                      ) : row.seesAt === null ? (
+                        <span className="badge">not shared</span>
+                      ) : row.seesAt <= now ? (
+                        <span className="badge ok">yes · since {formatDate(row.seesAt)}</span>
+                      ) : (
+                        <span className="badge warn" title={formatDateTime(row.seesAt)}>
+                          from {formatDate(row.seesAt)}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
@@ -519,6 +545,7 @@ export default function PositionDetailPage() {
         <Modal title={`Publish ${p.reference}`} onClose={() => setDialog(null)}>
           <PublishForm
             positionId={p.id}
+            sourcingMode={p.sourcingMode}
             onDone={async () => {
               setDialog(null);
               await refresh();
@@ -527,7 +554,7 @@ export default function PositionDetailPage() {
         </Modal>
       )}
       {dialog === "release" && (
-        <Modal title="Release to a vendor" onClose={() => setDialog(null)}>
+        <Modal title="Share with agencies" onClose={() => setDialog(null)}>
           <ReleaseForm
             positionId={p.id}
             vendors={unreleased}
@@ -574,25 +601,50 @@ export default function PositionDetailPage() {
 
 function PublishForm({
   positionId,
+  sourcingMode,
   onDone,
 }: {
   positionId: string;
+  sourcingMode: Detail["sourcingMode"];
   onDone: () => Promise<void>;
 }) {
   const [mode, setMode] = useState("all_at_once");
+  const [days, setDays] = useState(7);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const choices = [
+    { key: "all_at_once", label: "All agencies, now", hint: "Every active agency sees it and is emailed today." },
+    { key: "tiered", label: "Preferred agencies first", hint: "Tier 1 sees it today; the others after the wait below." },
+    { key: "manual", label: "I'll choose agencies myself", hint: "Nobody sees it until you share it with them." },
+  ];
   return (
     <>
-      <p className="muted" style={{ marginTop: 0 }}>
-        Choose how vendors get access. Releases only ever widen visibility.
-      </p>
-      <label>Release policy</label>
-      <select value={mode} onChange={(e) => setMode(e.target.value)}>
-        <option value="all_at_once">All vendors now</option>
-        <option value="tiered">Tier 1 now, tier 2 after 7 days</option>
-        <option value="manual">Manual — release vendor by vendor</option>
-      </select>
+      {sourcingMode === "direct" ? (
+        <p className="muted" style={{ marginTop: 0 }}>
+          This role is set to <strong>Only us</strong>, so agencies will not see it whatever you
+          choose here. Change that on the role page if agencies should send candidates.
+        </p>
+      ) : (
+        <p className="muted" style={{ marginTop: 0 }}>Who should see it?</p>
+      )}
+      <div className="persona-remember">
+        {choices.map((c) => (
+          <label key={c.key} className="persona-option">
+            <input type="radio" name="who" checked={mode === c.key} onChange={() => setMode(c.key)} />
+            <span>
+              <strong>{c.label}</strong>
+              <br />
+              <span className="muted">{c.hint}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {mode === "tiered" && (
+        <div style={{ marginTop: "0.75rem", maxWidth: 220 }}>
+          <label>Others join after (days)</label>
+          <input type="number" min={1} max={60} value={days} onChange={(e) => setDays(Number(e.target.value) || 7)} />
+        </div>
+      )}
       <div style={{ marginTop: "1rem" }}>
         <button
           disabled={busy}
@@ -606,7 +658,7 @@ function PublishForm({
                       mode: "tiered",
                       steps: [
                         { tier: 1, delay_hours: 0 },
-                        { tier: 2, delay_hours: 168 },
+                        { tier: 2, delay_hours: days * 24 },
                       ],
                     }
                   : { mode };
@@ -636,42 +688,57 @@ function ReleaseForm({
   vendors: VendorOrg[];
   onDone: () => Promise<void>;
 }) {
-  const [vendorOrgId, setVendorOrgId] = useState(vendors[0]?.id ?? "");
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toggle = (id: string) =>
+    setChosen((c) => {
+      const next = new Set(c);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   return (
     <>
       <p className="muted" style={{ marginTop: 0 }}>
-        Give a vendor immediate access, ahead of their tier schedule.
+        They see the role in their portal straight away and are emailed. Sharing only
+        ever widens who can see it — an agency ahead of its tier simply gets it early.
       </p>
-      <label>Vendor</label>
-      <select value={vendorOrgId} onChange={(e) => setVendorOrgId(e.target.value)}>
+      <div className="persona-remember">
         {vendors.map((v) => (
-          <option key={v.id} value={v.id}>
-            {v.vendor.name} (tier {v.tier})
-          </option>
+          <label key={v.id} className="persona-option">
+            <input type="checkbox" checked={chosen.has(v.id)} onChange={() => toggle(v.id)} />
+            <span>
+              {v.vendor.name} <span className="muted">· tier {v.tier}</span>
+            </span>
+          </label>
         ))}
-      </select>
+      </div>
       <div style={{ marginTop: "1rem" }}>
         <button
-          disabled={busy || !vendorOrgId}
+          disabled={busy || chosen.size === 0}
           onClick={async () => {
             setBusy(true);
             setError(null);
-            try {
-              await api(`/positions/${positionId}/releases`, {
-                method: "POST",
-                body: { vendor_org_id: vendorOrgId },
-              });
-              await onDone();
-            } catch (e) {
-              setError(apiErrorMessage(e));
-            } finally {
-              setBusy(false);
+            const failed: string[] = [];
+            for (const v of vendors.filter((x) => chosen.has(x.id))) {
+              try {
+                await api(`/positions/${positionId}/releases`, {
+                  method: "POST",
+                  body: { vendor_org_id: v.id },
+                });
+              } catch {
+                failed.push(v.vendor.name);
+              }
             }
+            setBusy(false);
+            if (failed.length) setError(`Could not share with ${failed.join(", ")}.`);
+            else await onDone();
           }}
         >
-          {busy ? "Releasing…" : "Release now"}
+          {busy
+            ? "Sharing…"
+            : `Share with ${chosen.size === 0 ? "…" : chosen.size === 1 ? "1 agency" : `${chosen.size} agencies`}`}
         </button>
       </div>
       {error && <p className="error">{error}</p>}
