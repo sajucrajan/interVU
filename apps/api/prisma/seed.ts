@@ -1316,6 +1316,7 @@ BSc Computer Science, University of Edinburgh
         incoming: {
           candidate_name: "Katherine Walsh",
           email: "kwalsh.dev@example.com",
+          phone: "+1 512 555 0171",
           current_employer: "Halcyon Data",
           current_title: "Senior Data Engineer",
           location: "Remote",
@@ -1333,6 +1334,7 @@ BSc Computer Science, University of Edinburgh
         incoming: {
           candidate_name: "An Nguyen",
           email: "an.nguyen@example.com",
+          phone: "+1 512 555 0188",
           current_employer: "Northwind",
           current_title: "Analytics Engineer",
           location: "Austin, TX",

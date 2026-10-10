@@ -132,19 +132,22 @@ export class MatchReviewsService {
 
       if (!duplicate) {
         // Identity accretion + one application per (position, candidate)
-        const emailNorm = normalizeEmail(input.email);
-        const phone = normalizePhone(input.phone);
+        // rawProfile is whatever the submission carried. The vendor form
+        // requires a phone, but older rows and seeded reviews may lack one,
+        // and that must not turn "Same person — link" into a 500.
+        const emailNorm = input.email ? normalizeEmail(input.email) : null;
+        const phone = input.phone ? normalizePhone(input.phone) : null;
         const keys: { kind: "email" | "phone" | "phone_last10"; valueNorm: string }[] = [];
         if (emailNorm) keys.push({ kind: "email", valueNorm: emailNorm });
-        if (phone.e164) keys.push({ kind: "phone", valueNorm: phone.e164 });
-        if (phone.last10) keys.push({ kind: "phone_last10", valueNorm: phone.last10 });
+        if (phone?.e164) keys.push({ kind: "phone", valueNorm: phone.e164 });
+        if (phone?.last10) keys.push({ kind: "phone_last10", valueNorm: phone.last10 });
         await tx.candidateIdentity.createMany({
           data: keys.map((k) => ({
             organizationId,
             candidateId: candidate.id,
             kind: k.kind,
             valueNorm: k.valueNorm,
-            valueRaw: k.kind === "email" ? input.email : input.phone,
+            valueRaw: (k.kind === "email" ? input.email : input.phone) ?? k.valueNorm,
             sourceSubmissionId: submission.id,
           })),
           skipDuplicates: true,
