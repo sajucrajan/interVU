@@ -1,0 +1,37 @@
+name: Feature request
+description: Something InterVU should do that it doesn't.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: Who hits it, and what they do today instead. A problem is easier to design for than a solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you'd like
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Positions and releases
+        - Vendor portal
+        - Candidate matching and identity
+        - Interviews and scorecards
+        - Pipeline and decisions
+        - Analytics
+        - Roles and access
+        - Notifications and integrations
+        - Deployment and operations
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: roles
+    attributes:
+      label: Roles affected
+      description: Which roles should see or use this, and which must not (docs/09).

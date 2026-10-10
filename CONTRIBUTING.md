@@ -7,7 +7,7 @@ and both code and design review are welcome.
 ## Ways to contribute
 
 - **Code** — pick an issue labeled `good first issue` or `help wanted`. The `packages/matching-core` package (pure functions: normalizers, similarity, scoring) is the friendliest entry point: no DB, no framework, just well-specified functions and tests.
-- **Design feedback** — open a GitHub Discussion on anything in [`docs/`](docs/). Real-world experience with vendor/staffing workflows, VMS ownership disputes, or identity resolution is especially wanted.
+- **Design feedback** — open a *Design question* issue on anything in [`docs/`](docs/). Real-world experience with vendor/staffing workflows, VMS ownership disputes, or identity resolution is especially wanted.
 - **Docs & i18n** — quickstart improvements, translations of UI strings.
 
 ## Development setup
@@ -65,14 +65,35 @@ curl http://localhost:4000/api/v1/vendor/positions \
 
 ```bash
 pnpm typecheck                                   # all packages
-pnpm test                                        # matching-core unit + eval suites
+pnpm test                                        # unit suites: matching-core (+ evals), api
 pnpm --filter @intervu/api exec prisma migrate dev --name <change>
 pnpm --filter @intervu/api exec prisma studio    # browse the database
 ```
 
+## End-to-end checks
+
+Two checks run against a real stack, in CI and on your machine. Both sign in as
+every demo account (docs/10), so they catch what a unit test cannot: a rule
+that is right for one role and wrong for another.
+
+```bash
+pnpm --filter @intervu/api db:seed:tenant-b       # a second organization, for cross-tenant checks
+node tools/access-check.mjs                       # API: who may call what (stack running)
+node tools/link-check.mjs                         # web: no link leads to a refusal (needs Playwright)
+```
+
+- **`access-check`** calls every endpoint as every account and checks each
+  answer against docs/09 — permission, org-unit scope, panel seats — plus list
+  leakage, refused writes, the vendor portal, and a second organization trying
+  every record. **Adding or changing an endpoint means adding it here.**
+- **`link-check`** follows every in-app link each account is offered, and fails
+  on a refusal, a page stuck on "Loading…", or a refused API call behind a page.
+  Playwright is not a workspace dependency; point `PLAYWRIGHT_FROM` at any
+  directory whose `node_modules` holds it.
+
 ## Ground rules
 
-- **Tenancy is sacred.** Vendor-visible queries must filter on **both** `organization_id` and `vendor_id` (docs/05 §1); org-side queries must respect entitlement scopes (docs/09). PRs adding endpoints should include cross-scope tests.
+- **Tenancy is sacred.** Vendor-visible queries must filter on **both** `organization_id` and `vendor_id` (docs/05 §1); org-side queries must respect entitlement scopes (docs/09). PRs adding endpoints must add them to `tools/access-check.mjs`.
 - **Matching changes need evals.** Changes to `matching-core` must keep the CI eval above the precision floor — `precision@auto-link` must stay at 1.0 (see [docs/04](docs/04-candidate-matching.md)).
 - **Never auto-merge candidate identities.** High-confidence *links* are fine; merging two existing master records is always a human decision and must stay reversible.
 - **Migrations are append-only** once released.
@@ -92,6 +113,8 @@ fork), and merges only once:
    dismisses the approval, so what gets merged is what was reviewed.
 3. **The branch is up to date with `main`,** so the checks that passed ran
    against the code that actually lands.
+
+CI also runs `access-check` and `link-check` (above) on every pull request.
 
 Run `pnpm typecheck && pnpm test` locally first — it's the same ground CI covers,
 and it's faster to find out on your machine.

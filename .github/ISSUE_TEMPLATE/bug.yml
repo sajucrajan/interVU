@@ -1,0 +1,49 @@
+name: Bug report
+description: Something works differently from how it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Security problems go to private reporting, not here** — see SECURITY.md.
+  - type: input
+    id: account
+    attributes:
+      label: Signed in as
+      description: Which demo account or role (docs/10-demo-accounts.md), or "vendor portal".
+      placeholder: interviewer1@acme.test
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open My interviews
+        2. Click Quick file on …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: Error text, screenshots, or the failing API call from the browser's network tab.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Public demo
+        - Local development (pnpm dev)
+        - Self-hosted deployment
+    validations:
+      required: true
