@@ -85,6 +85,7 @@ export function PipelineBoard({
   stage,
   positionId,
   actionsFor,
+  primaryFor,
   reloadKey,
   onMove,
   candidateLinks = true,
@@ -101,6 +102,12 @@ export function PipelineBoard({
   /** The page owns the action set (transition, schedule, decide) and the
    *  modals behind it; the board only decides where the trigger sits. */
   actionsFor?: (card: BoardCard) => MenuItem[];
+  /**
+   * The ONE thing to do next with this card, shown as a button on the card
+   * itself. Everything used to sit behind a ⋯ that only appeared on hover,
+   * so finding "schedule the interview" meant knowing it was there.
+   */
+  primaryFor?: (card: BoardCard) => { label: string; onSelect: () => void } | null;
   /** Lets the page refresh the board after one of those actions. */
   reloadKey?: number;
   /**
@@ -473,14 +480,28 @@ export function PipelineBoard({
                     ))}
                     <span className="pipe-vendor">{c.vendor}</span>
                   </div>
-                  {actionsFor && (
-                    <span
-                      className="pipe-actions"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <ActionsMenu items={actionsFor(c)} />
-                    </span>
-                  )}
+                  {/* The card's one next step, and the full menu beside it:
+                      both always visible, so nothing depends on hovering. */}
+                  {(() => {
+                    const primary = primaryFor?.(c) ?? null;
+                    if (!primary && !actionsFor) return null;
+                    return (
+                      <div className="pipe-cta" onClick={(e) => e.stopPropagation()}>
+                        {primary ? (
+                          <button type="button" className="pipe-primary" onClick={primary.onSelect}>
+                            {primary.label} →
+                          </button>
+                        ) : (
+                          <span />
+                        )}
+                        {actionsFor && (
+                          <span className="pipe-actions">
+                            <ActionsMenu items={actionsFor(c)} />
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>

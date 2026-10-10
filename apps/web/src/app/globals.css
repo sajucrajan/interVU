@@ -2518,17 +2518,23 @@ table.data td time {
 }
 
 /* The card's action trigger sits out of the way until the card is hovered. */
+/* Always visible. It used to fade in on hover, so on a touch screen it did
+   not exist and on a mouse it had to be discovered. */
 .pipe-actions {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  opacity: 0;
-  transition: opacity 0.12s;
+  display: inline-flex;
 }
 
-.pipe-card:hover .pipe-actions,
-.pipe-actions:focus-within {
-  opacity: 1;
+/* The card's one next step on the left, the full menu on the right. */
+.pipe-cta {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pipe-primary {
+  font: 500 13px/1 var(--font-ui);
+  padding: 6px 10px;
 }
 
 /* A reference is a machine value first and a link second: mono, so a column
