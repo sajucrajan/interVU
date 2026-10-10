@@ -742,6 +742,11 @@ model InterviewPanelist {
   interviewId String @map("interview_id") @db.Uuid
   orgUserId   String @map("org_user_id") @db.Uuid
   role        String @default("interviewer")
+  /// Scorecard reminders already sent to this panelist for this interview
+  /// (interviews/scorecard-reminders.ts). Claimed atomically, so a restart or a
+  /// second instance never sends the same reminder twice.
+  reminderFreshAt   DateTime? @map("reminder_fresh_at")
+  reminderOverdueAt DateTime? @map("reminder_overdue_at")
 
   interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
   orgUser   OrgUser   @relation(fields: [orgUserId], references: [id])

@@ -121,7 +121,7 @@ any SMTP server, Slack, Teams, custom endpoints, all of them, or none:
 
 | Channel | Audience | Config | Status |
 |---|---|---|---|
-| Email (any SMTP via env; Mailpit in dev) | vendor users | `notifications.email_enabled` (default on) | ✅ |
+| Email (any SMTP via env; Mailpit in dev) | vendor users, panelists | `notifications.email_enabled` (default on) | ✅ |
 | Slack incoming webhook | org channel | `notifications.slack_webhook_url` | ✅ |
 | Microsoft Teams incoming webhook | org channel | `notifications.teams_webhook_url` | ✅ |
 | Generic signed webhooks (Discord/Mattermost/Zapier/your systems) | anything | `POST /webhooks` — HMAC-SHA256 `X-InterVU-Signature`, per-endpoint event filter | ✅ |
@@ -135,6 +135,7 @@ any SMTP server, Slack, Teams, custom endpoints, all of them, or none:
 | Identity match needs review | ✅ org channels (`match_review.queued`) |
 | Candidate status changes to the owning vendor | ✅ durable email on Interviewing / Offered / Not selected (noise-controlled; earlier stages stay portal-only); daily digest option planned |
 | Delivery log + retry/backoff | ✅ every send (all channels incl. email) is a `notification_delivery` row drained with exponential backoff (30s → 24h, 8 attempts → dead letter); `GET /notification-deliveries` is the log, `POST /notification-deliveries/{id}/retry` revives dead letters. A down channel delays a message, never loses it |
+| Scorecard owed by a panelist | ✅ durable email to the panelist, twice at most: an hour after the interview ends ("while it is fresh"), and once past the org's `scorecard_due` threshold (24h default), naming how many of the panel are still outstanding and linking to the room. Claimed per panel seat (`interview_panelist.reminder_*_at`), so restarts never resend; skipped once the scorecard is filed or a decision recorded; nothing older than a week is chased. `notifications.scorecard_reminders: false` turns it off |
 | Submission status change (coarse) | Email digest (immediate for `Offered`/`Not eligible`) |
 | Position paused/closed with vendor's active candidates | Immediate email |
 | Interview scheduled requiring candidate availability | Email with slots (vendor coordinates candidate in v1; candidate self-scheduling is out of scope) |

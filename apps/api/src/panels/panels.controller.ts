@@ -1,7 +1,16 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Post,
+} from "@nestjs/common";
 import { PanelCreate } from "@intervu/contracts";
 import { parseBody } from "../common/zod";
 import { AuthzService } from "../entitlements/authz.service";
+import { PrismaService } from "../prisma/prisma.service";
 import { OrgScope, Tenant } from "../tenancy/scope.decorator";
 import type { TenantContext } from "../tenancy/tenant-context";
 import { PanelsService } from "./panels.service";
@@ -12,6 +21,7 @@ export class PanelsController {
   constructor(
     private readonly panels: PanelsService,
     private readonly authz: AuthzService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Post("panels")
@@ -49,7 +59,14 @@ export class PanelsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     const access = await this.authz.access(tenant);
-    this.authz.require(access, "interviews.schedule");
+    // On the application's own team: suggestions name who has interviewed
+    // for it, so a scheduler elsewhere in the org must not read them.
+    const application = await this.prisma.application.findFirst({
+      where: { id, organizationId: tenant.org!.organizationId },
+      select: { position: { select: { orgUnitId: true } } },
+    });
+    if (!application) throw new NotFoundException("Application not found");
+    this.authz.require(access, "interviews.schedule", application.position.orgUnitId);
     return this.panels.suggestions(tenant.org!.organizationId, id);
   }
 }
