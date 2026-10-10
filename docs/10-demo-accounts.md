@@ -33,9 +33,10 @@ demonstrate the entitlement model (`role @ scope`, see [09](09-entitlements.md))
 
 ### Things worth trying
 
-- **Scoped visibility** — sign in as `pm.gtm` and then `pm.platform`; the positions list changes with the scope. Neither can reach `/match-reviews` (403 by design).
-- **Assignment-scoped access** — `interviewer1` sees no positions at all, but `/interviews` lists their panels; opening a candidate from there still shows full history.
-- **Feedback policy** — Padma Menon's debrief stays sealed until `interviewer1` files the overdue scorecard. Kavya Rao's is open, and splits 5 to 2 on MLOps.
+- **Scoped visibility** — sign in as `pm.gtm` and then `pm.platform`; the positions list changes with the scope. Neither is offered `/match-reviews`; typing the URL gets a page saying whose job it is, with a way back (403 by design).
+- **A Today per role** — Today opens with one line on what the role is for. Recruiters, hiring managers and interviewers get *"N things are waiting on you"*, counting only work they can do. Read-only roles (`pm.gtm`, `vendors`) get *"Here is where hiring stands"*: the same queues, muted, each labelled with who it waits on.
+- **Assignment-scoped access** — `interviewer1` sees no positions at all, but `/interviews` lists their panels: one scorecard to file (Padma Menon), one upcoming (Uma Sharma), one filed (Kavya Rao). Opening a candidate from there shows their history, from scheduling until a decision is recorded (docs/09 §4.2). An interview that has not happened yet is never counted as owed.
+- **Feedback policy** — Padma Menon's debrief stays sealed until `interviewer1` files the overdue scorecard. File it with *Quick file*, then *View scorecards* on the filed row: your card, then Ivan's, which was hidden until yours was in. Kavya Rao's is open, and splits 5 to 2 on MLOps.
 - **Match review queue** — two near-misses are waiting: *Tarik Farouk* (StaffPro) and *Noor A. Aziz* (NorthStar), each scored 81% against someone already on file. Scored by the real matcher at seed time; a pair that ever falls outside the review band is skipped rather than forced.
 - **Sourcing guard** — on POS-004 Frontend Engineer, switch sourcing to *Direct only*: it refuses and counts the agency candidates still active.
 - **Custom roles** — `/admin/roles` (as the admin) lists *Vendor manager* beside the built-ins; it is an ordinary row the organization could have made itself.

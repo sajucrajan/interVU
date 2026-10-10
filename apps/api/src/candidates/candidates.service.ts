@@ -7,6 +7,28 @@ import {
 import type { FlagCreate } from "@intervu/contracts";
 import type { Access } from "../entitlements/access";
 import { PrismaService } from "../prisma/prisma.service";
+import {
+  type ApplicationFacts,
+  candidateGrant,
+  type CandidateGrant,
+  visibleScorecards,
+} from "./candidate-access";
+
+/** The facts the access rules need, from an application with its panels. */
+const applicationFacts = (
+  applications: {
+    id: string;
+    position: { orgUnitId: string };
+    decision: unknown;
+    interviews: { panelists: { orgUserId: string }[] }[];
+  }[],
+): ApplicationFacts[] =>
+  applications.map((a) => ({
+    id: a.id,
+    orgUnitId: a.position.orgUnitId,
+    decided: a.decision !== null,
+    panelistIds: a.interviews.flatMap((i) => i.panelists.map((p) => p.orgUserId)),
+  }));
 
 interface MergeSnapshot {
   identityIds: string[];
@@ -31,6 +53,45 @@ export interface TimelineEvent {
 @Injectable()
 export class CandidatesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * The gate for everything on the candidate page: 404 if the candidate is not
+   * in this organization, 403 unless the viewer has history in scope or sits
+   * on one of the candidate's undecided panels (docs/09 §4).
+   */
+  async requireView(
+    organizationId: string,
+    candidateId: string,
+    access: Access,
+    viewerId: string,
+  ): Promise<Exclude<CandidateGrant, null>> {
+    const candidate = await this.prisma.candidate.findFirst({
+      where: { id: candidateId, organizationId },
+      select: {
+        applications: {
+          select: {
+            id: true,
+            position: { select: { orgUnitId: true } },
+            decision: { select: { id: true } },
+            interviews: { select: { panelists: { select: { orgUserId: true } } } },
+          },
+        },
+      },
+    });
+    if (!candidate) throw new NotFoundException("Candidate not found");
+    const grant = candidateGrant(
+      applicationFacts(candidate.applications),
+      access.unitIdsFor("candidates.view_history"),
+      viewerId,
+    );
+    if (!grant) {
+      throw new ForbiddenException({
+        code: "insufficient_scope",
+        permission: "candidates.view_history",
+      });
+    }
+    return grant;
+  }
 
   /**
    * The cross-position history (R4). Contextual entitlement rule
@@ -65,11 +126,12 @@ export class CandidatesService {
     });
     if (!candidate) throw new NotFoundException("Candidate not found");
 
-    const historyScope = access.unitIdsFor("candidates.view_history");
-    const inScope =
-      historyScope === "org" ||
-      candidate.applications.some((a) => historyScope.includes(a.position.orgUnitId));
-    if (!inScope) {
+    const grant = candidateGrant(
+      applicationFacts(candidate.applications),
+      access.unitIdsFor("candidates.view_history"),
+      viewerId,
+    );
+    if (!grant) {
       throw new ForbiddenException({
         code: "insufficient_scope",
         permission: "candidates.view_history",
@@ -115,20 +177,40 @@ export class CandidatesService {
       }
     }
 
-    // Scorecards go through the feedback-visibility policy — fetched per
-    // application by InterviewsService; here we only include aggregates.
-    const scorecards = await this.prisma.scorecard.findMany({
-      where: { interview: { application: { candidateId } } },
-      include: {
-        orgUser: { select: { id: true, name: true } },
-        interview: {
-          select: {
-            roundName: true,
-            application: { select: { position: { select: { title: true } } } },
+    // Scorecard CONTENT follows the feedback-visibility policy (docs/01
+    // §2.3) here too. The timeline used to list every panelist's verdict, so
+    // a panelist could read the room before writing their own.
+    const [allScorecards, org] = await Promise.all([
+      this.prisma.scorecard.findMany({
+        where: { interview: { application: { candidateId } } },
+        include: {
+          orgUser: { select: { id: true, name: true } },
+          interview: {
+            select: {
+              roundName: true,
+              applicationId: true,
+              application: { select: { position: { select: { title: true } } } },
+            },
           },
         },
-      },
-    });
+      }),
+      this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { settings: true },
+      }),
+    ]);
+    const policy =
+      (org?.settings as { feedback_visibility?: "open" | "hidden_until_submitted" } | null)
+        ?.feedback_visibility ?? "hidden_until_submitted";
+    const scorecards = visibleScorecards(
+      allScorecards.map((sc) => ({
+        ...sc,
+        applicationId: sc.interview.applicationId,
+      })),
+      new Map(applicationFacts(candidate.applications).map((a) => [a.id, a.panelistIds])),
+      viewerId,
+      policy,
+    );
     for (const sc of scorecards) {
       events.push({
         at: sc.submittedAt.toISOString(),
@@ -136,7 +218,6 @@ export class CandidatesService {
         summary: `${sc.orgUser.name} on ${sc.interview.roundName} (${sc.interview.application.position.title}): ${sc.recommendation.replaceAll("_", " ")} (${sc.overallRating}/5)`,
       });
     }
-    void viewerId; // per-viewer scorecard redaction happens on the application endpoint
 
     const now = new Date();
     for (const f of candidate.flags) {
@@ -151,6 +232,9 @@ export class CandidatesService {
     events.sort((a, b) => (a.at < b.at ? 1 : -1));
 
     return {
+      /** How the viewer got in. "panel" is the interviewer's assignment
+       *  grant, which the page uses to explain itself. */
+      access: grant,
       candidate: {
         id: candidate.id,
         display_name: candidate.displayName,

@@ -122,7 +122,11 @@ const ORG_PERSONAS: Persona[] = [
     scope: "Sales & marketing · read-only",
     blurb: "Watches the funnel for the go-to-market teams without touching it.",
     can: ["See the 2 sales and marketing roles and their candidates"],
-    cannot: ["Move, reject or decide anything", "See the engineering roles"],
+    cannot: [
+      "Move, reject or decide anything",
+      "See the engineering roles",
+      "Open a candidate's cross-team history",
+    ],
     tryThis: [
       {
         where: "Positions",
@@ -139,7 +143,11 @@ const ORG_PERSONAS: Persona[] = [
     role: "Interviewer",
     scope: "Assigned interviews only",
     blurb: "Sees only the interviews she sits on. Being on the panel is the permission.",
-    can: ["See her 3 assigned interviews", "File a scorecard for each"],
+    can: [
+      "See her 3 assigned interviews",
+      "File a scorecard for each, then read the rest of the panel's",
+      "Open the candidates on those panels, until a decision is recorded",
+    ],
     cannot: [
       "Browse positions or the pipeline",
       "Read a colleague's scorecard before filing her own",
@@ -148,6 +156,10 @@ const ORG_PERSONAS: Persona[] = [
       {
         where: "My interviews → Padma Menon → Quick file",
         what: "This one is overdue. Leave a competency blank: it records as “not assessed”, which the debrief shows differently from a low score.",
+      },
+      {
+        where: "My interviews → Padma Menon → View scorecards",
+        what: "Once filed: your scorecard, then Ivan's, which stayed hidden until yours was in.",
       },
     ],
     landing: "/interviews",
@@ -602,6 +614,7 @@ const FIRST_AGENCY = 5;
 const GRID_ROWS: { what: string; cells: Cell[] }[] = [
   { what: "Open roles they can see", cells: ["6", "4", "2", "0", "6", "5", "3", "3"] },
   { what: "Which agency sent a candidate", cells: [true, true, true, false, true, "own", "own", "own"] },
+  { what: "Open candidate history", cells: [true, true, false, "panel", false, false, false, false] },
   { what: "Move or reject candidates", cells: [true, true, false, false, false, false, false, false] },
   { what: "Settle duplicate claims", cells: [true, false, false, false, false, false, false, false] },
   { what: "Record hire or no-hire", cells: [false, true, false, false, false, false, false, false] },

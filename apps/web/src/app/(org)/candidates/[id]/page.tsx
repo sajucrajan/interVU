@@ -3,12 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { api, ApiError, apiErrorMessage } from "@/lib/api";
+import { api, ApiError, apiErrorMessage, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
+import { can, useMe } from "@/lib/me";
 import { SectionHead } from "@/components/section-head";
 import { usePageIdentity } from "@/components/sticky-identity";
 import { formatDate } from "@/lib/format";
 
 interface Timeline {
+  /** "panel": in via an interview assignment (docs/09 §4.2), not history scope. */
+  access: "history" | "panel";
   candidate: {
     id: string;
     display_name: string;
@@ -93,26 +97,33 @@ export default function CandidateDossierPage() {
   const [tl, setTl] = useState<Timeline | null>(null);
   const [d, setD] = useState<Dossier | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [denied, setDenied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const me = useMe();
 
   useEffect(() => {
-    api<Timeline>(`/candidates/${id}/timeline`)
-      .then(setTl)
-      .catch(() =>
-        // 401 is redirected centrally in lib/api; anything else here really
-        // is a scope problem rather than a lost session.
-        setError("You don't have access to this candidate's history."),
-      );
-    api<Dossier>(`/candidates/${id}/dossier`)
-      .then(setD)
-      .catch(() => undefined);
+    // 401 is redirected centrally in lib/api. A 403 is a refusal and gets a
+    // page that says so; anything else is a real failure and says THAT,
+    // rather than blaming the viewer's access for a 500.
+    const fail = (e: unknown) =>
+      isForbidden(e) ? setDenied(true) : setError(apiErrorMessage(e));
+    api<Timeline>(`/candidates/${id}/timeline`).then(setTl).catch(fail);
+    api<Dossier>(`/candidates/${id}/dossier`).then(setD).catch(fail);
   }, [id, router]);
 
   usePageIdentity(
     d ? { label: d.display_name, meta: d.reference ?? "Candidate master" } : null,
   );
 
-  if (error) return <main className="wide error">{error}</main>;
+  if (denied) {
+    return (
+      <AccessDenied
+        what="This candidate's file"
+        why="A candidate's history is open to recruiters and hiring managers whose teams the candidate applied to, and to interviewers while they are on one of the candidate's panels."
+      />
+    );
+  }
+  if (error && (!tl || !d)) return <main className="wide error">{error}</main>;
   if (!tl || !d) return <main className="wide muted">Loading…</main>;
 
   const meta = [
@@ -137,6 +148,12 @@ export default function CandidateDossierPage() {
 
   return (
     <main className="wide">
+      {tl.access === "panel" && (
+        <p className="badge room-filed">
+          Open to you because you are on this candidate&apos;s interview panel,
+          until a decision is recorded.
+        </p>
+      )}
       {/* ---- Header: who they are, and how sure we are it is one person ---- */}
       <header className="dossier-head">
         <div className="dossier-id">
@@ -310,7 +327,7 @@ export default function CandidateDossierPage() {
           <SectionHead
             label="Merged identities"
             action={
-              d.merge_events.length > 0 ? (
+              d.merge_events.length > 0 && can(me, "candidates.merge") ? (
                 <button
                   type="button"
                   className="linklike"
@@ -364,9 +381,11 @@ export default function CandidateDossierPage() {
             </>
           )}
 
-          <p className="muted" style={{ fontSize: 13, marginTop: "var(--step-4)" }}>
-            <Link href="/match-reviews">Match review queue →</Link>
-          </p>
+          {can(me, "candidates.merge") && (
+            <p className="muted" style={{ fontSize: 13, marginTop: "var(--step-4)" }}>
+              <Link href="/match-reviews">Match review queue →</Link>
+            </p>
+          )}
         </aside>
       </div>
     </main>

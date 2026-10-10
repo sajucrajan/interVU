@@ -7,6 +7,7 @@ import {
 import type { InterviewCreate, ScorecardCreate } from "@intervu/contracts";
 import type { Access } from "../entitlements/access";
 import { ApplicationsService } from "../applications/applications.service";
+import { canReadScorecards, visibleScorecards } from "../candidates/candidate-access";
 import { PrismaService } from "../prisma/prisma.service";
 import { QuestionsService } from "../questions/questions.service";
 
@@ -70,6 +71,7 @@ export class InterviewsService {
       });
       return interview;
     });
+    return filed;
   }
 
   /** The interviewer home screen: interviews I'm on the panel of. */
@@ -80,6 +82,7 @@ export class InterviewsService {
         application: {
           include: {
             candidate: { select: { id: true, displayName: true } },
+            decision: { select: { outcome: true } },
             position: {
               select: {
                 title: true,
@@ -124,6 +127,9 @@ export class InterviewsService {
            the one field a link needs. */
         position_id: i.application.positionId,
         application_id: i.applicationId,
+        /** Once decided, the panel's window on the candidate closes
+         *  (docs/09 §4.2), so the row stops linking to them. */
+        decided: i.application.decision !== null,
         my_scorecard_submitted: mine,
         /**
          * The rows the debrief matrix is built from. Sending the POSITION's
@@ -138,10 +144,13 @@ export class InterviewsService {
         })),
         panel_size: i.panelists.length,
         panel_filed: i.scorecards.length,
-        /** Interview end → now. The turnaround the debrief later reports. */
-        hours_since_end: mine
-          ? null
-          : Math.max(0, (now - endsAt.getTime()) / 3_600_000),
+        /** Interview end → now. The turnaround the debrief later reports.
+         *  Null until the interview has ended: a future interview owes
+         *  nothing, and clamping it to 0 labelled it "just finished". */
+        hours_since_end:
+          mine || endsAt.getTime() > now
+            ? null
+            : (now - endsAt.getTime()) / 3_600_000,
       };
     });
   }
@@ -231,28 +240,56 @@ export class InterviewsService {
   }
 
   /**
-   * Feedback-visibility policy (docs/01 §2.3): with
-   * feedback_visibility = "hidden_until_submitted" (the default), a panelist
-   * on this application who hasn't submitted their own scorecard sees only
-   * their own (i.e., none). Non-panelist viewers with history access, and
-   * panelists who have submitted, see everything.
+   * The panel's scorecards for one application.
+   *
+   * Who: history access on the application's unit, or a seat on one of its
+   * panels (docs/09 §4.2). This endpoint used to check neither, so any member
+   * of the organization could read any debrief by id.
+   *
+   * What: feedback-visibility (docs/01 §2.3). Under hidden_until_submitted a
+   * panelist who has not filed sees only their own; everyone else sees all.
    */
   async scorecardsForApplication(
     organizationId: string,
     applicationId: string,
+    access: Access,
     viewerId: string,
   ) {
     const application = await this.prisma.application.findFirst({
       where: { id: applicationId, organizationId },
-      include: { position: { select: { organization: { select: { settings: true } } } } },
+      include: {
+        position: {
+          select: { orgUnitId: true, organization: { select: { settings: true } } },
+        },
+        decision: { select: { id: true } },
+        interviews: { select: { panelists: { select: { orgUserId: true } } } },
+      },
     });
     if (!application) throw new NotFoundException("Application not found");
+    const panelistIds = application.interviews.flatMap((i) =>
+      i.panelists.map((p) => p.orgUserId),
+    );
+    const facts = {
+      id: application.id,
+      orgUnitId: application.position.orgUnitId,
+      decided: application.decision !== null,
+      panelistIds,
+    };
+    if (!canReadScorecards(facts, access.unitIdsFor("candidates.view_history"), viewerId)) {
+      throw new ForbiddenException({
+        code: "insufficient_scope",
+        permission: "candidates.view_history",
+      });
+    }
 
     const scorecards = await this.prisma.scorecard.findMany({
       where: { interview: { applicationId } },
       include: {
         orgUser: { select: { id: true, name: true } },
         interview: { select: { id: true, roundName: true } },
+        competencies: {
+          select: { rating: true, note: true, skill: { select: { id: true, name: true } } },
+        },
       },
       orderBy: { submittedAt: "asc" },
     });
@@ -260,15 +297,11 @@ export class InterviewsService {
     const settings = (application.position.organization.settings ?? {}) as {
       feedback_visibility?: "open" | "hidden_until_submitted";
     };
-    const policy = settings.feedback_visibility ?? "hidden_until_submitted";
-    if (policy === "open") return scorecards;
-
-    const isPanelist = await this.prisma.interviewPanelist.findFirst({
-      where: { orgUserId: viewerId, interview: { applicationId } },
-    });
-    if (!isPanelist) return scorecards;
-
-    const hasSubmitted = scorecards.some((s) => s.orgUser.id === viewerId);
-    return hasSubmitted ? scorecards : scorecards.filter((s) => s.orgUser.id === viewerId);
+    return visibleScorecards(
+      scorecards.map((s) => ({ ...s, applicationId })),
+      new Map([[applicationId, panelistIds]]),
+      viewerId,
+      settings.feedback_visibility ?? "hidden_until_submitted",
+    ).map(({ applicationId: _a, ...s }) => s);
   }
 }

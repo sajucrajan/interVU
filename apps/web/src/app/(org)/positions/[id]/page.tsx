@@ -149,10 +149,17 @@ export default function PositionDetailPage() {
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
+
+  // Only the full view releases to vendors. A panelist reading the brief has
+  // no positions.view, so asking for the vendor list just collected a 403.
+  const fullView = p !== null && p.audience !== "interviewer";
+  useEffect(() => {
+    if (!fullView) return;
     api<VendorOrg[]>("/vendors")
       .then(setVendors)
       .catch(() => setVendors([]));
-  }, [refresh]);
+  }, [fullView]);
 
   const act = useCallback(
     async (fn: () => Promise<unknown>) => {

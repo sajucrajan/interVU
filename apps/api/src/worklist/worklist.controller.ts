@@ -22,6 +22,8 @@ export interface WorkItemGroup {
   late: number;
   /** Of those, how many tipped over since Monday. */
   late_this_week: number;
+  /** Who the queue waits on: "you", or the role that works it. */
+  waiting_on: string;
 }
 
 const STAGE_ORDER = ["submitted", "screening", "interviewing", "offer"];
@@ -67,6 +69,7 @@ export class WorklistController {
     const canArbitrate = access.can("submissions.arbitrate");
     const canDecide = access.can("decisions.record");
     const canTransition = access.can("applications.transition");
+    const seesPipeline = access.can("submissions.view");
 
     const thresholds = await this.sla.thresholds(organizationId);
 
@@ -78,6 +81,7 @@ export class WorklistController {
       activeApplications,
       upcomingInterviews,
       recentSubmissions,
+      panelSeats,
       offers,
     ] = await Promise.all([
       canReview
@@ -92,16 +96,21 @@ export class WorklistController {
             select: { receivedAt: true },
           })
         : [],
+      // Only interviews that have already started can owe a scorecard; the
+      // end-time cut is applied below, since the duration lives on the row.
+      // Counting next week's interview here told an interviewer who had just
+      // filed everything that a scorecard was still outstanding.
       this.prisma.interview.findMany({
         where: {
           organizationId,
           panelists: { some: { orgUserId: userId } },
           scorecards: { none: { orgUserId: userId } },
           status: { in: ["scheduled", "completed"] },
+          scheduledAt: { lte: new Date(now) },
         },
-        select: { scheduledAt: true },
+        select: { scheduledAt: true, durationMin: true },
       }),
-      canDecide
+      canDecide || seesPipeline
         ? this.prisma.application.findMany({
             where: {
               organizationId,
@@ -133,6 +142,9 @@ export class WorklistController {
           organizationId,
           panelists: { some: { orgUserId: userId } },
           status: "scheduled",
+          // "Next up" is the future. A scheduled interview that already ran is
+          // a scorecard owed, and is counted in the queue instead.
+          scheduledAt: { gte: new Date(now) },
         },
         include: {
           application: {
@@ -164,6 +176,11 @@ export class WorklistController {
         },
         orderBy: { receivedAt: "desc" },
         take: 6,
+      }),
+      // Whether this person ever sits on a panel. It decides whether "My
+      // interviews" means anything to them.
+      this.prisma.interviewPanelist.count({
+        where: { orgUserId: userId, interview: { organizationId } },
       }),
       // Time to OFFER, not to hire: offer acceptance is not modelled yet
       // (handoff item #16), so claiming "time to hire" would overstate it.
@@ -273,17 +290,27 @@ export class WorklistController {
       };
     };
 
-    const scorecardOldest = oldest(myScorecardRows.map((i) => i.scheduledAt));
+    // The scorecard clock starts when the interview ENDS, not when it starts.
+    const owedScorecardSince = myScorecardRows
+      .map((i) => new Date(i.scheduledAt.getTime() + i.durationMin * 60_000))
+      .filter((end) => end.getTime() <= now);
+    const scorecardOldest = oldest(owedScorecardSince);
     const reviewOldest = oldest(matchReviewRows.map((r) => r.createdAt));
     const dupOldest = oldest(duplicateRows.map((s) => s.receivedAt));
     const decisionOldest = oldest(awaitingDecisionRows.map(enteredStageAt));
     const unscreenedOldest = oldest(unscreenedRows.map(enteredStageAt));
 
-    const groups: WorkItemGroup[] = (
+    // Each queue carries who can act on it. A queue the viewer can see but not
+    // work (a project manager looking at unscreened submissions) used to be
+    // headlined "waiting on you"; it now goes to `watching` instead, so the
+    // count at the top of Today only ever means work this person can do.
+    const all: (WorkItemGroup & { mine: boolean })[] = (
       [
         {
           key: "unscreened",
-          label: "New submissions to screen",
+          mine: canTransition,
+          waiting_on: "recruiters",
+          label: canTransition ? "New submissions to screen" : "New submissions not yet screened",
           sub: `Across ${new Set(unscreenedRows.map((a) => a.positionId)).size} role${
             new Set(unscreenedRows.map((a) => a.positionId)).size === 1 ? "" : "s"
           } · ${tier1} from tier-1 vendors`,
@@ -296,6 +323,8 @@ export class WorklistController {
         },
         {
           key: "match_reviews",
+          mine: canReview,
+          waiting_on: "recruiters",
           label: "Uncertain identity matches",
           sub: reviewScoreRange,
           count: matchReviewRows.length,
@@ -307,7 +336,9 @@ export class WorklistController {
         },
         {
           key: "decisions",
-          label: "Decisions awaiting you",
+          mine: canDecide,
+          waiting_on: "hiring managers",
+          label: canDecide ? "Decisions awaiting you" : "Candidates awaiting a decision",
           sub: "All interviews complete, scorecards in",
           count: awaitingDecisionRows.length,
           href: "/pipeline?filter=awaiting_decision",
@@ -318,17 +349,21 @@ export class WorklistController {
         },
         {
           key: "scorecards",
+          mine: true,
+          waiting_on: "you",
           label: "Your scorecards not submitted",
           sub: "Feedback stays hidden until you file yours",
-          count: myScorecardRows.length,
+          count: owedScorecardSince.length,
           href: "/interviews",
           tone: "normal",
           oldest_at: scorecardOldest,
           ...stateFor(scorecardOldest, "scorecard_due"),
-          ...lateness(myScorecardRows.map((i) => i.scheduledAt), "scorecard_due"),
+          ...lateness(owedScorecardSince, "scorecard_due"),
         },
         {
           key: "duplicates",
+          mine: canArbitrate,
+          waiting_on: "recruiters",
           label: "Duplicate submission contests",
           sub: "Two vendors claim the same candidate",
           count: duplicateRows.length,
@@ -338,8 +373,11 @@ export class WorklistController {
           ...stateFor(dupOldest, "vendor_ack"),
           ...lateness(duplicateRows.map((s) => s.receivedAt), "vendor_ack"),
         },
-      ] as WorkItemGroup[]
+      ] as (WorkItemGroup & { mine: boolean })[]
     ).filter((g) => g.count > 0);
+    const strip = ({ mine: _mine, ...g }: (typeof all)[number]) => g;
+    const groups: WorkItemGroup[] = all.filter((g) => g.mine).map(strip);
+    const watching = seesPipeline ? all.filter((g) => !g.mine).map(strip) : [];
 
     // Per-stage health: the split that says whether a queue is merely big or
     // actually late, plus the median dwell.
@@ -364,8 +402,9 @@ export class WorklistController {
     // What the header counts is what the queue below it shows: the items that
     // are actually late. Counting only stage dwell here read as "0 breached"
     // directly above a row stamped "24h SLA breached".
-    const slaBreached = groups.reduce((n, g) => n + g.late, 0);
-    const breachedSinceMonday = groups.reduce((n, g) => n + g.late_this_week, 0);
+    const shown = [...groups, ...watching];
+    const slaBreached = shown.reduce((n, g) => n + g.late, 0);
+    const breachedSinceMonday = shown.reduce((n, g) => n + g.late_this_week, 0);
 
     // Median days to hire, and the same figure for the preceding window, so the
     // delta is measured rather than guessed.
@@ -387,6 +426,13 @@ export class WorklistController {
         roles: [...new Set(tenant.org!.memberships.map((m) => m.roleName))],
       },
       total: groups.reduce((n, g) => n + g.count, 0),
+      /** False for a read-only role: nothing can ever wait on them, so Today
+       *  shows them where things stand instead of an empty to-do list. */
+      actionable:
+        canTransition || canReview || canArbitrate || canDecide || panelSeats > 0,
+      /** Whether "My interviews" can ever have anything in it for this person. */
+      on_panels: panelSeats > 0,
+      watching,
       /** The three figures on the page header. `delta` is null when there is
        *  no comparable prior window — better an absent delta than a made-up one. */
       head_stats: {

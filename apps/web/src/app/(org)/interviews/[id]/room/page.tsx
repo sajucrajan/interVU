@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
 import { SectionHead } from "@/components/section-head";
 import { VoteButtons } from "@/components/vote";
 import { usePageIdentity } from "@/components/sticky-identity";
 import { formatDate, formatTime } from "@/lib/format";
 import { ResumeText } from "@/components/resume-text";
+import { PanelScorecards } from "@/components/panel-scorecards";
+import { useMe } from "@/lib/me";
 
 interface Competency {
   skill_id: string;
@@ -201,12 +204,18 @@ export default function InterviewRoomPage() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // A filed round opens on what was filed, not on a blank form: the old
+  // banner said "anything below is a new draft" over empty inputs, which read
+  // as if the scorecard had been lost.
+  const [revising, setRevising] = useState(false);
+  const [denied, setDenied] = useState(false);
+  const me = useMe();
   const loaded = useRef(false);
 
   useEffect(() => {
     api<Packet>(`/interviews/${id}/room`)
       .then(setPacket)
-      .catch((e) => setError(apiErrorMessage(e)));
+      .catch((e) => (isForbidden(e) ? setDenied(true) : setError(apiErrorMessage(e))));
     api<{ payload: DraftPayload }>(`/interviews/${id}/draft`)
       .then((d) => {
         setRatings(d.payload?.ratings ?? {});
@@ -280,6 +289,15 @@ export default function InterviewRoomPage() {
       : null,
   );
 
+  if (denied) {
+    return (
+      <AccessDenied
+        what="This interview room"
+        why="The room is open to the people on this interview's panel."
+        back={{ href: "/interviews", label: "My interviews" }}
+      />
+    );
+  }
   if (error && !packet) {
     return (
       <main className="wide">
@@ -330,9 +348,9 @@ export default function InterviewRoomPage() {
         </div>
       </header>
 
-      {packet.my_scorecard_filed && (
-        <p className="badge ok room-filed">
-          You have already filed for this round — anything below is a new draft.
+      {packet.my_scorecard_filed && revising && (
+        <p className="badge warn room-filed">
+          Revising — filing again replaces the scorecard you already filed.
         </p>
       )}
 
@@ -473,6 +491,21 @@ export default function InterviewRoomPage() {
         </div>
 
         {/* ---- right: what you are here to decide ---- */}
+        {packet.my_scorecard_filed && !revising ? (
+          <aside className="room-right">
+            <SectionHead label="Filed" />
+            <PanelScorecards
+              applicationId={packet.application_id}
+              interviewId={id}
+              viewerId={me?.id ?? null}
+              panelSize={packet.panel.length}
+              panelFiled={packet.panel.filter((p) => p.filed).length}
+            />
+            <button type="button" className="secondary" onClick={() => setRevising(true)}>
+              Revise my scorecard
+            </button>
+          </aside>
+        ) : (
         <aside className="room-right">
           <SectionHead label={`Score as you go · ${assessed}/${packet.competencies.length}`} />
           <p className="muted room-hint">
@@ -556,6 +589,7 @@ export default function InterviewRoomPage() {
             reaches the vendor — only a released feedback packet does.
           </p>
         </aside>
+        )}
       </div>
     </main>
   );

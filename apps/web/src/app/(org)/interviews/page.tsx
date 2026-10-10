@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
 import { SectionHead } from "@/components/section-head";
+import { PageHead } from "@/components/page-head";
+import { PanelScorecards } from "@/components/panel-scorecards";
+import { useMe } from "@/lib/me";
 
 interface Competency {
   skill_id: string;
@@ -25,6 +28,8 @@ interface MyInterview {
   position_reference: string | null;
   position_id: string;
   application_id: string;
+  /** Decided applications close the panel's window on the candidate. */
+  decided: boolean;
   my_scorecard_submitted: boolean;
   competencies: Competency[];
   panel_size: number;
@@ -65,8 +70,10 @@ const overdueLabel = (h: number) =>
  */
 export default function MyInterviewsPage() {
   const router = useRouter();
+  const me = useMe();
   const [interviews, setInterviews] = useState<MyInterview[] | null>(null);
   const [scoring, setScoring] = useState<string | null>(null);
+  const [reading, setReading] = useState<string | null>(null);
 
   const refresh = useCallback(
     () =>
@@ -100,19 +107,17 @@ export default function MyInterviewsPage() {
 
   return (
     <main className="wide">
-      <header className="page-head">
-        <div>
-          <div className="mono-label">Panel assignments · your scope</div>
-          <h1 style={{ marginTop: 12 }}>My interviews</h1>
-          <p className="dossier-meta" style={{ maxWidth: "62ch" }}>
-            {owed.length === 0
-              ? "Nothing waiting on you."
-              : `${owed.length} scorecard${owed.length === 1 ? "" : "s"} outstanding${
-                  late > 0 ? `, ${late} past ${TURNAROUND_SLA}h` : ""
-                }. A debrief stays sealed until every panelist has filed.`}
-          </p>
-        </div>
-      </header>
+      <PageHead
+        kicker="Panel assignments"
+        title="My interviews"
+        lede={
+          owed.length === 0
+            ? "Nothing waiting on you. After each interview, file a scorecard here — the panel's feedback opens to you once yours is in."
+            : `${owed.length} scorecard${owed.length === 1 ? "" : "s"} to file${
+                late > 0 ? `, ${late} past ${TURNAROUND_SLA}h` : ""
+              }. The debrief stays sealed until every panelist has filed, and you see the others' scorecards once you have filed yours.`
+        }
+      />
 
       {owed.length > 0 && (
         <>
@@ -138,6 +143,10 @@ export default function MyInterviewsPage() {
           {upcoming.map((i) => (
             <InterviewRow key={i.id} interview={i} open={false} onToggle={null} />
           ))}
+          <p className="muted iv-hint">
+            Open the room ahead of time to read the resume and pick questions;
+            your notes save as you go.
+          </p>
         </>
       )}
 
@@ -145,7 +154,14 @@ export default function MyInterviewsPage() {
         <>
           <SectionHead label={`Filed (${done.length})`} />
           {done.map((i) => (
-            <InterviewRow key={i.id} interview={i} open={false} onToggle={null} />
+            <InterviewRow
+              key={i.id}
+              interview={i}
+              open={reading === i.id}
+              onToggle={null}
+              onRead={() => setReading(reading === i.id ? null : i.id)}
+              viewerId={me?.id ?? null}
+            />
           ))}
         </>
       )}
@@ -162,21 +178,33 @@ function InterviewRow({
   open,
   onToggle,
   onDone,
+  onRead,
+  viewerId = null,
 }: {
   interview: MyInterview;
   open: boolean;
   onToggle: (() => void) | null;
   onDone?: () => void;
+  /** Filed rows: show what you filed and the panel's scorecards. */
+  onRead?: () => void;
+  viewerId?: string | null;
 }) {
   const overdue = (i.hours_since_end ?? 0) > TURNAROUND_SLA;
+  const upcoming = !i.my_scorecard_submitted && i.hours_since_end === null;
 
   return (
     <div className="iv-row">
       <div className="iv-head">
         <div className="iv-who">
-          <Link href={`/candidates/${i.candidate.id}`} className="iv-name">
-            {i.candidate.displayName}
-          </Link>
+          {/* The panel's window on the candidate runs from scheduling to the
+              decision (docs/09 §4.2); after that the name is just a name. */}
+          {i.decided ? (
+            <span className="iv-name">{i.candidate.displayName}</span>
+          ) : (
+            <Link href={`/candidates/${i.candidate.id}`} className="iv-name">
+              {i.candidate.displayName}
+            </Link>
+          )}
           <div className="iv-meta">
             {/* The role, openable. A panelist without positions.view gets the
                 brief at this same URL — see the positions controller. */}
@@ -218,8 +246,28 @@ function InterviewRow({
               </button>
             </>
           )}
+          {upcoming && (
+            <Link href={`/interviews/${i.id}/room`} className="room-open">
+              Prepare
+            </Link>
+          )}
+          {onRead && (
+            <button type="button" className="secondary" onClick={onRead}>
+              {open ? "Hide scorecards" : "View scorecards"}
+            </button>
+          )}
         </div>
       </div>
+
+      {open && onRead && (
+        <PanelScorecards
+          applicationId={i.application_id}
+          interviewId={i.id}
+          viewerId={viewerId}
+          panelSize={i.panel_size}
+          panelFiled={i.panel_filed}
+        />
+      )}
 
       {open && onDone && (
         <ScorecardForm

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
 import { PageHead } from "@/components/page-head";
 import { formatDateTime } from "@/lib/format";
 
@@ -39,12 +40,15 @@ export default function MatchReviewsPage() {
   const router = useRouter();
   const [items, setItems] = useState<ReviewItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [denied, setDenied] = useState(false);
 
+  // A swallowed 403 left this page on "Loading…" forever for anyone without
+  // candidates.merge who followed a link here.
   const refresh = useCallback(
     () =>
       api<ReviewItem[]>("/match-reviews")
         .then(setItems)
-        .catch(() => undefined),
+        .catch((e) => (isForbidden(e) ? setDenied(true) : setError(apiErrorMessage(e)))),
     [router],
   );
 
@@ -62,6 +66,15 @@ export default function MatchReviewsPage() {
     }
   }
 
+  if (denied) {
+    return (
+      <AccessDenied
+        what="Match reviews"
+        why="Deciding whether two submissions are the same person is a recruiter's call — it needs the permission to merge candidates."
+      />
+    );
+  }
+  if (!items && error) return <main className="wide error">{error}</main>;
   if (!items) return <main className="wide muted">Loading…</main>;
 
   return (

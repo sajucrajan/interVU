@@ -4,7 +4,8 @@ import Link from "next/link";
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
 import { SectionHead } from "@/components/section-head";
 import { usePageIdentity } from "@/components/sticky-identity";
 import { formatDate } from "@/lib/format";
@@ -106,6 +107,7 @@ export default function DebriefPage() {
   const router = useRouter();
   const [d, setD] = useState<Debrief | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [denied, setDenied] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Composer state.
@@ -133,7 +135,7 @@ export default function DebriefPage() {
           setEdited(!r.debrief.packet.isDraft);
         }
       })
-      .catch((e) => setError(apiErrorMessage(e)));
+      .catch((e) => (isForbidden(e) ? setDenied(true) : setError(apiErrorMessage(e))));
   }, [id]);
 
   useEffect(load, [load]);
@@ -151,7 +153,16 @@ export default function DebriefPage() {
       : null,
   );
 
-  if (error) return <main className="wide error">{error}</main>;
+  if (denied) {
+    return (
+      <AccessDenied
+        what="This debrief"
+        why="The debrief is for the people running the hire in this team. Panelists see the panel's scorecards on My interviews once they have filed their own."
+        back={{ href: "/interviews", label: "My interviews" }}
+      />
+    );
+  }
+  if (error && !d) return <main className="wide error">{error}</main>;
 
   if (!d) return <main className="wide muted">Loading…</main>;
 

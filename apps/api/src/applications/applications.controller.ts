@@ -101,9 +101,11 @@ export class ApplicationsController {
 
   @Get(":id/scorecards")
   async scorecards(@Tenant() tenant: TenantContext, @Param("id", ParseUUIDPipe) id: string) {
+    const access = await this.authz.access(tenant);
     return this.interviews.scorecardsForApplication(
       tenant.org!.organizationId,
       id,
+      access,
       tenant.org!.user.id,
     );
   }
