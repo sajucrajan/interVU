@@ -53,122 +53,136 @@ const STEPS: {
   who: string;
   needs: string | null;
   where: string | null;
+  /** What the screen is called in the app, for the link text. */
+  screen: string | null;
   body: string;
   aside?: string;
 }[] = [
   {
     n: "01",
-    title: "Build the organization",
+    title: "Set up your teams",
     who: "Organization admin",
     needs: "org.manage_structure",
     where: "/admin/teams",
+    screen: "Admin → Teams",
     body:
-      "Units are the unit of visibility, not decoration. A hiring manager granted a role at Engineering does not see GTM roles hidden behind an error message — those positions do not exist for that account. Create the tree before the people, because a grant needs somewhere to point.",
+      "Add your departments and teams, for example Engineering with Platform and Data under it. This matters because people see only the teams they are given: a hiring manager for Engineering sees Engineering's roles and candidates, and nothing from Sales. Set up the teams first, so that when you add people you can say which team each one works in.",
   },
   {
     n: "02",
-    title: "Add people and grant roles",
+    title: "Add people and give them roles",
     who: "Organization admin",
     needs: "org.manage_users",
     where: "/admin/people",
+    screen: "Admin → People & access",
     body:
-      "Invite by email; the person sets their own password from the activation link, so nobody ever types a colleague's credentials. A grant is a role AT a scope — recruiter across the organization, hiring manager at Engineering only.",
+      "Invite each person by email; they choose their own password from the link they receive. Then give them a role and say where it applies: a recruiter across the whole company, or a hiring manager for Engineering only.",
     aside:
-      "One person can hold several. Grants union, so someone who is a hiring manager at Platform and an interviewer everywhere gets both sets of permissions, and losing one never silently strips the other.",
+      "Someone can have more than one role, and gets everything each role allows. Removing one role never takes away what another one gives.",
   },
   {
     n: "03",
     title: "Open a position",
-    who: "Recruiter or hiring manager",
+    who: "Recruiter",
     needs: "positions.create",
     where: "/positions/new",
+    screen: "Positions → New",
     body:
-      "A title is not a brief. The skill matrix — each competency marked must-have or nice-to-have, with a level and years — is what screening compares a CV against and what the interview room shows a panel. Fill it in and the rest of the product has something to reason about; leave it empty and screening has nothing to say.",
+      "Describe the role, including the skills it needs: which are essential, which are nice to have, at what level and for how many years. Those skills are what candidates are screened against later and what interviewers are asked to assess, so the more complete they are, the more useful the rest of the product becomes.",
   },
   {
     n: "04",
-    title: "Choose how it is sourced",
+    title: "Decide who can find candidates",
     who: "Recruiter",
     needs: "positions.release",
     where: "/positions",
+    screen: "Positions",
     body:
-      "Vendor-sourced, direct-only, or hybrid with a date when agencies join. Hybrid is the interesting one: your careers page gets a head start measured in days, and the analytics later tell you whether that head start was worth the fee you avoided.",
+      "Choose one of three ways: only through agencies, only through your own careers page and referrals, or both — your own channels first, with agencies joining on a date you set. Analytics later shows whether hiring directly saved you agency fees.",
   },
   {
     n: "05",
-    title: "Release to vendors",
+    title: "Share the role with agencies",
     who: "Recruiter",
     needs: "positions.release",
     where: "/positions",
+    screen: "Positions",
     body:
-      "Release is per vendor and per tier, so a tier-1 agency can see a role a week before tier 2. Vendors are emailed and the role appears in their portal. Nothing is shared beyond what you released — a vendor never sees your pipeline, your other vendors, or any candidate but their own.",
+      "Choose which agencies see the role, and when. Your preferred agencies can see it first and the others a few days later. Each agency is emailed and the role appears in its portal. An agency only ever sees the roles you shared with it and the candidates it sent — never your other agencies or your internal notes.",
   },
   {
     n: "06",
-    title: "A vendor submits a candidate",
-    who: "Vendor recruiter",
+    title: "An agency submits a candidate",
+    who: "Agency recruiter",
     needs: null,
     where: "/vendor",
+    screen: "Agency portal",
     body:
-      "The vendor uploads a CV and the system probes for a duplicate before accepting it — same person, already submitted, possibly by someone else. Ownership is decided once, at submission, and that record is what an invoice is later argued from.",
+      "The agency enters the candidate's details and CV. InterVU checks straight away whether this person is already in your pipeline, even under a slightly different name or email. The first agency to submit a person for a role is recorded as the one who introduced them — the record you rely on if an agency fee is ever disputed.",
     aside:
-      "A direct applicant has no vendor and no submission, so no fee. That is why a direct application keeps a null submission link rather than being given a placeholder one.",
+      "People who apply directly have no agency attached, so no fee is owed for them.",
   },
   {
     n: "07",
-    title: "Screen against the role",
+    title: "Screen the candidate",
     who: "Recruiter",
     needs: "applications.reject",
     where: "/pipeline",
+    screen: "Pipeline",
     body:
-      "The screening view is position-first: the role's matrix on the left, whether the CV evidences each line, and what the candidate mentions that this role never asked for. Coverage is a sort key, not a verdict — absence from a resume is not absence of the skill, and rejecting on it filters for CV writing rather than ability.",
+      "The screening view puts the role's required skills next to the candidate's CV and shows which ones the CV mentions. Use it to decide who to interview first, not as an automatic filter: a skill missing from a CV is not proof the person lacks it.",
     aside:
-      "A rejection here needs a reason in your own words. It is what a colleague reads before re-screening the same person in three months.",
+      "If you reject someone here, write a short reason. Whoever looks at this person next — perhaps for another role — will read it.",
   },
   {
     n: "08",
-    title: "Schedule the panel",
+    title: "Schedule the interviews",
     who: "Recruiter",
     needs: "interviews.schedule",
-    where: "/interviews",
+    where: "/pipeline",
+    screen: "Pipeline",
     body:
-      "Panelists are matched on the skills the role actually needs, so a Kubernetes must-have suggests people who can assess it. From the moment the card enters the interviewing lane the outcome belongs to the loop — see the stage table below.",
+      "Pick a time and the interviewers. InterVU suggests interviewers who know the skills the role needs. Once a candidate reaches the interview stage, the final decision belongs to the hiring manager, not to the recruiter alone.",
   },
   {
     n: "09",
-    title: "Interview, with the room open",
+    title: "Run the interview",
     who: "Interviewer",
     needs: null,
     where: "/interviews",
+    screen: "My interviews",
     body:
-      "The interview room puts the candidate's highlights, the role's requirements, the must-haves with no evidence, and the shared question bank on one screen. Questions carry model answers and a thumbs vote, so the bank sorts itself by what colleagues found useful rather than by who wrote it.",
+      "Each interviewer opens the interview from My interviews. One screen shows the candidate's CV, what the role requires, which essential skills the CV doesn't show yet, and suggested questions from a shared question bank. Interviewers vote on questions, so the most useful ones rise to the top.",
   },
   {
     n: "10",
-    title: "File a scorecard, then debrief",
-    who: "Interviewer, then hiring manager",
+    title: "File scorecards and compare them",
+    who: "Interviewers, then the hiring manager",
     needs: "decisions.record",
     where: "/pipeline",
+    screen: "Pipeline → Debrief",
     body:
-      "Scorecards stay sealed until every panelist has filed, so nobody anchors on a colleague's rating. The debrief then shows the full matrix, the panel mean and how far apart the panel was — divergence being the number worth talking about.",
+      "Each interviewer files a scorecard. Nobody can read a colleague's scorecard until they have filed their own, so no one is swayed by what others wrote. The hiring manager then sees all the scores side by side, including where the interviewers disagreed most — usually the thing worth discussing.",
   },
   {
     n: "11",
-    title: "Record the decision",
+    title: "Make the decision",
     who: "Hiring manager",
     needs: "decisions.record",
     where: "/pipeline",
+    screen: "Pipeline",
     body:
-      "Offer or rejection, once, against the application. The owning vendor is told the coarse status only — interviewing, offered, not selected — never a rating, never a comment, never who said it.",
+      "Record an offer or a rejection. The agency that sent the candidate sees only a simple status — interviewing, offered or not selected. It never sees scores, comments or who said what.",
   },
   {
     n: "12",
-    title: "Read what it cost",
-    who: "Anyone with the view",
+    title: "See what worked",
+    who: "Anyone who can view positions",
     needs: "positions.view",
     where: "/analytics",
+    screen: "Analytics",
     body:
-      "Where hires come from, what each channel costs, how long each stage takes and which vendors send candidates you actually hire. This is the argument for renegotiating a contract, and it is only as good as the source data the steps above collected.",
+      "See where your hires came from, how long each stage takes, and which agencies send candidates you actually hire. Useful when it is time to review an agency contract.",
   },
 ];
 
@@ -196,9 +210,10 @@ export default function HowItWorksPage() {
         <div className="mono-label">InterVU · how it works</div>
         <h1>From an open role to a signed offer</h1>
         <p className="hiw-lede">
-          Twelve steps, in the order they happen. Every permission, stage and
-          role below is read live from the running API — not restated here — so
-          this page cannot drift away from what the software actually does.
+          The twelve steps of hiring in InterVU, in the order they happen: who
+          does each one, and where in the app. The tables further down are
+          taken straight from the running system, so they always match what
+          each role can really do.
         </p>
         <p className="muted hiw-sub">
           <Link href="/demo">Try it with a real account →</Link>
@@ -230,15 +245,17 @@ export default function HowItWorksPage() {
                     title={
                       w && !known.has(s.needs)
                         ? "This permission no longer exists — the page is out of date."
-                        : labelOf(s.needs)
+                        : `Permission: ${s.needs}`
                     }
                   >
-                    {s.needs}
+                    {/* The permission's own label, as the role editor shows
+                        it — the code behind it is in the tooltip. */}
+                    Needs: {labelOf(s.needs)}
                   </span>
                 )}
                 {s.where && (
                   <Link className="hiw-where" href={s.where}>
-                    {s.where}
+                    {s.screen ?? s.where}
                   </Link>
                 )}
               </div>
@@ -251,10 +268,10 @@ export default function HowItWorksPage() {
 
       <SectionHead label="The pipeline" />
       <p className="muted hiw-note">
-        Marked stages are owned by the panel: once a card is here, a rejection
-        is a loop&apos;s conclusion and needs <code>decisions.record</code>, not
-        a recruiter&apos;s screening right. The card moving is what counts — an
-        interview record appears later, when a time is agreed.
+        Every candidate moves through these stages. From the interview stage
+        on (marked below), only someone allowed to record hiring decisions —
+        usually the hiring manager — can reject the candidate. Before that, a
+        recruiter can turn someone down at screening.
       </p>
       <div className="hiw-stages">
         {(w?.stages ?? []).map((s) => (
@@ -264,7 +281,9 @@ export default function HowItWorksPage() {
           >
             <div className="mono-label">{s.label}</div>
             <p>{s.blurb}</p>
-            {s.panel_owned && <span className="badge warn">panel owns it</span>}
+            {s.panel_owned && (
+              <span className="badge warn">hiring manager decides</span>
+            )}
           </div>
         ))}
       </div>
@@ -281,11 +300,10 @@ export default function HowItWorksPage() {
 
       <SectionHead label="Who can do what" />
       <p className="muted hiw-note">
-        The built-in roles and their permissions, exactly as the API enforces
-        them. Organizations add their own roles on top; these are the ones that
-        always exist. Note that a recruiter screens and rejects but does not
-        hold <code>decisions.record</code> — recording a panel&apos;s verdict is
-        a hiring manager&apos;s call.
+        What each built-in role is allowed to do. Your organization can also
+        create its own roles. Notice that a recruiter can screen and turn
+        people down early, but the final hire-or-not decision after interviews
+        belongs to the hiring manager.
       </p>
       {w && (
         <div className="hiw-matrix-scroll">
@@ -310,11 +328,7 @@ export default function HowItWorksPage() {
                   </tr>
                   {g.permissions.map((p) => (
                     <tr key={p.key}>
-                      <td>
-                        {p.label}
-                        <br />
-                        <code className="hiw-key">{p.key}</code>
-                      </td>
+                      <td title={p.key}>{p.label}</td>
                       {w.roles.map((r) => (
                         <td key={r.key} className="hiw-cell">
                           {r.permissions.includes(p.key) ? (
@@ -337,31 +351,30 @@ export default function HowItWorksPage() {
         </div>
       )}
 
-      <SectionHead label="Rules that hold everywhere" />
+      <SectionHead label="Five things that are always true" />
       <ul className="hiw-rules">
         <li>
-          <strong>A vendor sees only its own.</strong> Its submissions, the
-          positions released to it, the coarse status of its candidates. Never
-          your pipeline, your other vendors, or a rating.
+          <strong>Agencies see only their own work.</strong> The roles you
+          shared with them, the candidates they sent, and a simple status for
+          each. Never your other agencies, your internal notes or anyone&apos;s
+          scores.
         </li>
         <li>
-          <strong>Scope is real, not cosmetic.</strong> Out-of-scope positions
-          are absent, not forbidden — there is no error message to read and no
-          title to infer.
+          <strong>People see only their own teams.</strong> Roles and candidates
+          from other teams don&apos;t appear at all — not even as a locked item.
         </li>
         <li>
-          <strong>Grants union.</strong> Hold three roles and you get every
-          permission any of them carries. Enforcement always keys on the
-          permission, never on a role name, so a custom role works exactly like
-          a built-in one.
+          <strong>Several roles add up.</strong> Someone with two roles can do
+          everything either role allows.
         </li>
         <li>
-          <strong>Ownership is decided once.</strong> At submission, by the
-          duplicate probe — not later, by whoever argues hardest.
+          <strong>The first agency to submit a candidate is on record.</strong>{" "}
+          That is settled the moment they submit, so there is nothing to argue
+          about later.
         </li>
         <li>
-          <strong>Feedback is sealed until it is complete.</strong> No panelist
-          sees another&apos;s scorecard before filing their own.
+          <strong>Interviewers can&apos;t copy each other.</strong> No one sees a
+          colleague&apos;s scorecard until they have filed their own.
         </li>
       </ul>
 
