@@ -22,6 +22,7 @@ const SettingsPatch = z
     notifications: z
       .object({
         email_enabled: z.boolean().optional(),
+        scorecard_reminders: z.boolean().optional(),
         slack_webhook_url: z.string().url().max(500).nullable().optional(),
         teams_webhook_url: z.string().url().max(500).nullable().optional(),
       })

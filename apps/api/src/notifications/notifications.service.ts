@@ -8,7 +8,8 @@ import { DeliveryWorkerService } from "./delivery-worker.service";
  *   slack_webhook_url  → Slack incoming webhook
  *   teams_webhook_url  → Microsoft Teams incoming webhook
  *   registered webhook_endpoints → HMAC-signed JSON to anything else
- *   email_enabled      → gates outbound SMTP (vendor-facing mail)
+ *   email_enabled      → gates outbound SMTP (vendor-facing mail, reminders)
+ *   scorecard_reminders → panelist scorecard reminders (default on)
  *
  * Dispatch is DURABLE: each channel send is persisted as a
  * notification_delivery row and drained by DeliveryWorkerService with
@@ -24,6 +25,8 @@ export interface OrgEvent {
 
 export interface NotificationSettings {
   email_enabled?: boolean;
+  /** Emails to panelists who owe a scorecard; on unless set to false. */
+  scorecard_reminders?: boolean;
   slack_webhook_url?: string | null;
   teams_webhook_url?: string | null;
 }

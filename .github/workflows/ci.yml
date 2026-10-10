@@ -81,6 +81,73 @@ jobs:
       - name: Seed is idempotent
         run: pnpm --filter @intervu/api db:seed
 
+  # Who may call what (tools/access-check.mjs): every demo account calls every
+  # endpoint and each answer is checked against docs/09 — permission, scope,
+  # panel seats — plus a second organization trying every Acme record. Hiding
+  # a link is not access control; this asks the server.
+  access-check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: intervu
+          POSTGRES_PASSWORD: intervu
+          POSTGRES_DB: intervu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U intervu"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://intervu:intervu@localhost:5432/intervu
+      DIRECT_DATABASE_URL: postgresql://intervu:intervu@localhost:5432/intervu
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm via corepack
+        run: corepack enable pnpm
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build API
+        run: pnpm exec turbo run build --filter=@intervu/api
+
+      - name: Migrate and seed both organizations
+        run: |
+          pnpm --filter @intervu/api db:migrate
+          pnpm --filter @intervu/api db:seed
+          pnpm --filter @intervu/api db:seed:tenant-b
+
+      - name: Start API
+        run: |
+          (cd apps/api && PORT=4000 nohup node dist/main.js > "$RUNNER_TEMP/api.log" 2>&1 &)
+          for i in $(seq 1 30); do
+            curl -s -o /dev/null http://localhost:4000/healthz && exit 0
+            sleep 2
+          done
+          echo "API did not come up"; exit 1
+
+      - name: Check every account against the access rules
+        run: node tools/access-check.mjs
+
+      - name: API log
+        if: failure()
+        run: tail -n 80 "$RUNNER_TEMP/api.log" || true
+
   # Every demo account follows every link it is offered, and the job fails on
   # any that lands on a refusal, an endless "Loading…", or a refused API call
   # (tools/link-check.mjs). Role gating lives in the rail, the palette, page

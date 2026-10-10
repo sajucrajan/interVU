@@ -31,10 +31,11 @@ InterVU is built for organizations that run high volumes of interviews across ma
 - Tiered/manual/all-at-once vendor release with query-time visibility
 - Vendor submissions with deterministic **and** probabilistic candidate matching: gmail-alias-proof identity resolution, trigram blocking, explainable scoring, human review queue, reversible master merges, CI-gated eval corpus
 - First-valid-submission ownership with cross-vendor duplicate flagging and arbitration data
-- Interviews with skill-matched panel suggestions, scorecards with hide-until-submitted feedback policy, decisions, do-not-hire flags, full cross-position candidate timelines
+- Interviews with skill-matched panel suggestions, scorecards with hide-until-submitted feedback policy, emailed scorecard reminders, decisions, do-not-hire flags, full cross-position candidate timelines
 - Analytics dashboard (D3 sunburst of hierarchy → positions, funnel, vendor performance), white-label branding per org
 - Pluggable notifications: per-org channels (any SMTP, Slack, Teams, HMAC-signed webhooks) with durable delivery — retry/backoff, dead letters, delivery log
 - Resume upload to any S3-compatible store, GDPR erasure with matching-safe tombstones, daily re-match sweep, containerized deployment
+- Access checked end to end in CI: every endpoint against the entitlement rules for every role and across organizations, and every in-app link for every role
 
 **Not yet built:** OIDC SSO, in-app notification centre, Postgres RLS backstop, published container images, Helm chart. See the [roadmap](docs/07-roadmap.md).
 

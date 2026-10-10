@@ -177,10 +177,13 @@ Track your submissions in the portal:
     // Stage OR interviews, therefore. Either is enough to mean the outcome
     // belongs to the loop, so a panel's conclusion can never be recorded by
     // someone who did not see it.
-    const current = await this.prisma.application.findFirstOrThrow({
+    // findFirst, not findFirstOrThrow: another organization's id must read
+    // as "not found", not crash into a 500.
+    const current = await this.prisma.application.findFirst({
       where: { id: applicationId, organizationId },
       select: { currentStage: true },
     });
+    if (!current) throw new NotFoundException("Application not found");
     const owned = panelOwned(
       current.currentStage,
       await this.prisma.interview.count({ where: { applicationId, organizationId } }),

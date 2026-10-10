@@ -2,7 +2,7 @@
 
 ## Progress
 
-_Last updated 2026-10-09._ M0–M3 are **built and verified**; M4 is mostly done,
+_Last updated 2026-10-10._ M0–M3 are **built and verified**; M4 is mostly done,
 and a large body of work beyond the original roadmap has landed since.
 
 | Milestone | Status | Notes |
@@ -14,10 +14,13 @@ and a large body of work beyond the original roadmap has landed since.
 | M4 integrations | 🔨 mostly done | landed: **pluggable notifications** (SMTP, Slack, Teams, HMAC-signed webhooks) with **durable delivery**, **vendor status-change emails**, **resume upload** (S3-compatible, or `RESUME_STORAGE=extract_only` with PDF/DOCX text extraction), **GDPR erasure with tombstones**, **daily re-match sweep**, **container images + `--profile app` full stack**, **vendor funnel stats** (both sides, one computation). Pending: OIDC SSO, published images/Helm, RLS backstop, warehouse export |
 | Hiring workflow (beyond the roadmap) | ✅ | **sourcing channels** (vendor / hybrid / direct, with the guard against stranding agency candidates), **screening screen** and the screening-vs-panel rejection split, **panel debrief** with competency matrix, divergence call-out and a composed **feedback packet** for the agency, **offers and dropouts**, the **interview room**, a shared **question bank** with votes and spread, drag-and-drop **pipeline board** with aging and SLAs |
 | Product surface | ✅ | Ledger design system with a live atoms page (`/design`), dashboard / board / dossier / analytics rebuilt to the design, command palette, responsive rail, read-only **position brief** for interviewers and agencies, **vendor portal rail and Performance page**, **custom roles** plus a read-only `vendors.view_performance` permission, white-label branding, D3 sunburst explorer |
+| Roles in practice | ✅ | **Today per role** (a line on what the role is for; read-only roles see where hiring stands instead of a to-do list), interviewers' **assignment grant** to their candidates (docs/09 §4.2), filed scorecards and the panel's visible on My interviews and in the room, **scorecard reminders** by email, and refusals rendered as pages that say who a screen is for |
+| Access assurance | ✅ | `tools/access-check.mjs` checks every endpoint against docs/09 for every demo account and across two organizations; `tools/link-check.mjs` follows every link each account is offered. Both run in CI. Found and fixed on the way: unchecked scorecard and dossier reads, unscoped panel suggestions |
 | Public demo | ✅ | free deployment on **Neon + Render** from a Blueprint, migrations serialised in CI, **nightly reset**, the `/demo` guide and `/how-it-works` (read live from the API), a seed whose data respects its own release rules and carries realistic history |
 
 CI runs on every pull request and on `main`: build, unit tests (including the
-matching eval gates) and a `db-verify` job that migrates and seeds twice.
+matching eval gates), a `db-verify` job that migrates and seeds twice, the
+`access-check` API suite and the `link-check` crawl.
 
 ## 1. Milestones
 
@@ -55,13 +58,13 @@ Candidate self-scheduling, offer management, multi-language UI, analytics wareho
 
 ## 3. Repo & community setup checklist
 
-- [ ] `LICENSE`, `CODE_OF_CONDUCT.md` (Contributor Covenant), `CONTRIBUTING.md`, `SECURITY.md` (private disclosure email), `.github/ISSUE_TEMPLATE/` (bug, feature, design-question), PR template with checklist
-- [ ] GitHub Discussions on (design decisions happen in the open; docs/ PRs welcome)
-- [ ] CI: typecheck, lint, unit, **cross-tenant leakage suite**, matching eval (M3+), docker build
+- [x] `LICENSE` (Apache-2.0), `CODE_OF_CONDUCT.md` (Contributor Covenant), `CONTRIBUTING.md`, `SECURITY.md` (private disclosure), `.github/ISSUE_TEMPLATE/` (bug, feature, design question), PR template with checklist
+- [ ] GitHub Discussions on (design decisions happen in the open; docs/ PRs welcome) — a repository setting; until then the *Design question* issue template does the job
+- [x] CI: typecheck (via build), unit, **cross-tenant leakage suite** (`access-check`), matching eval, link crawl — still missing: a lint step and a docker build
 - [ ] `good first issue` + `help wanted` labels seeded from milestone tasks (normalizers, similarity functions, and UI components are ideal first issues — pure, small, well-specified)
-- [ ] Demo instance (reset nightly) + seed data so evaluators see the matching engine without setup
+- [x] Demo instance (reset nightly) + seed data so evaluators see the matching engine without setup
 - [ ] Docs site (this `docs/` folder rendered via a static site generator) with a 5-minute quickstart
-- [ ] Versioning: SemVer, `main` protected, conventional commits, release automation (changesets)
+- [ ] Versioning: SemVer, conventional commits, release automation (changesets) — `main` is protected already
 
 ## 4. Suggested first issues (M0/M1 slice examples)
 

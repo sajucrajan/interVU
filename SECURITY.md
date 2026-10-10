@@ -14,5 +14,8 @@ to release a fix before public disclosure.
 ## Scope of highest concern
 
 - Cross-tenant data access (org↔org, vendor↔vendor, vendor→org internal data)
+- Role or scope bypass inside an organization — reading or changing what your
+  role or teams do not cover (docs/09). `tools/access-check.mjs` encodes the
+  rules; a request it does not catch is exactly what we want to hear about
 - Authentication/session flaws
 - PII exposure in logs, exports, or webhooks

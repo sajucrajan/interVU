@@ -1,0 +1,22 @@
+name: Design question
+description: Question or challenge a decision in docs/.
+labels: [design]
+body:
+  - type: input
+    id: doc
+    attributes:
+      label: Which document and section
+      placeholder: docs/09-entitlements.md §4.2
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: The question or concern
+      description: Real-world experience with staffing vendors, VMS ownership disputes or identity resolution is especially useful.
+    validations:
+      required: true
+  - type: textarea
+    id: alternative
+    attributes:
+      label: What you would do instead, if anything
