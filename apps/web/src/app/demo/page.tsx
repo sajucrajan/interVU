@@ -20,7 +20,7 @@ import { SectionHead } from "@/components/section-head";
  * own tokens, so it follows the accent and dark mode.
  *
  * KEEP IN STEP WITH prisma/seed.ts. The names, role counts, the hybrid
- * Data Engineer ladder and Kavya Rao's 5-vs-2 MLOps split all come from the
+ * Data Engineer ladder and Lucía Fernández's 5-vs-2 MLOps split all come from the
  * seed. Counts that drift with the synthetic corpus (pipeline totals, SLA
  * breaches) are deliberately left out.
  *
@@ -60,7 +60,7 @@ const ORG_PERSONAS: Persona[] = [
   {
     key: "riley",
     email: "recruiter@acme.test",
-    name: "Riley Recruiter",
+    name: "Rafael Recruiter",
     initials: "RR",
     role: "Recruiter",
     scope: "Whole organization",
@@ -107,7 +107,7 @@ const ORG_PERSONAS: Persona[] = [
     ],
     tryThis: [
       {
-        where: "Pipeline → Kavya Rao → Open debrief",
+        where: "Pipeline → Lucía Fernández → Open debrief",
         what: "MLOps splits the panel 5 to 2. The right-hand column previews exactly what the agency will be told.",
       },
     ],
@@ -138,28 +138,28 @@ const ORG_PERSONAS: Persona[] = [
   {
     key: "indira",
     email: "interviewer1@acme.test",
-    name: "Indira Interviewer",
+    name: "Ingrid Interviewer",
     initials: "II",
     role: "Interviewer",
     scope: "Assigned interviews only",
-    blurb: "Sees only the interviews she sits on. Being on the panel is the permission.",
+    blurb: "Sees only the interviews on their own panels. Being on the panel is the permission.",
     can: [
-      "See her 3 assigned interviews",
+      "See 3 assigned interviews",
       "File a scorecard for each, then read the rest of the panel's",
       "Open the candidates on those panels, until a decision is recorded",
     ],
     cannot: [
       "Browse positions or the pipeline",
-      "Read a colleague's scorecard before filing her own",
+      "Read a colleague's scorecard before filing their own",
     ],
     tryThis: [
       {
-        where: "My interviews → Padma Menon → Quick file",
+        where: "My interviews → Jordan Mitchell → Quick file",
         what: "This one is overdue. Leave a competency blank: it records as “not assessed”, which the debrief shows differently from a low score.",
       },
       {
-        where: "My interviews → Padma Menon → View scorecards",
-        what: "Once filed: your scorecard, then Ivan's, which stayed hidden until yours was in.",
+        where: "My interviews → Jordan Mitchell → View scorecards",
+        what: "Once filed: your scorecard, then Ikenna's, which stayed hidden until yours was in.",
       },
     ],
     landing: "/interviews",
@@ -167,8 +167,8 @@ const ORG_PERSONAS: Persona[] = [
   {
     key: "sasha",
     email: "vendors@acme.test",
-    name: "Sasha Sourcing",
-    initials: "SS",
+    name: "Mei Sourcing",
+    initials: "MS",
     role: "Vendor manager",
     scope: "Read-only · a custom role",
     blurb: "Reviews how each agency performs. Not a built-in role: the organization defined it from three permissions.",
@@ -233,8 +233,8 @@ const VENDOR_PERSONAS: Persona[] = [
     cannot: ["See roles still inside the tier-1 head start", "See how the panel scored"],
     tryThis: [
       {
-        where: "My submissions → Kavya Rao",
-        what: "Acme's panel split 5 to 2 over her. HireWorks sees one plain status.",
+        where: "My submissions → Lucía Fernández",
+        what: "Acme's panel split 5 to 2. HireWorks sees one plain status.",
       },
     ],
     vendor: true,
@@ -270,29 +270,29 @@ const PERSONAS = [...ORG_PERSONAS, ...VENDOR_PERSONAS];
 const WAITING = [
   {
     label: "Pipeline · duplicates",
-    title: "Jana Menon",
+    title: "Camila Torres",
     meta: "POS-006 Growth Marketer · via StaffPro",
     badge: "Duplicate",
     tone: "dup",
   },
   {
     label: "Debrief · POS-005 ML Engineer",
-    title: "Kavya Rao",
+    title: "Lucía Fernández",
     meta: "Panel split 5 vs 2 on MLOps",
     badge: "Split 5/2",
     tone: "warn",
   },
   {
-    label: "My interviews · Indira",
-    title: "Padma Menon",
+    label: "My interviews · Ingrid",
+    title: "Jordan Mitchell",
     meta: "Scorecard overdue · debrief sealed",
     badge: "1 of 2 filed",
     tone: "bad",
   },
   {
     label: "Match reviews · NorthStar",
-    title: "Noor A. Aziz",
-    meta: "Already on file as Noor Aziz? The matcher is not sure",
+    title: "An Nguyen",
+    meta: "Already on file as Nguyen Van An? The matcher is not sure",
     badge: "Score 81%",
     tone: "accent",
   },
@@ -464,7 +464,7 @@ function OwnershipDiagram() {
   );
 }
 
-/** Kavya Rao's real debrief, as the seed writes it. */
+/** Lucía Fernández's real debrief, as the seed writes it. */
 function DebriefMatrix() {
   const rows = [
     { skill: "Python", a: 4, b: 4, verdict: "Strong" },
@@ -475,15 +475,15 @@ function DebriefMatrix() {
   return (
     <figure className="dg-vignette dg-debrief">
       <div className="dg-vignette-head">
-        <span className="mono-label">Debrief · Kavya Rao · ML Engineer</span>
+        <span className="mono-label">Debrief · Lucía Fernández · ML Engineer</span>
         <span className="badge ok">2 of 2 filed</span>
       </div>
       <table className="dg-matrix">
         <thead>
           <tr>
             <th className="mono-label">Competency</th>
-            <th className="mono-label">Indira</th>
-            <th className="mono-label">Ivan</th>
+            <th className="mono-label">Ingrid</th>
+            <th className="mono-label">Ikenna</th>
             <th className="mono-label">Consensus</th>
           </tr>
         </thead>
@@ -519,7 +519,7 @@ function DebriefMatrix() {
 function TheWall() {
   const rows: [string, ReactNode, ReactNode][] = [
     ["Stage", "Interviewing", <span key="s" className="badge ok">Submitted</span>],
-    ["Panel", "Indira: strong yes · Ivan: no", <span key="p" className="dg-none">hidden</span>],
+    ["Panel", "Ingrid: strong yes · Ikenna: no", <span key="p" className="dg-none">hidden</span>],
     ["Ratings", "MLOps 5 vs 2", <span key="r" className="dg-none">hidden</span>],
     ["A rival's claim", "Flagged, both timestamps", <span key="d" className="badge">Not eligible</span>],
     ["Feedback", "Full scorecards", "A summary and skill tags you approve"],
@@ -574,7 +574,7 @@ const FEATURES: Feature[] = [
     body: "Candidates are matched on email, phone and fuzzy name scoring, so a second agency's submission lands on the person already on file. The earliest valid one owns the introduction, and the fee. Later ones are flagged, not silently dropped.",
     art: <OwnershipDiagram />,
     see: {
-      as: "Riley",
+      as: "Rafael",
       persona: "riley",
       what: "Match reviews for the near-misses the matcher was unsure of; Pipeline → Duplicates for the contests it was sure of.",
     },
@@ -585,9 +585,9 @@ const FEATURES: Feature[] = [
     body: "Each panelist files a scorecard without seeing anyone else's. The debrief stays sealed until the whole panel has filed, then lines every rating up and calls out where they disagree.",
     art: <DebriefMatrix />,
     see: {
-      as: "Indira, then Harper",
+      as: "Ingrid, then Harper",
       persona: "indira",
-      what: "Indira's overdue scorecard is what keeps Padma Menon's debrief sealed. Harper can open Kavya Rao's.",
+      what: "Ingrid's overdue scorecard is what keeps Jordan Mitchell's debrief sealed. Harper can open Lucía Fernández's.",
     },
   },
   {
@@ -598,7 +598,7 @@ const FEATURES: Feature[] = [
     see: {
       as: "HireWorks",
       persona: "hireworks",
-      what: "Find Kavya Rao in My submissions, then compare it with Harper's debrief of her.",
+      what: "Find Lucía Fernández in My submissions, then compare it with Harper's debrief.",
     },
   },
 ];
@@ -608,7 +608,7 @@ const FEATURES: Feature[] = [
 /* ------------------------------------------------------------------------ */
 
 type Cell = boolean | string;
-const GRID_COLS = ["Riley", "Harper", "Parker", "Indira", "Sasha", "TalentBridge", "HireWorks", "StaffPro"];
+const GRID_COLS = ["Rafael", "Harper", "Parker", "Ingrid", "Mei", "TalentBridge", "HireWorks", "StaffPro"];
 /** Columns from here on are agencies, drawn behind the wall. */
 const FIRST_AGENCY = 5;
 const GRID_ROWS: { what: string; cells: Cell[] }[] = [
@@ -777,7 +777,7 @@ export default function DemoPage() {
               disabled={busy !== null}
               onClick={() => signIn(ORG_PERSONAS[0]!)}
             >
-              {busy === ORG_PERSONAS[0]!.email ? "Signing in…" : "Start as Riley, the recruiter →"}
+              {busy === ORG_PERSONAS[0]!.email ? "Signing in…" : "Start as Rafael, the recruiter →"}
             </button>
             <Link href="/how-it-works" className="dg-cta-secondary">
               How it works <span className="mono-label">5 min</span>

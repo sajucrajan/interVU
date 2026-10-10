@@ -43,8 +43,8 @@ describe("reminderDue", () => {
 
 describe("reminderEmail", () => {
   const base = {
-    name: "Indira",
-    candidate: "Padma Menon",
+    name: "Ingrid",
+    candidate: "Jordan Mitchell",
     round: "Technical round",
     position: "POS-004 Frontend Engineer",
     dueHours: 24,

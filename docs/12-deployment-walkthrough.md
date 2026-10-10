@@ -168,7 +168,7 @@ correct. A 404 means the request never left the web service.
 |---|---|
 | `<web-url>/how-it-works` | twelve steps, and a role matrix read live from the API |
 | `<web-url>/demo` | eight personas, one-click sign-in |
-| Sign in as Riley | dashboard with a populated queue |
+| Sign in as Rafael | dashboard with a populated queue |
 | **Analytics**, bottom | *Where hires come from*, with real figures |
 | **Pipeline** | source chips, aging colours, a few deliberate breaches against a mostly healthy board |
 | **Match reviews** | two near-duplicates scored 81%, with the evidence side by side |
