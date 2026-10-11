@@ -252,6 +252,9 @@ const flatReads = [
   ["/org-users", ALL],
   ["/questions", ALL],
   ["/questions/skills", ALL],
+  // Ways of working (docs/01 §4, Ways of working): a vocabulary, like the skill list.
+  ["/attributes", ALL],
+  ["/attributes?all=true", perm("org.settings")],
   ["/search?q=a", ALL],
   ["/analytics/overview", ALL],
   ["/analytics/channels", ALL],
@@ -342,6 +345,7 @@ const review = (await call(admin, "GET", "/match-reviews")).json?.[0];
 const role = (await call(admin, "GET", "/roles")).json.find((r) => !r.is_system);
 const engInterview = [...(interviewsOf.get(engApp.id) ?? [])][0];
 const engUnit = engApp.position.orgUnitId;
+const attribute = (await call(admin, "GET", "/attributes")).json?.[0];
 
 const writes = [
   ["PATCH", "/settings", {}, (a) => a.can("org.settings")],
@@ -379,6 +383,10 @@ const writes = [
     (a) => seatOn(a, engInterview),
   ],
   engInterview && ["PUT", `/interviews/${engInterview}/draft`, { notes: {} }, (a) => seatOn(a, engInterview)],
+  // Changing what every scorecard rates is organization policy (docs/09 §2).
+  ["POST", "/attributes", { name: "Access check", description: "", behaviours: [] }, perm("org.settings")],
+  attribute && ["PATCH", `/attributes/${attribute.id}`, { description: attribute.description }, perm("org.settings")],
+  attribute && ["PUT", "/attributes/order", { ids: [attribute.id] }, perm("org.settings")],
 ].filter(Boolean);
 
 for (const acc of accounts) {
@@ -403,6 +411,7 @@ for (const email of VENDOR_ACCOUNTS) {
     `/candidates/${engApp.candidate.id}/dossier`,
     `/applications/${engApp.id}/scorecards`,
     `/applications/${engApp.id}/debrief`,
+    "/attributes",
   ]) {
     const r = await call(v, "GET", path);
     expect("VENDOR", email, "GET", path, false, r.status, "org endpoint");
@@ -433,6 +442,8 @@ const gApps = (await call(globex, "GET", "/applications")).json;
 if (!gApps?.length) throw new Error("tenant B is not seeded: pnpm --filter @intervu/api db:seed:tenant-b");
 const gApp = gApps[0];
 const gInterview = (await call(globex, "GET", "/interviews/mine")).json[0];
+const gAttribute = (await call(globex, "GET", "/attributes")).json?.[0];
+if (!gAttribute) throw new Error("tenant B has no attributes: re-run pnpm --filter @intervu/api db:seed:tenant-b");
 
 const tenantPaths = (p, a, interviewId) => [
   `/positions/${p}`,
@@ -453,9 +464,26 @@ for (const [method, path, body] of [
   ["POST", `/applications/${gApp.id}/transition`, { to_stage: "screening" }],
   ["POST", `/applications/${gApp.id}/decision`, { outcome: "hold", reason: "x" }],
   ["POST", `/candidates/${gApp.candidate.id}/flags`, { kind: "note", reason: "x" }],
+  ["PATCH", `/attributes/${gAttribute.id}`, { name: "Renamed from Acme" }],
 ]) {
   const r = await call(admin, method, path, body);
   expect("TENANT", admin.email, method, path, false, r.status, "Globex record");
+}
+// A scorecard may not rate another organization's attribute, even from a
+// seat on the panel: the id is checked against the tenant, not just for shape.
+if (engInterview) {
+  const seat = accounts.find((a) => seatOn(a, engInterview));
+  if (seat) {
+    const r = await call(seat, "POST", `/interviews/${engInterview}/scorecards`, {
+      overall_rating: 3,
+      recommendation: "yes",
+      notes: "access check",
+      competencies: [],
+      attributes: [{ attribute_id: gAttribute.id, rating: 3 }],
+    });
+    checks += 1;
+    if (r.status !== 400) failures.push(`TENANT ${seat.email.padEnd(32)} POST /interviews/:id/scorecards accepted a Globex attribute (${r.status})`);
+  }
 }
 // …Globex's admin against Acme's…
 for (const path of tenantPaths(engApp.position.id, engApp, engInterview)) {

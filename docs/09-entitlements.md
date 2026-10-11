@@ -65,7 +65,7 @@ The five built-ins start with these permissions (an organization can change any 
 | `applications.transition` | ✓ | ✓ | ✓ | — | — |
 | `interviews.schedule` | ✓ | ✓ | ✓ | — | — |
 | `panels.manage` (skill-tagged panelist pools) | ✓ | ✓ | ✓ (own scope) | — | — |
-| `org.settings` (incl. white-label branding) | ✓ | — | — | — | — |
+| `org.settings` (incl. white-label branding and the ways-of-working list every scorecard rates) | ✓ | — | — | — | — |
 | `scorecards.submit` | — | — | — | — | ✓ (own interviews) |
 | `applications.reject` (screening, pre-interview) | ✓ | ✓ | ✓ | — | — |
 | `decisions.record` | ✓ | — | ✓ | — | — |

@@ -73,6 +73,7 @@ export class DebriefService {
                 submittedAt: true,
                 orgUser: { select: { id: true, name: true } },
                 competencies: { select: { skillId: true, rating: true, note: true } },
+                attributes: { select: { attributeId: true, rating: true, note: true } },
               },
             },
           },
@@ -109,26 +110,12 @@ export class DebriefService {
         initials: initials(s.orgUser.name),
       }));
 
-    // Rows follow the POSITION's skill matrix, so the debrief and the job
-    // description cannot drift apart.
-    const rows = application.position.skills.map((ps) => {
-      const cells = scorecards.map((s) => {
-        const c = s.competencies.find((x) => x.skillId === ps.skill.id);
-        return {
-          panelist_id: s.orgUser.id,
-          rating: c?.rating ?? null,
-          // Captured live in the interview room. This is what turns a
-          // diverged row from an argument into a conversation.
-          note: c?.note ?? null,
-        };
-      });
+    // One row of a matrix: a cell per panelist, then what the panel agreed.
+    const summarise = (cells: { panelist_id: string; rating: number | null; note: string | null }[]) => {
       const given = cells.map((c) => c.rating).filter((r): r is number => r !== null);
       const spread = given.length > 1 ? Math.max(...given) - Math.min(...given) : 0;
       const mean = given.length ? given.reduce((a, b) => a + b, 0) / given.length : null;
       return {
-        skill_id: ps.skill.id,
-        name: ps.skill.name,
-        must_have: ps.level === "must_have",
         cells,
         spread,
         diverged: spread >= DIVERGENCE_THRESHOLD,
@@ -143,7 +130,55 @@ export class DebriefService {
                   ? "adequate"
                   : "below bar",
       };
+    };
+
+    // Rows follow the POSITION's skill matrix, so the debrief and the job
+    // description cannot drift apart.
+    const rows = application.position.skills.map((ps) => ({
+      skill_id: ps.skill.id,
+      name: ps.skill.name,
+      must_have: ps.level === "must_have",
+      ...summarise(
+        scorecards.map((s) => {
+          const c = s.competencies.find((x) => x.skillId === ps.skill.id);
+          return {
+            panelist_id: s.orgUser.id,
+            rating: c?.rating ?? null,
+            // Captured live in the interview room. This is what turns a
+            // diverged row from an argument into a conversation.
+            note: c?.note ?? null,
+          };
+        }),
+      ),
+    }));
+
+    // A second matrix for the organization's ways of working (docs/01 §4, Ways of working).
+    // Kept apart from the skills on purpose: "strong on skills, split on
+    // collaboration" is the sentence a debrief needs, and one blended number
+    // would hide it. Rows are every active attribute plus any archived one a
+    // panelist still rated, so an old scorecard never loses a row.
+    const attributeSet = await this.prisma.attribute.findMany({
+      where: {
+        organizationId,
+        OR: [
+          { archivedAt: null },
+          { id: { in: scorecards.flatMap((s) => s.attributes.map((a) => a.attributeId)) } },
+        ],
+      },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, archivedAt: true },
     });
+    const attributeRows = attributeSet.map((attr) => ({
+      attribute_id: attr.id,
+      name: attr.name,
+      archived: attr.archivedAt !== null,
+      ...summarise(
+        scorecards.map((s) => {
+          const a = s.attributes.find((x) => x.attributeId === attr.id);
+          return { panelist_id: s.orgUser.id, rating: a?.rating ?? null, note: a?.note ?? null };
+        }),
+      ),
+    }));
 
     const ratings = scorecards.map((s) => s.overallRating);
     const panelMean = ratings.length
@@ -171,12 +206,21 @@ export class DebriefService {
       expected_count: expected.length,
       outstanding,
       panel_mean: panelMean === null ? null : Number(panelMean.toFixed(1)),
-      divergence: recSpread >= 2 || rows.some((r) => r.diverged) ? "high" : "low",
+      divergence:
+        recSpread >= 2 || rows.some((r) => r.diverged) || attributeRows.some((r) => r.diverged)
+          ? "high"
+          : "low",
       recommendations: ["strong_yes", "yes", "no", "strong_no"].map((r) => ({
         key: r,
         count: scorecards.filter((s) => s.recommendation === r).length,
       })),
       competencies: allFiled ? rows : [],
+      /** Sealed with the rest of the matrix (docs/01 §2.3). */
+      attributes: allFiled ? attributeRows : [],
+      /** The attribute the panel disagrees on most, if any: named beside the
+       *  skill divergence so a split on how someone works is never skimmed. */
+      attribute_divergence_row:
+        allFiled ? ([...attributeRows].filter((r) => r.diverged).sort((a, b) => b.spread - a.spread)[0] ?? null) : null,
       panelists: allFiled ? panelists : [],
       divergence_row: allFiled && worst ? worst : null,
       scorecards: allFiled

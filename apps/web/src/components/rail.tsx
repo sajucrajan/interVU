@@ -113,6 +113,13 @@ const LINKS: RailLink[] = [
     icon: "⚯",
     needs: "vendors.manage",
   },
+  {
+    group: "Admin",
+    href: "/admin/attributes",
+    label: "Ways of working",
+    icon: "☌",
+    needs: "org.settings",
+  },
 ];
 
 interface OrgMe {

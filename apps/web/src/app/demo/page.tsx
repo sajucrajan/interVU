@@ -108,7 +108,7 @@ const ORG_PERSONAS: Persona[] = [
     tryThis: [
       {
         where: "Pipeline → Lucía Fernández → Open debrief",
-        what: "MLOps splits the panel 5 to 2. The right-hand column previews exactly what the agency will be told.",
+        what: "MLOps splits the panel 5 to 2, and so does Collaboration, under its own matrix: each side had to say what it saw. The right-hand column previews exactly what the agency will be told — and none of that.",
       },
       {
         where: "Sign in",
@@ -160,6 +160,10 @@ const ORG_PERSONAS: Persona[] = [
       {
         where: "My interviews → Jordan Mitchell → Quick file",
         what: "This one is overdue. Leave a competency blank: it records as “not assessed”, which the debrief shows differently from a low score.",
+      },
+      {
+        where: "My interviews → Jordan Mitchell → Prepare (the room) → How they'd work here",
+        what: "Five ways of working, the same on every role, each with what strong looks like. Give Collaboration a 5 and file: it asks what you saw before it lets you.",
       },
       {
         where: "My interviews → Jordan Mitchell → View scorecards",
@@ -586,7 +590,7 @@ const FEATURES: Feature[] = [
   {
     n: "03",
     title: "Interviewers score alone, then compare",
-    body: "Each panelist files a scorecard without seeing anyone else's. The debrief stays sealed until the whole panel has filed, then lines every rating up and calls out where they disagree.",
+    body: "Each panelist files a scorecard without seeing anyone else's: the role's skills, then how the person would work here — communication, collaboration, ownership — with evidence required for a 1 or a 5. The debrief stays sealed until the whole panel has filed, then lines every rating up and calls out where they disagree.",
     art: <DebriefMatrix />,
     see: {
       as: "Ingrid, then Harper",

@@ -7,8 +7,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   /// Migrations cannot run through a connection pooler. They take a Postgres
   /// advisory lock, and in transaction-pooling mode the lock is acquired on
   /// one backend while the next statement lands on another — so it waits for
@@ -41,6 +41,7 @@ model Organization {
   inviteTokens InviteToken[]
   roles        Role[]
   slaPolicies  SlaPolicy[]
+  attributes   Attribute[]
 
   @@map("organization")
 }
@@ -64,9 +65,9 @@ model OrgUnit {
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
 
-  organization Organization    @relation(fields: [organizationId], references: [id])
-  parent       OrgUnit?        @relation("OrgUnitTree", fields: [parentId], references: [id])
-  children     OrgUnit[]       @relation("OrgUnitTree")
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  parent       OrgUnit?           @relation("OrgUnitTree", fields: [parentId], references: [id])
+  children     OrgUnit[]          @relation("OrgUnitTree")
   positions    Position[]
   memberships  OrgMembership[]
   panels       Panel[]
@@ -114,30 +115,31 @@ enum UserStatus {
 }
 
 model OrgUser {
-  id             String     @id @default(uuid()) @db.Uuid
-  organizationId String     @map("organization_id") @db.Uuid
-  email          String
-  name           String
-  passwordHash   String?    @map("password_hash")
-  status         UserStatus @default(invited)
+  id                String     @id @default(uuid()) @db.Uuid
+  organizationId    String     @map("organization_id") @db.Uuid
+  email             String
+  name              String
+  passwordHash      String?    @map("password_hash")
+  status            UserStatus @default(invited)
   /// Persona preferences (entitlements/persona.ts): which job to open on,
   /// and whether to ask at every sign-in instead.
-  defaultPersona    String?  @map("default_persona")
-  askPersonaAtLogin Boolean  @default(false) @map("ask_persona_at_login")
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime   @updatedAt @map("updated_at")
+  defaultPersona    String?    @map("default_persona")
+  askPersonaAtLogin Boolean    @default(false) @map("ask_persona_at_login")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
 
-  organization Organization        @relation(fields: [organizationId], references: [id])
-  memberships  OrgMembership[]
-  sessions     Session[]
-  panelistOn   InterviewPanelist[]
-  scorecards   Scorecard[]
+  organization     Organization        @relation(fields: [organizationId], references: [id])
+  memberships      OrgMembership[]
+  sessions         Session[]
+  panelistOn       InterviewPanelist[]
+  scorecards       Scorecard[]
   panelMemberships PanelMember[]
-  inviteTokens InviteToken[]
+  inviteTokens     InviteToken[]
 
-  scorecardDrafts ScorecardDraft[]
+  scorecardDrafts   ScorecardDraft[]
   authoredQuestions InterviewQuestion[]
-  questionVotes InterviewQuestionVote[]
+  questionVotes     InterviewQuestionVote[]
+
   @@unique([organizationId, email])
   @@map("org_user")
 }
@@ -199,7 +201,7 @@ model VendorOrg {
   tier           Int          @default(1)
   status         VendorStatus @default(invited)
   /// Percentage of first-year salary. Feeds cost per hire.
-  feePercent     Decimal?     @db.Decimal(5, 2) @map("fee_percent")
+  feePercent     Decimal?     @map("fee_percent") @db.Decimal(5, 2)
   contractStart  DateTime?    @map("contract_start")
   contractEnd    DateTime?    @map("contract_end")
   createdAt      DateTime     @default(now()) @map("created_at")
@@ -284,20 +286,20 @@ model InviteToken {
 /// Server-side sessions. Only the SHA-256 hash of the bearer token is stored;
 /// exactly one of orgUserId/vendorUserId is set.
 model Session {
-  id           String   @id @default(uuid()) @db.Uuid
-  tokenHash    String   @unique @map("token_hash")
-  orgUserId    String?  @map("org_user_id") @db.Uuid
-  vendorUserId String?  @map("vendor_user_id") @db.Uuid
+  id             String   @id @default(uuid()) @db.Uuid
+  tokenHash      String   @unique @map("token_hash")
+  orgUserId      String?  @map("org_user_id") @db.Uuid
+  vendorUserId   String?  @map("vendor_user_id") @db.Uuid
   /// Which organization this session is scoped to. Vendor sessions are
   /// ALWAYS org-scoped: a vendor serving several orgs logs in per org and
   /// never sees two orgs' data in one session. Org sessions derive it from
   /// the user, and store it here for symmetry.
-  organizationId String? @map("organization_id") @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
   /// The persona this session acts as (entitlements/persona.ts). Null until
   /// chosen; org routes refuse with persona_required while it is.
-  persona      String?  @map("persona")
-  expiresAt    DateTime @map("expires_at")
-  createdAt    DateTime @default(now()) @map("created_at")
+  persona        String?  @map("persona")
+  expiresAt      DateTime @map("expires_at")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   orgUser    OrgUser?    @relation(fields: [orgUserId], references: [id], onDelete: Cascade)
   vendorUser VendorUser? @relation(fields: [vendorUserId], references: [id], onDelete: Cascade)
@@ -368,39 +370,39 @@ enum ReleaseSource {
 }
 
 model Position {
-  id             String         @id @default(uuid()) @db.Uuid
-  organizationId String         @map("organization_id") @db.Uuid
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
   /// How this role is sourced. `vendor` is the default because it reproduces
   /// the behaviour every existing position already had.
-  sourcingMode   SourcingMode   @default(vendor) @map("sourcing_mode")
+  sourcingMode   SourcingMode    @default(vendor) @map("sourcing_mode")
   /// Hybrid only: vendors are held off until this moment — a delay, modelled
   /// exactly like the tiered release ladder rather than a second scheduler.
-  vendorOpensAt  DateTime?      @map("vendor_opens_at")
-  orgUnitId      String         @map("org_unit_id") @db.Uuid
+  vendorOpensAt  DateTime?       @map("vendor_opens_at")
+  orgUnitId      String          @map("org_unit_id") @db.Uuid
   /// Human-readable identifier (POS-001) — what people actually quote in
   /// conversation, emails and vendor threads. Unique per organization.
   reference      String
   title          String
-  description    String         @default("")
-  openings       Int            @default(1)
-  status         PositionStatus @default(draft)
+  description    String          @default("")
+  openings       Int             @default(1)
+  status         PositionStatus  @default(draft)
   // Role identity (docs/01 — job posting design)
   seniority      Seniority?
-  employmentType EmploymentType @default(full_time) @map("employment_type")
+  employmentType EmploymentType  @default(full_time) @map("employment_type")
   locationPolicy LocationPolicy? @map("location_policy")
-  locationText   String?        @map("location_text")
-  minTotalYears  Int?           @map("min_total_years")
+  locationText   String?         @map("location_text")
+  minTotalYears  Int?            @map("min_total_years")
   // Vendor-facing rate band
-  rateMin        Int?           @map("rate_min")
-  rateMax        Int?           @map("rate_max")
-  rateCurrency   String         @default("USD") @map("rate_currency")
-  ratePeriod     RatePeriod?    @map("rate_period")
+  rateMin        Int?            @map("rate_min")
+  rateMax        Int?            @map("rate_max")
+  rateCurrency   String          @default("USD") @map("rate_currency")
+  ratePeriod     RatePeriod?     @map("rate_period")
   // Non-skill screening requirements (certs, visa, languages, …)
-  mustHaves      Json           @default("[]") @map("must_haves")
-  publishedAt    DateTime?      @map("published_at")
-  createdById    String?        @map("created_by_id") @db.Uuid
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
+  mustHaves      Json            @default("[]") @map("must_haves")
+  publishedAt    DateTime?       @map("published_at")
+  createdById    String?         @map("created_by_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
 
   organization  Organization            @relation(fields: [organizationId], references: [id])
   orgUnit       OrgUnit                 @relation(fields: [orgUnitId], references: [id])
@@ -572,9 +574,9 @@ model Submission {
   receivedAt       DateTime         @default(now()) @map("received_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  position      Position       @relation(fields: [positionId], references: [id])
-  vendorOrg     VendorOrg      @relation(fields: [vendorOrgId], references: [id])
-  vendorUser    VendorUser     @relation(fields: [vendorUserId], references: [id])
+  position      Position          @relation(fields: [positionId], references: [id])
+  vendorOrg     VendorOrg         @relation(fields: [vendorOrgId], references: [id])
+  vendorUser    VendorUser        @relation(fields: [vendorUserId], references: [id])
   candidate     Candidate?        @relation(fields: [candidateId], references: [id])
   matchDecision MatchDecision?
   reviewItems   MatchReviewItem[]
@@ -735,20 +737,21 @@ model Interview {
   createdById    String?         @map("created_by_id") @db.Uuid
   createdAt      DateTime        @default(now()) @map("created_at")
 
-  application Application          @relation(fields: [applicationId], references: [id])
+  application Application         @relation(fields: [applicationId], references: [id])
   panelists   InterviewPanelist[]
   scorecards  Scorecard[]
 
-  drafts     ScorecardDraft[]
+  drafts ScorecardDraft[]
+
   @@index([organizationId, scheduledAt])
   @@map("interview")
 }
 
 model InterviewPanelist {
-  id          String @id @default(uuid()) @db.Uuid
-  interviewId String @map("interview_id") @db.Uuid
-  orgUserId   String @map("org_user_id") @db.Uuid
-  role        String @default("interviewer")
+  id                String    @id @default(uuid()) @db.Uuid
+  interviewId       String    @map("interview_id") @db.Uuid
+  orgUserId         String    @map("org_user_id") @db.Uuid
+  role              String    @default("interviewer")
   /// Scorecard reminders already sent to this panelist for this interview
   /// (interviews/scorecard-reminders.ts). Claimed atomically, so a restart or a
   /// second instance never sends the same reminder twice.
@@ -777,6 +780,7 @@ model Scorecard {
   interview    Interview             @relation(fields: [interviewId], references: [id], onDelete: Cascade)
   orgUser      OrgUser               @relation(fields: [orgUserId], references: [id])
   competencies ScorecardCompetency[]
+  attributes   ScorecardAttribute[]
 
   @@unique([interviewId, orgUserId])
   @@map("scorecard")
@@ -813,7 +817,7 @@ model Decision {
 }
 
 /// History exists largely so teams don't re-interview someone rejected for
-/// cause (docs/01 §2.4). Flags surface as warnings everywhere (docs/09 §4.3).
+/// cause (docs/01 §4, Ways of working). Flags surface as warnings everywhere (docs/09 §4.3).
 model CandidateFlag {
   id             String    @id @default(uuid()) @db.Uuid
   organizationId String    @map("organization_id") @db.Uuid
@@ -847,12 +851,13 @@ model Skill {
   nameNorm       String   @map("name_norm")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  positionSkills PositionSkill[]
-  panelSkills    PanelSkill[]
-  templateSkills PositionTemplateSkill[]
+  positionSkills   PositionSkill[]
+  panelSkills      PanelSkill[]
+  templateSkills   PositionTemplateSkill[]
   scorecardRatings ScorecardCompetency[]
 
-  questionTags     InterviewQuestionSkill[]
+  questionTags InterviewQuestionSkill[]
+
   @@unique([organizationId, nameNorm])
   @@map("skill")
 }
@@ -1107,6 +1112,55 @@ model ScorecardCompetency {
   @@map("scorecard_competency")
 }
 
+/// A way of working the organization wants from everyone, whatever the role:
+/// communication, collaboration, ownership. Rated on every scorecard next to
+/// the position's skills (docs/01 §4, Ways of working). Org-wide on purpose: a role that
+/// needed its own would be a skill, and "team fit" with no agreed meaning is
+/// how a panel ends up rating "people like me". Archived, never deleted, so a
+/// rating given against last year's wording still reads.
+model Attribute {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  name           String
+  /// One line on what it means here.
+  description    String    @default("")
+  /// What STRONG looks like, as things an interviewer can observe. Guidance
+  /// for calibration, not a mark scheme — same reasoning as a question rubric.
+  behaviours     String[]
+  sortOrder      Int       @default(0) @map("sort_order")
+  archivedAt     DateTime? @map("archived_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id])
+  ratings      ScorecardAttribute[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, sortOrder])
+  @@map("attribute")
+}
+
+/// One panelist's rating of ONE attribute. Same shape as a competency rating,
+/// kept in its own table because the two are never summed: a debrief shows
+/// "strong on skills, split on collaboration", not one blended number.
+model ScorecardAttribute {
+  id          String   @id @default(uuid()) @db.Uuid
+  scorecardId String   @map("scorecard_id") @db.Uuid
+  attributeId String   @map("attribute_id") @db.Uuid
+  /// 1..5, or null for "not assessed in my round".
+  rating      Int?
+  /// What was seen. Required at the ends of the scale (1 or 5): those are the
+  /// ratings that swing a debrief, and a bare number there is an opinion.
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  scorecard Scorecard @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
+  attribute Attribute @relation(fields: [attributeId], references: [id])
+
+  @@unique([scorecardId, attributeId])
+  @@map("scorecard_attribute")
+}
+
 enum DebriefStatus {
   open
   resolved
@@ -1156,26 +1210,26 @@ enum FeedbackVisibility {
 /// redact because the row never held it. Strengths and gaps name competencies,
 /// never scores.
 model FeedbackPacket {
-  id         String             @id @default(uuid()) @db.Uuid
-  debriefId  String             @unique @map("debrief_id") @db.Uuid
-  visibility FeedbackVisibility @default(none)
+  id             String             @id @default(uuid()) @db.Uuid
+  debriefId      String             @unique @map("debrief_id") @db.Uuid
+  visibility     FeedbackVisibility @default(none)
   /// Outcome label shown externally ("Not selected"), not the internal enum.
-  headline   String             @default("")
-  summary    String             @default("")
-  strengths  String[]
-  gaps       String[]
+  headline       String             @default("")
+  summary        String             @default("")
+  strengths      String[]
+  gaps           String[]
   /// "Would consider for…" — the highest-value field for a vendor, because it
   /// tells them what to send next.
-  reconsiderFor String?         @map("reconsider_for")
+  reconsiderFor  String?            @map("reconsider_for")
   /// Feeds the duplicate engine: a resubmission after this date for a
   /// different role is not flagged as a duplicate.
-  resubmitAfter DateTime?       @map("resubmit_after")
+  resubmitAfter  DateTime?          @map("resubmit_after")
   /// Auto-drafted text stays a draft until a human edits or confirms it; an
   /// unreviewed draft can never be released.
-  isDraft        Boolean        @default(true) @map("is_draft")
-  acknowledgedAt DateTime?      @map("acknowledged_at")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
+  isDraft        Boolean            @default(true) @map("is_draft")
+  acknowledgedAt DateTime?          @map("acknowledged_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
 
   debrief Debrief @relation(fields: [debriefId], references: [id], onDelete: Cascade)
 
@@ -1211,24 +1265,24 @@ enum DeclineReason {
 /// days later. Acceptance is what makes "time to hire" and "offer accept
 /// rate" real rather than estimated.
 model Offer {
-  id             String        @id @default(uuid()) @db.Uuid
-  organizationId String        @map("organization_id") @db.Uuid
-  applicationId  String        @unique @map("application_id") @db.Uuid
-  amount         Decimal?      @db.Decimal(12, 2)
-  currency       String        @default("EUR")
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  applicationId  String         @unique @map("application_id") @db.Uuid
+  amount         Decimal?       @db.Decimal(12, 2)
+  currency       String         @default("EUR")
   /// Where the offer sits against the position's advertised band — drives the
   /// "above band" flag on the pipeline card.
-  vsRateBand     RateBandFit?  @map("vs_rate_band")
-  extendedAt     DateTime      @default(now()) @map("extended_at")
-  acceptedAt     DateTime?     @map("accepted_at")
-  declinedAt     DateTime?     @map("declined_at")
+  vsRateBand     RateBandFit?   @map("vs_rate_band")
+  extendedAt     DateTime       @default(now()) @map("extended_at")
+  acceptedAt     DateTime?      @map("accepted_at")
+  declinedAt     DateTime?      @map("declined_at")
   declinedReason DeclineReason? @map("declined_reason")
-  declinedNote   String        @default("") @map("declined_note")
+  declinedNote   String         @default("") @map("declined_note")
   /// Retention: the only metric that says whether a fast hire was a good one.
-  startDate      DateTime?     @map("start_date")
-  retained90d    Boolean?      @map("retained_90d")
-  createdById    String?       @map("created_by_id") @db.Uuid
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  startDate      DateTime?      @map("start_date")
+  retained90d    Boolean?       @map("retained_90d")
+  createdById    String?        @map("created_by_id") @db.Uuid
+  updatedAt      DateTime       @updatedAt @map("updated_at")
 
   application Application @relation(fields: [applicationId], references: [id])
 
@@ -1322,7 +1376,8 @@ model InterviewQuestion {
   skills    InterviewQuestionSkill[]
   usages    InterviewQuestionUsage[]
 
-  votes     InterviewQuestionVote[]
+  votes InterviewQuestionVote[]
+
   @@index([organizationId, archivedAt])
   @@map("interview_question")
 }

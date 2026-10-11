@@ -2,6 +2,7 @@ import { type MiddlewareConsumer, Module, type NestModule } from "@nestjs/common
 import { requestContextMiddleware } from "./tenancy/request-context";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { ApplicationsModule } from "./applications/applications.module";
+import { AttributesModule } from "./attributes/attributes.module";
 import { AuthModule } from "./auth/auth.module";
 import { CandidatesModule } from "./candidates/candidates.module";
 import { EntitlementsModule } from "./entitlements/entitlements.module";
@@ -32,6 +33,7 @@ import { WorklistModule } from "./worklist/worklist.module";
 @Module({
   imports: [
     QuestionsModule,
+    AttributesModule,
     PrismaModule,
     AuthModule,
     TenancyModule,

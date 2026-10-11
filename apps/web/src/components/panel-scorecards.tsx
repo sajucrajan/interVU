@@ -13,6 +13,7 @@ interface Scorecard {
   orgUser: { id: string; name: string };
   interview: { id: string; roundName: string };
   competencies: { rating: number | null; note: string | null; skill: { id: string; name: string } }[];
+  attributes: { rating: number | null; note: string | null; attribute: { id: string; name: string } }[];
 }
 
 const REC_LABEL: Record<string, string> = {
@@ -109,6 +110,7 @@ function Card({
   showRound?: boolean;
 }) {
   const rated = c.competencies.filter((k) => k.rating !== null);
+  const ways = (c.attributes ?? []).filter((k) => k.rating !== null);
   return (
     <div className="psc-card">
       <div className="psc-head">
@@ -127,6 +129,15 @@ function Card({
           {rated.map((k) => (
             <span key={k.skill.id} className="skill-chip" title={k.note ?? undefined}>
               {k.skill.name} {k.rating}/5
+            </span>
+          ))}
+        </div>
+      )}
+      {ways.length > 0 && (
+        <div className="psc-comps">
+          {ways.map((k) => (
+            <span key={k.attribute.id} className="attr-chip" title={k.note ?? undefined}>
+              {k.attribute.name} {k.rating}/5
             </span>
           ))}
         </div>
