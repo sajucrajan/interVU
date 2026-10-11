@@ -37,7 +37,7 @@ export function AccessDenied({
       {others.length > 0 && (
         <div className="row" style={{ gap: 10, flexWrap: "wrap", marginBottom: "var(--step-4)" }}>
           {others.map((p) => (
-            <SwitchPersonaButton key={p.key} persona={p.key} label={p.label}>
+            <SwitchPersonaButton key={p.key} persona={p.key} label={p.label} stay>
               Try as {p.label} →
             </SwitchPersonaButton>
           ))}

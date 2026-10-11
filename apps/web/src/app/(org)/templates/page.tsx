@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
 import { ActionsMenu } from "@/components/actions-menu";
 import { PageHead } from "@/components/page-head";
 
@@ -26,13 +27,16 @@ interface Template {
 export default function TemplatesPage() {
   const router = useRouter();
   const [templates, setTemplates] = useState<Template[] | null>(null);
+  const [denied, setDenied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(
     () =>
       api<Template[]>("/position-templates")
         .then(setTemplates)
-        .catch(() => undefined),
+        .catch((e) => {
+          if (isForbidden(e)) setDenied(true);
+        }),
     [router],
   );
 
@@ -40,6 +44,7 @@ export default function TemplatesPage() {
     void refresh();
   }, [refresh]);
 
+  if (denied) return <AccessDenied what="Job description templates" why="For anyone who can see positions." />;
   if (!templates) return <main className="wide muted">Loading…</main>;
 
   return (

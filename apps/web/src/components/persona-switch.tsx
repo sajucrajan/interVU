@@ -8,21 +8,38 @@ import { api, apiErrorMessage } from "@/lib/api";
  * count and menu is computed for the active persona on the server, and
  * re-fetching them one by one is how a page ends up half in each job.
  */
-export async function switchPersona(key: string, next?: string): Promise<void> {
+/**
+ * Switch persona and land somewhere that persona can use.
+ *
+ * Today by default: the page someone was on belongs to the job they were
+ * doing, and reloading it as the other persona left a hiring manager's
+ * pipeline sitting on "Loading…" for an interviewer. A prompt ON the
+ * refused page ("Switch to Interviewer and continue") passes that page
+ * explicitly, because there the whole point is to come back to it.
+ */
+export async function switchPersona(key: string, next = "/dashboard"): Promise<void> {
   await api("/auth/persona", { method: "POST", body: { persona: key } });
-  window.location.assign(next ?? window.location.pathname + window.location.search);
+  window.location.assign(next);
 }
+
+/** The page we are on, for a switch that should come straight back to it. */
+export const herePath = () =>
+  typeof window === "undefined" ? "/dashboard" : window.location.pathname + window.location.search;
 
 export function SwitchPersonaButton({
   persona,
   label,
   next,
+  stay = false,
   className = "secondary",
   children,
 }: {
   persona: string;
   label: string;
+  /** Where to land. Default Today. */
   next?: string;
+  /** Come back to this very page: the prompt sits on the thing refused. */
+  stay?: boolean;
   className?: string;
   children?: React.ReactNode;
 }) {
@@ -36,7 +53,7 @@ export function SwitchPersonaButton({
         disabled={busy}
         onClick={() => {
           setBusy(true);
-          switchPersona(persona, next).catch((e) => {
+          switchPersona(persona, stay ? herePath() : next).catch((e) => {
             setError(apiErrorMessage(e));
             setBusy(false);
           });
@@ -77,7 +94,7 @@ export function PersonaMismatch({
         </div>
       </header>
       <div className="row" style={{ gap: 12 }}>
-        <SwitchPersonaButton persona={required} label={label} className="">
+        <SwitchPersonaButton persona={required} label={label} className="" stay>
           Switch to {label} and continue →
         </SwitchPersonaButton>
         <a href={back.href}>{back.label}</a>

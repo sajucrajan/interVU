@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
 import { ActionsMenu, Modal } from "@/components/actions-menu";
 import { SectionHead } from "@/components/section-head";
 import { PageHead } from "@/components/page-head";
@@ -28,6 +29,7 @@ interface Position {
 export default function PositionsPage() {
   const router = useRouter();
   const [positions, setPositions] = useState<Position[] | null>(null);
+  const [denied, setDenied] = useState(false);
   const [q, setQ] = useState("");
   const [templateFor, setTemplateFor] = useState<Position | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,9 @@ export default function PositionsPage() {
     () =>
       api<Position[]>("/positions")
         .then(setPositions)
-        .catch(() => undefined),
+        .catch((e) => {
+          if (isForbidden(e)) setDenied(true);
+        }),
     [router],
   );
 
@@ -56,6 +60,7 @@ export default function PositionsPage() {
     }
   }
 
+  if (denied) return <AccessDenied what="Positions" why="For anyone who can see positions in their scope. Interviewers open the brief for a role from My interviews." />;
   if (!positions) return <main className="wide muted">Loading…</main>;
 
   const filtered = positions.filter(
