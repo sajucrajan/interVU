@@ -128,6 +128,13 @@ const LINKS: RailLink[] = [
     icon: "◐",
     needs: "org.settings",
   },
+  {
+    group: "Admin",
+    href: "/admin/settings",
+    label: "Settings",
+    icon: "⚙",
+    needs: "org.settings",
+  },
 ];
 
 interface OrgMe {

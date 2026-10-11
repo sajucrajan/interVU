@@ -13,7 +13,7 @@ import {
   T_REVIEW,
   type MatchFeatureBreakdown,
 } from "@intervu/matching-core";
-import type { VendorSubmissionCreate } from "@intervu/contracts";
+import type { DirectCandidateCreate, VendorSubmissionCreate } from "@intervu/contracts";
 import { ErasureService } from "../candidates/erasure.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -387,6 +387,200 @@ export class SubmissionsService {
       payload: { position_id: position.id, submission_id: result.id },
     });
     return { submission: this.toVendorDto(result, position.title), idempotent: false };
+  }
+
+  /**
+   * A candidate the organization adds itself (docs/05 §8): careers site,
+   * referral, internal. Same normalization and identity matching as an
+   * agency submission, then an application with no submission behind it —
+   * the row no agency can claim.
+   *
+   * Three refusals, each a 409 the form can act on:
+   * - possible_match: the matcher is unsure. Carries the candidate it might
+   *   be; the caller resubmits with link_candidate_id or force_new.
+   * - agency_owns: an agency introduced this person and still owns the
+   *   introduction. Adding them directly would strip that claim and the
+   *   invoice behind it; the mirror of the rule that stops an agency
+   *   claiming a direct applicant.
+   * - already_applied: already in process for this role.
+   */
+  async addDirect(
+    organizationId: string,
+    positionId: string,
+    actorId: string,
+    input: DirectCandidateCreate,
+  ) {
+    const now = new Date();
+    const position = await this.prisma.position.findFirst({
+      where: { id: positionId, organizationId },
+      include: { organization: true },
+    });
+    if (!position) throw new NotFoundException("Position not found");
+    if (position.status !== "open") {
+      throw new ConflictException({
+        code: "position_not_open",
+        detail: "Candidates can only be added to an open position.",
+      });
+    }
+
+    const settings = (position.organization.settings ?? {}) as {
+      ownership_scope?: "position" | "organization";
+      ownership_window_days?: number;
+      default_phone_region?: string;
+    };
+    const emailNorm = normalizeEmail(input.email);
+    if (!emailNorm) throw new BadRequestException({ code: "invalid_email" });
+    const phone = normalizePhone(input.phone, (settings.default_phone_region as never) ?? "US");
+    const identityKeys: { kind: "email" | "phone" | "phone_last10"; valueNorm: string; valueRaw: string }[] = [
+      { kind: "email", valueNorm: emailNorm, valueRaw: input.email },
+    ];
+    if (phone.e164) identityKeys.push({ kind: "phone", valueNorm: phone.e164, valueRaw: input.phone });
+    if (phone.last10) identityKeys.push({ kind: "phone_last10", valueNorm: phone.last10, valueRaw: input.phone });
+
+    // Deterministic match, same as an agency submission.
+    const hits = await this.prisma.candidateIdentity.findMany({
+      where: {
+        organizationId,
+        candidate: { erasedAt: null },
+        OR: identityKeys.map((k) => ({ kind: k.kind, valueNorm: k.valueNorm })),
+      },
+    });
+    const emailHit = hits.find((h) => h.kind === "email");
+    let matchedCandidateId = emailHit?.candidateId ?? hits[0]?.candidateId ?? null;
+    let outcome: "auto_linked" | "auto_new" | "confirmed_link" | "confirmed_new" = matchedCandidateId
+      ? "auto_linked"
+      : "auto_new";
+
+    // The person answered a possible-match question.
+    if (input.link_candidate_id) {
+      const chosen = await this.prisma.candidate.findFirst({
+        where: { id: input.link_candidate_id, organizationId, erasedAt: null, mergedIntoId: null },
+        select: { id: true },
+      });
+      if (!chosen) throw new NotFoundException("That candidate is not on file");
+      matchedCandidateId = chosen.id;
+      outcome = "confirmed_link";
+    } else if (!matchedCandidateId && !input.force_new) {
+      const fuzzy = await this.fuzzyMatch(
+        organizationId,
+        { ...input, vendor_notes: undefined, expected_rate: undefined, candidate_consent_confirmed: true, linkedin_url: undefined },
+        emailNorm,
+      );
+      if (fuzzy && fuzzy.score >= T_AUTO) {
+        matchedCandidateId = fuzzy.candidateId;
+      } else if (fuzzy && fuzzy.score >= T_REVIEW) {
+        const maybe = await this.prisma.candidate.findUnique({
+          where: { id: fuzzy.candidateId },
+          select: { id: true, displayName: true, reference: true, currentTitle: true, currentEmployer: true },
+        });
+        throw new ConflictException({
+          code: "possible_match",
+          detail: `This may be ${maybe?.displayName ?? "someone"} who is already on file.`,
+          score: fuzzy.score,
+          candidate: maybe,
+        });
+      }
+    } else if (input.force_new) {
+      outcome = "confirmed_new";
+    }
+
+    if (matchedCandidateId) {
+      // An agency's live introduction is theirs (docs/05 §4). The org side
+      // cannot route around it by adding the person directly.
+      const scope = settings.ownership_scope ?? "position";
+      const windowDays = settings.ownership_window_days ?? 180;
+      const owning = await this.prisma.submission.findFirst({
+        where: {
+          organizationId,
+          candidateId: matchedCandidateId,
+          receivedAt: { gte: new Date(now.getTime() - windowDays * DAY_MS) },
+          status: { notIn: ["rejected", "withdrawn", "duplicate"] },
+          ...(scope === "position" ? { positionId: position.id } : {}),
+        },
+        orderBy: { receivedAt: "asc" },
+        include: { vendorOrg: { include: { vendor: { select: { name: true } } } } },
+      });
+      if (owning) {
+        throw new ConflictException({
+          code: "agency_owns",
+          detail: `${owning.vendorOrg.vendor.name} introduced this person on ${owning.receivedAt.toISOString().slice(0, 10)} and still owns the introduction. Move their submission through the pipeline instead.`,
+        });
+      }
+      const existing = await this.prisma.application.findUnique({
+        where: { positionId_candidateId: { positionId: position.id, candidateId: matchedCandidateId } },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ConflictException({
+          code: "already_applied",
+          detail: "This person is already in process for this role.",
+          application_id: existing.id,
+        });
+      }
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const candidate = matchedCandidateId
+        ? await tx.candidate.findUniqueOrThrow({ where: { id: matchedCandidateId } })
+        : await tx.candidate.create({
+            data: {
+              reference: await nextCandidateReference(tx, organizationId),
+              organizationId,
+              displayName: input.candidate_name,
+              currentTitle: input.current_title,
+              currentEmployer: input.current_employer,
+              location: input.location,
+            },
+          });
+      await tx.candidateIdentity.createMany({
+        data: identityKeys.map((k) => ({
+          organizationId,
+          candidateId: candidate.id,
+          kind: k.kind,
+          valueNorm: k.valueNorm,
+          valueRaw: k.valueRaw,
+        })),
+        skipDuplicates: true,
+      });
+      const application = await tx.application.create({
+        data: {
+          organizationId,
+          positionId: position.id,
+          candidateId: candidate.id,
+          sourceChannel: input.source,
+          sourceDetail: input.source_detail ?? null,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          organizationId,
+          actorType: "org_user",
+          actorId,
+          event: "application.created_direct",
+          entityType: "application",
+          entityId: application.id,
+          payload: { positionId: position.id, candidateId: candidate.id, source: input.source, outcome },
+        },
+      });
+      return { application, candidate };
+    });
+
+    void this.notifications.dispatch({
+      organizationId,
+      type: "submission.created",
+      title: `New candidate: ${input.candidate_name}`,
+      text: `Added directly for ${position.title} (${input.source})${matchedCandidateId ? " — matched to an existing candidate, history attached" : ""}.`,
+      payload: { position_id: position.id, application_id: result.application.id },
+    });
+    return {
+      application_id: result.application.id,
+      candidate: {
+        id: result.candidate.id,
+        displayName: result.candidate.displayName,
+        reference: result.candidate.reference,
+      },
+      matched: matchedCandidateId !== null,
+    };
   }
 
   /** Vendor's own submissions for the session's organization, coarse only. */

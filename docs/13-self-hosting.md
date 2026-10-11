@@ -92,9 +92,13 @@ From there, in the app:
    agency gets its own portal sign-in.
 4. **Admin → Ways of working** — the attitude and collaboration attributes
    every interviewer rates. Edit the defaults to match how you hire.
-5. **Admin → Appearance** — your colours, type and product name, with a
+5. **Admin → Settings** — how long an agency owns an introduction, whether
+   scorecards stay hidden until filed, phone-number country, stage caps,
+   notification channels.
+6. **Admin → Appearance** — your colours, type and product name, with a
    preview of the main screens before you save.
-6. **Positions** — post a role, share it with agencies, and the rest follows.
+7. **Positions** — post a role, share it with agencies or add a candidate
+   yourself, and the rest follows.
 
 The manual for all of this is in the product at `/guide`.
 

@@ -298,6 +298,31 @@ export const VendorSubmissionCreate = z.object({
   candidate_consent_confirmed: z.boolean(),
 });
 
+/**
+ * A candidate added by the organization itself (docs/05 §8): careers site,
+ * an employee's referral, an internal move. No agency, no submission, no
+ * ownership claim. Goes through the same identity matching as an agency
+ * submission; when the matcher is unsure it answers 409 possible_match and
+ * the form asks the person, who resubmits with one of the last two fields.
+ */
+export const DirectSource = z.enum(["careers", "referral", "internal"]);
+
+export const DirectCandidateCreate = z.object({
+  candidate_name: z.string().trim().min(1).max(200),
+  email: z.string().email(),
+  phone: z.string().min(4).max(32),
+  current_title: z.string().max(200).optional(),
+  current_employer: z.string().max(200).optional(),
+  location: z.string().max(200).optional(),
+  source: DirectSource.default("careers"),
+  /** Who referred them, or where the application came in. */
+  source_detail: z.string().trim().max(200).optional(),
+  /** Answering a possible match: this IS that person. */
+  link_candidate_id: z.string().uuid().optional(),
+  /** Answering a possible match: no, a new person. */
+  force_new: z.boolean().default(false),
+});
+
 /** Coarse statuses — the ONLY status vocabulary vendors ever see. */
 export const VendorFacingStatus = z.enum([
   "received",
@@ -378,6 +403,8 @@ export const FlagCreate = z.object({
 export type ReleasePolicy = z.infer<typeof ReleasePolicy>;
 export type PositionCreate = z.infer<typeof PositionCreate>;
 export type VendorSubmissionCreate = z.infer<typeof VendorSubmissionCreate>;
+export type DirectCandidateCreate = z.infer<typeof DirectCandidateCreate>;
+export type DirectSource = z.infer<typeof DirectSource>;
 export type VendorFacingStatus = z.infer<typeof VendorFacingStatus>;
 export type PositionSkillInput = z.infer<typeof PositionSkillInput>;
 export type MatchReviewResolve = z.infer<typeof MatchReviewResolve>;

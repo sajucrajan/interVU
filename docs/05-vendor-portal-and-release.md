@@ -211,6 +211,36 @@ vendor · import`, with an optional `source_detail` and, for referrals, the
   naming the other source. This is the rule that makes hybrid safe: without
   it, an agency can watch a careers page and invoice for its traffic.
 
+### Adding a candidate directly
+
+A recruiter, hiring manager or admin with `applications.transition` in the
+position's unit adds a candidate from the position page (*Add a candidate*):
+name, email, phone, where they came from (applied directly, referred by an
+employee, internal move) and a note on the source. `POST
+/positions/:id/candidates`.
+
+The same identity matching runs as for an agency submission (docs/04): an
+exact email or phone links the person to their existing record and brings
+the history along; a confident fuzzy match links too; an uncertain one is
+not decided by the matcher but **asked**: the server answers `409
+possible_match` naming the candidate it might be, and the form offers
+*same person* (resubmit with `link_candidate_id`) or *new person*
+(`force_new`). Nothing lands in the match-review queue, because the person
+who can answer is already at the keyboard.
+
+Two refusals protect the rules above:
+
+- `409 agency_owns` — an agency introduced this person and the introduction
+  is still within the ownership window (per position or organization-wide,
+  per the organization's settings). Adding them directly would strip that
+  claim and the invoice behind it, so it is refused with the agency's name
+  and date. This is the mirror of `already_direct`, which stops an agency
+  claiming someone who applied on their own.
+- `409 already_applied` — already in process for this role.
+
+The application carries `source_channel` and `source_detail` and no
+submission, so no agency can ever be paid for it.
+
 ### Changing a role's channel
 
 Channel is set when the position is created (**Positions → New**) and changed

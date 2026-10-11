@@ -261,7 +261,15 @@ the behaviours that show it. Edit one, reorder with the arrows, retire one,
 bring it back, add a sixth. These are rated on every scorecard whatever the
 role.
 
-### Step 9 · Appearance
+### Step 9 · Settings
+
+Admin → **Settings**: how long an agency owns an introduction and whether
+per role or organization-wide; whether scorecards stay hidden until the
+reader has filed; the default country for phone numbers; work-in-progress
+caps per stage; and where notifications go. Change the ownership window to
+30 days and see the duplicate rules follow.
+
+### Step 10 · Appearance
 
 Admin → **Appearance**. Pick one of the 19 palettes (light ones first, then
 the six dark-by-default ones), change any colour in it for the light or the
@@ -297,6 +305,17 @@ who.
 **My submissions** on the portal shows each person with a coarse status
 (submitted, interviewing, offered, not selected). It never gets more specific
 than that.
+
+### 5.1b A candidate without an agency
+
+As Riley, open the Platform position → **Add a candidate**: name, email,
+phone, where they came from (applied directly, referred, internal) and who
+referred them. They land in New, ready to screen, with no agency attached.
+Three things to try: add someone an agency already introduced (refused,
+naming the agency and the date); add the same person twice (refused:
+already in process); add "Katherine Walsh" with a new email when Catherine
+Walsh is on file (the form asks *same person?* and attaches the history if
+you say yes).
 
 ### 5.2 The recruiter screens
 
@@ -399,11 +418,6 @@ as a sunburst down to positions.
 
 Logging these as bugs would be fair but unhelpful; they are known gaps.
 
-- **No direct candidate entry.** Candidates arrive only through an agency's
-  portal. A *Direct only* position has no way to receive a candidate from
-  the web app; that path exists in the API only.
-- **Organization settings** (hidden-until-submitted versus open scorecards,
-  the ownership window, branding) have no admin screen. Defaults apply.
 - **Offer details** (amount, start date, decline reasons) exist in the API;
   the board has one-click *Record offer* only.
 - **Do-not-hire flags** are shown on the candidate page but cannot be set

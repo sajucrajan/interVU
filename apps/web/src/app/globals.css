@@ -5658,8 +5658,12 @@ main.home {
 .ap-font-blurb { font-size: 11.5px; line-height: 1.35; }
 .ap-misc { display: grid; gap: 16px; margin-bottom: var(--step-4); }
 .ap-misc label { display: grid; gap: 4px; }
-.ap-radio { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
-.ap-radio input { margin: 0; }
+.ap-misc label.ap-radio,
+.ap-radio { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; color: var(--fg); }
+/* The control keeps its natural size (the generic input rule is width: 100%);
+   the text takes the rest of the row. */
+.ap-radio input { margin: 0; width: auto; flex: none; }
+.ap-radio > span { flex: 1; min-width: 0; }
 
 /* The preview strip */
 .tp {
@@ -5884,3 +5888,32 @@ main.home {
   text-decoration: underline;
   margin-left: 4px;
 }
+
+/* ---- Admin → Settings ---- */
+.st-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: var(--step-4);
+  align-items: start;
+}
+.st-card { display: grid; gap: 12px; }
+.st-card .ap-radio { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: 14px; line-height: 1.45; color: var(--fg); }
+.st-card .ap-radio input { margin-top: 3px; }
+.st-hint { font-size: 13px; margin: 0; }
+.st-field { display: grid; gap: 6px; }
+.st-field.st-inline { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; }
+.st-field.st-inline label { display: grid; gap: 2px; }
+.st-label { font: 600 13px/1.3 var(--font-ui); }
+.st-cap { display: grid; gap: 4px; font-size: 13px; }
+.st-cap input { width: 100px; }
+
+/* ---- Add a candidate (docs/05 §8) ---- */
+.acf { display: grid; gap: 12px; }
+.acf-lede { font-size: 13px; margin: 0; }
+.acf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.acf-grid label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
+.acf-source { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 8px; margin: 0; }
+.acf-source > label:last-child { display: grid; gap: 4px; font-size: 13px; font-weight: 600; margin-top: 4px; }
+.acf-source .ap-radio { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: 14px; color: var(--fg); }
+.acf-source .ap-radio input { margin-top: 3px; }
+.acf-possible p { margin: 6px 0 10px; }

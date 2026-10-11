@@ -30,7 +30,7 @@ InterVU is built for organizations that run high volumes of interviews across ma
 - Rich role postings: seniority, employment type, location policy, vendor-facing rate bands, skill matrix (must/good × proficiency × years), non-skill must-haves, rendered JD pages, posting form
 - Tiered/manual/all-at-once vendor release with query-time visibility
 - Vendor submissions with deterministic **and** probabilistic candidate matching: gmail-alias-proof identity resolution, trigram blocking, explainable scoring, human review queue, reversible master merges, CI-gated eval corpus
-- First-valid-submission ownership with cross-vendor duplicate flagging and arbitration data
+- First-valid-submission ownership with cross-vendor duplicate flagging and arbitration data; candidates added directly (careers, referral, internal) go through the same matching and can never be claimed by an agency
 - Interviews with skill-matched panel suggestions, scorecards that rate the role's skills and the organization's **ways of working** (communication, collaboration, ownership…, with evidence required at the ends of the scale), hide-until-submitted feedback policy, emailed scorecard reminders, decisions, do-not-hire flags, full cross-position candidate timelines
 - Analytics dashboard (D3 sunburst of hierarchy → positions, funnel, vendor performance); **white-labelling** per organization: 19 palettes, per-colour overrides, type families, with a preview of the main screens before saving
 - Pluggable notifications: per-org channels (any SMTP, Slack, Teams, HMAC-signed webhooks) with durable delivery — retry/backoff, dead letters, delivery log

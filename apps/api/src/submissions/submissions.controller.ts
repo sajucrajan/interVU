@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
-import { VendorSubmissionCreate } from "@intervu/contracts";
+import { Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { DirectCandidateCreate, VendorSubmissionCreate } from "@intervu/contracts";
 import { parseBody } from "../common/zod";
 import { AuthzService } from "../entitlements/authz.service";
 import { OrgScope, Tenant, VendorScope } from "../tenancy/scope.decorator";
@@ -75,4 +76,37 @@ export class OrgSubmissionsController {
     );
   }
 
+}
+
+/**
+ * A candidate added by the organization itself (docs/05 §8). Gated on
+ * applications.transition in the position's unit: the same hand that moves
+ * people through the pipeline is the one that can put them in it.
+ */
+@Controller("positions")
+@OrgScope()
+export class DirectCandidatesController {
+  constructor(
+    private readonly submissions: SubmissionsService,
+    private readonly authz: AuthzService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  @Post(":id/candidates")
+  async add(
+    @Tenant() tenant: TenantContext,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(DirectCandidateCreate, body);
+    const { organizationId, user } = tenant.org!;
+    const position = await this.prisma.position.findFirst({
+      where: { id, organizationId },
+      select: { orgUnitId: true },
+    });
+    if (!position) throw new NotFoundException("Position not found");
+    const access = await this.authz.access(tenant);
+    this.authz.require(access, "applications.transition", position.orgUnitId);
+    return this.submissions.addDirect(organizationId, id, user.id, input);
+  }
 }

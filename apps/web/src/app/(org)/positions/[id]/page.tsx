@@ -17,6 +17,7 @@ import {
 import { usePageIdentity } from "@/components/sticky-identity";
 import { can, useMe } from "@/lib/me";
 import { PositionBriefView, type Brief } from "@/components/position-brief";
+import { AddCandidateForm } from "@/components/add-candidate-form";
 import { formatDate, formatDateTime, formatRelativeDay } from "@/lib/format";
 
 interface Detail {
@@ -133,7 +134,7 @@ export default function PositionDetailPage() {
   const [apps, setApps] = useState<RoleApplication[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<
-    "publish" | "release" | "template" | "edit" | "requirements" | null
+    "publish" | "release" | "template" | "edit" | "requirements" | "add" | null
   >(null);
 
   const refresh = useCallback(
@@ -266,7 +267,14 @@ export default function PositionDetailPage() {
             .filter(Boolean)
             .join(" ");
 
-  const items: MenuItem[] = [{ label: "Edit", heading: true }];
+  const items: MenuItem[] = [];
+  if (p.status === "open" && can(me, "applications.transition")) {
+    items.push(
+      { label: "Candidates", heading: true },
+      { label: "Add a candidate…", onSelect: () => setDialog("add") },
+    );
+  }
+  items.push({ label: "Edit", heading: true });
   items.push({ label: "Edit details…", onSelect: () => setDialog("edit") });
   items.push({ label: "Edit requirements…", onSelect: () => setDialog("requirements") });
   if (p.status === "draft") {
@@ -355,6 +363,9 @@ export default function PositionDetailPage() {
           <Link href={`/pipeline?position=${p.id}`}>
             <button className="secondary">View candidates</button>
           </Link>
+          {p.status === "open" && can(me, "applications.transition") && (
+            <button onClick={() => setDialog("add")}>Add a candidate</button>
+          )}
           <ActionsMenu items={items} />
         </div>
       </div>
@@ -546,6 +557,18 @@ export default function PositionDetailPage() {
         </div>
       </div>
 
+      {dialog === "add" && (
+        <Modal title="Add a candidate" onClose={() => setDialog(null)}>
+          <AddCandidateForm
+            positionId={p.id}
+            positionTitle={p.title}
+            onDone={(applicationId) => {
+              setDialog(null);
+              router.push(`/applications/${applicationId}/screen`);
+            }}
+          />
+        </Modal>
+      )}
       {dialog === "publish" && (
         <Modal title={`Publish ${p.reference}`} onClose={() => setDialog(null)}>
           <PublishForm
