@@ -66,7 +66,7 @@ Candidate self-scheduling, offer management, multi-language UI, analytics wareho
 - [x] `LICENSE` (Apache-2.0), `CODE_OF_CONDUCT.md` (Contributor Covenant), `CONTRIBUTING.md`, `SECURITY.md` (private disclosure), `.github/ISSUE_TEMPLATE/` (bug, feature, design question), PR template with checklist
 - [ ] GitHub Discussions on (design decisions happen in the open; docs/ PRs welcome) — a repository setting; until then the *Design question* issue template does the job
 - [x] CI: typecheck (via build), unit, **cross-tenant leakage suite** (`access-check`), matching eval, link crawl — still missing: a lint step and a docker build
-- [ ] `good first issue` + `help wanted` labels seeded from milestone tasks (normalizers, similarity functions, and UI components are ideal first issues — pure, small, well-specified)
+- [x] `good first issue` + `help wanted` labels seeded: five open issues (candidate flags UI, offer details, erasure UI, a palette or font pairing, matching-core tests) — pure, small, well-specified
 - [x] Demo instance (reset nightly) + seed data so evaluators see the matching engine without setup
 - [ ] Docs site (this `docs/` folder rendered via a static site generator) with a 5-minute quickstart
 - [ ] Versioning: SemVer, conventional commits, release automation (changesets) — `main` is protected already
