@@ -145,7 +145,9 @@ A person who is a hiring manager **and** sits on an interview panel is doing
 two jobs with different screens. InterVU treats these as **personas**. After
 sign-in, such a person is asked *"How are you working today?"* and picks one;
 the choice can be remembered or asked every time. They switch from the
-account menu (the ⋯ at the bottom of the left rail). Only the active persona's
+account menu (the ⋯ at the bottom of the left rail) and land on Today, since
+the page they were on belonged to the other job; a refused page offers *Try
+as …*, which switches and comes straight back to it. Only the active persona's
 permissions apply: a hiring manager who opens an interview room link is told
 *"Switch to Interviewer and continue"* instead of being let in. Today shows a
 count of anything waiting in the other persona.
