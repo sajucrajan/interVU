@@ -28,6 +28,13 @@ const SettingsPatch = z
     ownership_window_days: z.number().int().min(1).max(3650).optional(),
     feedback_visibility: z.enum(["open", "hidden_until_submitted"]).optional(),
     default_phone_region: z.string().length(2).optional(),
+    /** Work-in-progress caps per stage, shown on the board's column headers. */
+    wip_caps: z
+      .object({
+        screening: z.number().int().min(1).max(999).nullable().optional(),
+        interviewing: z.number().int().min(1).max(999).nullable().optional(),
+      })
+      .optional(),
     /** White-labelling (docs/01 §4): a palette, overrides on top, a type
      *  family and the default mode. Keys are the web's lib/theme.ts; the
      *  API only checks shape, so a palette added to the web needs no

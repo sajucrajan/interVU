@@ -9,6 +9,7 @@ and both code and design review are welcome.
 - **Code** — pick an issue labeled `good first issue` or `help wanted`. The `packages/matching-core` package (pure functions: normalizers, similarity, scoring) is the friendliest entry point: no DB, no framework, just well-specified functions and tests.
 - **Design feedback** — open a *Design question* issue on anything in [`docs/`](docs/). Real-world experience with vendor/staffing workflows, VMS ownership disputes, or identity resolution is especially wanted.
 - **Docs & i18n** — quickstart improvements, translations of UI strings.
+- **Talk first** — [GitHub Discussions](https://github.com/sajucrajan/interVU/discussions) is the place for "how do you handle…", "would you take a PR that…", and show-and-tell. An issue is for a defect or a scoped change; a discussion is for everything before that.
 
 ## Development setup
 

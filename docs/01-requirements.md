@@ -216,6 +216,7 @@ rows.
   and reveals nothing. Seeing a colleague's *rating* before you write your own
   is what hide-until-submitted exists to prevent.
 - As a **recruiter**, I move candidates through pipeline stages and record decisions; vendors see only the coarse status mapping.
+- As a **recruiter or hiring manager**, I add a candidate who applied directly, was referred, or is moving internally, and the system tells me if they are already on file or already an agency's introduction (docs/05 §8).
 
 ### Ways of working (`/admin/attributes`)
 

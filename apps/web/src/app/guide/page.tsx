@@ -77,7 +77,9 @@ export default function GuidePage() {
           docs/14
         </a>
         , whose first two sections cover running the stack and creating an
-        organization.
+        organization. The framed screens along the way are the product&apos;s
+        own components with made-up data, so you see each page before you
+        open it; a strip with arrows is browsed like pictures.
       </p>
 
       <div className="guide-grid">

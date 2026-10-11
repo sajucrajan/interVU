@@ -383,6 +383,15 @@ const writes = [
     (a) => seatOn(a, engInterview),
   ],
   engInterview && ["PUT", `/interviews/${engInterview}/draft`, { notes: {} }, (a) => seatOn(a, engInterview)],
+  // Adding a candidate without an agency (docs/05 §8): the hand that moves
+  // people through the pipeline. Only refused accounts send this, so nothing
+  // is created.
+  [
+    "POST",
+    `/positions/${engApp.position.id}/candidates`,
+    { candidate_name: "Access Check", email: "access-check@example.test", phone: "+1 512 555 0100", source: "careers" },
+    (a) => a.inScope("applications.transition", engUnit),
+  ],
   // Changing what every scorecard rates is organization policy (docs/09 §2).
   ["POST", "/attributes", { name: "Access check", description: "", behaviours: [] }, perm("org.settings")],
   attribute && ["PATCH", `/attributes/${attribute.id}`, { description: attribute.description }, perm("org.settings")],
@@ -465,6 +474,7 @@ for (const [method, path, body] of [
   ["POST", `/applications/${gApp.id}/decision`, { outcome: "hold", reason: "x" }],
   ["POST", `/candidates/${gApp.candidate.id}/flags`, { kind: "note", reason: "x" }],
   ["PATCH", `/attributes/${gAttribute.id}`, { name: "Renamed from Acme" }],
+  ["POST", `/positions/${gPositions[0].id}/candidates`, { candidate_name: "Cross Tenant", email: "cross@example.test", phone: "+1 512 555 0101", source: "careers" }],
 ]) {
   const r = await call(admin, method, path, body);
   expect("TENANT", admin.email, method, path, false, r.status, "Globex record");

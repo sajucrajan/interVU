@@ -6,8 +6,11 @@ the people in the system are, what each of them can do, what to set up in
 which order, and what to expect at every step. Written for a QA lead; nothing
 here needs the code.
 
-> **In the product**, this same text from section 3 onward is at `/guide`.
-> Section 1 and 2 are about running the stack, so they live here only.
+> **In the product**, this same text from section 3 onward is at `/guide`,
+> where each step also shows the screen it is about: a mock drawn with the
+> product's own components and made-up data, so you see a page before you
+> open it (the HTML comments in this file mark where). Sections 1 and 2 are
+> about running the stack, so they live here only.
 
 > **The short version.** Start the stack (§1), create your organization (§2),
 > build the org in the admin screens in the order given (§3), then run the
@@ -160,11 +163,15 @@ Everyone else holds one persona and is never asked.
 
 Do these as the admin, in this order: each one depends on the one before.
 
+<!-- screens: teams, people, vendors, new-position, position, questions, attributes, settings, appearance | The set-up, screen by screen, in the order below. Browse with the arrows, the dots or the keyboard. Made-up data; yours will carry your own names. -->
+
 ### Step 1 · Teams
 
 Admin → **Teams** → *Add a vertical*. Two kinds: a **unit** holds other units
 and teams; a **team** holds positions. Build at least two branches so scope
 has something to bite on:
+
+<!-- screen: teams | Units hold units or teams; a position attaches to a team, and access granted at a node covers everything beneath it. -->
 
 ```
 Engineering (unit)
@@ -183,6 +190,8 @@ and a scope (the whole organization or one node). *Grant another role* adds a
 second grant to the same person. After you invite, an **Activation link** box
 appears: copy it, open it in that person's own browser window, set a password.
 Until then the row says *awaiting activation*.
+
+<!-- screen: people | One row per person with their role and scope; the activation link appears after an invite and the row says *awaiting activation* until it is used. -->
 
 A cast that exercises everything:
 
@@ -206,6 +215,8 @@ password. Make two agencies: *Bridge Talent* (tier 1) and *Second Street
 Staffing* (tier 2). Agency people sign in at `/vendor/login` with the
 organization slug, email and password.
 
+<!-- screen: vendors | Each agency with its tier and contract; adding one asks for the first person at the agency and gives you their activation link. -->
+
 ### Step 4 · A job description template (optional)
 
 **Templates** → *New template*: a reusable job description. Positions can
@@ -215,6 +226,8 @@ start from one. Skip it the first time; come back when you want to test
 ### Step 5 · The first position
 
 **Positions** → *New position*. The form, top to bottom:
+
+<!-- screen: new-position | Role, team, skill matrix, sourcing channel, vendor terms, then publish or save as draft. -->
 
 - **Role**: title, team (required), seniority, employment type, location
   policy and location, openings, minimum total experience, description,
@@ -244,6 +257,8 @@ menu also has *Publish…*, *Pause (hide from agencies)*, *Reopen* and *Edit
 details*. Share the Sales role with Second Street only, and check Bridge
 Talent's portal does not show it.
 
+<!-- screen: position | The right-hand card is the whole story: who can send candidates, and a row per agency saying whether and since when they can see the role. -->
+
 ### Step 7 · The question bank
 
 **Question bank** → add a question: the prompt, its kind (technical, system
@@ -253,6 +268,8 @@ covers, follow-ups if the answer is thin. Any org user can add one,
 interviewers included. Add three or four against the Platform role's skills;
 they will appear in the interview room for that role.
 
+<!-- screen: questions | Questions tagged by kind, level and the competencies they probe; the room shows the ones that match the round. -->
+
 ### Step 8 · Ways of working
 
 Admin → **Ways of working**. Five defaults (Communication, Collaboration,
@@ -261,7 +278,19 @@ the behaviours that show it. Edit one, reorder with the arrows, retire one,
 bring it back, add a sixth. These are rated on every scorecard whatever the
 role.
 
-### Step 9 · Appearance
+<!-- screen: attributes | The five defaults, each with its meaning; edit, reorder, retire or add. Rated on every scorecard whatever the role. -->
+
+### Step 9 · Settings
+
+Admin → **Settings**: how long an agency owns an introduction and whether
+per role or organization-wide; whether scorecards stay hidden until the
+reader has filed; the default country for phone numbers; work-in-progress
+caps per stage; and where notifications go. Change the ownership window to
+30 days and see the duplicate rules follow.
+
+<!-- screen: settings | Ownership scope and window, scorecard visibility, phone country, work-in-progress caps. -->
+
+### Step 10 · Appearance
 
 Admin → **Appearance**. Pick one of the 19 palettes (light ones first, then
 the six dark-by-default ones), change any colour in it for the light or the
@@ -272,6 +301,8 @@ the vendor portal and (on a single-organization server) the sign-in page.
 Status colours stay fixed: check that a red accent never makes a healthy row
 look broken.
 
+<!-- screen: appearance | Palettes on the left, overrides below them, and the preview strip on the right re-renders every screen as you change things. -->
+
 That is the organization. Everything from here is the hiring loop.
 
 ---
@@ -281,12 +312,16 @@ That is the organization. Everything from here is the hiring loop.
 Keep one window per person. The sequence below is one complete loop; run it
 once straight through before you start breaking things.
 
+<!-- screens: vendor, submit, add-candidate, today, pipeline, screen, match-review, schedule, interviews, room, persona, debrief, candidate, analytics | One hire, screen by screen: the agency's portal, the recruiter's board and screening page, a match review, scheduling, the interviewer's room, the manager's debrief, and what the agency sees at the end. -->
+
 ### 5.1 The agency sends candidates
 
 Sign in at `/vendor/login` as Bridge Talent. The portal lists only the roles
 released to this agency, with the rate band. Open the Platform role →
 **Submit a candidate**: name, email, phone (required), current employer and
 title, notes, a resume (PDF, TXT or DOCX, up to 10 MB), and a consent tick.
+
+<!-- screen: submit | The agency's portal: only the roles released to them, with the rate band, and the submission form with its consent tick. -->
 
 Submit three people. Then, as Second Street, submit **one of the same three
 again** with the same email: the portal refuses with *already in process from
@@ -298,6 +333,19 @@ who.
 (submitted, interviewing, offered, not selected). It never gets more specific
 than that.
 
+### 5.1b A candidate without an agency
+
+As Riley, open the Platform position → **Add a candidate**: name, email,
+phone, where they came from (applied directly, referred, internal) and who
+referred them. They land in New, ready to screen, with no agency attached.
+Three things to try: add someone an agency already introduced (refused,
+naming the agency and the date); add the same person twice (refused:
+already in process); add "Katherine Walsh" with a new email when Catherine
+Walsh is on file (the form asks *same person?* and attaches the history if
+you say yes).
+
+<!-- screen: add-candidate | The same identity matching runs: when the matcher is unsure, the form asks *same person?* instead of guessing. -->
+
 ### 5.2 The recruiter screens
 
 Sign in as Riley. **Today** says how many things are waiting: new
@@ -307,11 +355,15 @@ button and a ⋯ menu (move stage, schedule interview, screen, open debrief,
 record offer or rejection, candidate history). Click several cards to move
 them together.
 
+<!-- screen: pipeline | New → Screening → Interviewing → Offer; every card has a next-step button and a ⋯ menu. -->
+
 *Screen* opens the screening page: what the role needs against what the CV
 shows, must-haves with no evidence, whether this person was considered
 before by any team, and *Your call*: move them on into the loop, or *Reject at screening* with a
 reason. Rejections here are recorded as screening rejections, separate from
 panel rejections, and the button disappears once anyone has interviewed them.
+
+<!-- screen: screen | What the role needs against what the CV shows, whether this person was considered before, and *Your call*. -->
 
 ### 5.3 Match reviews: is this the same person?
 
@@ -323,12 +375,16 @@ creates a new candidate and teaches the matcher not to ask again. To produce
 one: submit "Katherine Walsh" at one agency, then "Catherine Walsh" at the
 other with a different email and the same employer.
 
+<!-- screen: match-review | The evidence side by side: name, email, phone and employer, each scored, then *Same person — link* or *Keep separate*. -->
+
 ### 5.4 Scheduling the interview
 
 On a card: *Schedule interview…*: round name, when, and the panel. Suggested
 panelists are skill-matched to the role; cmd/ctrl-click picks several. Put **Ira and Morgan** on the first round: Ira is an
 interviewer; Morgan is the hiring manager, and this seat is what gives
 Morgan a second persona.
+
+<!-- screen: schedule | Round, time, and the suggested panel, skill-matched to the role. -->
 
 ### 5.5 The interviewer files a scorecard
 
@@ -341,9 +397,13 @@ a note per competency (blank means *not assessed*, which the debrief shows
 differently from a low score), then **How they'd work here**, then your call
 and overall. Notes autosave.
 
+<!-- screen: interviews | Grouped by what you must do: *Waiting on you*, *Upcoming*, *Filed*. An interview that has not happened is never owed. -->
+
 Rate Collaboration **5** and try to file: it refuses until you say what you
 saw. That rule is enforced by the server as well. *Quick file* on the list
 is the same scorecard without the room.
+
+<!-- screen: room | The interview room: requirements and whether the CV shows them, the bank's questions, and the scorecard on the right. A 5 on a way of working needs evidence. -->
 
 After filing, *View scorecards* shows yours, then the rest of the panel's,
 which stay hidden until yours is in.
@@ -355,6 +415,8 @@ Pick Hiring manager: Today shows "1 thing waiting as Interviewer". Open the
 account menu (⋯ bottom left) to switch, set a default, or ask every time.
 Paste the interview room URL while still Hiring manager: the page offers
 *Switch to Interviewer and continue*. Switch, file the scorecard, switch back.
+
+<!-- screen: persona | Sign-in asks which hat to wear; the ⋯ menu switches later, and a page meant for the other persona offers to switch and continue. -->
 
 ### 5.7 The debrief and the decision
 
@@ -370,6 +432,8 @@ see*. Then *Record decision & release feedback* or *Record decision, hold
 feedback*. The ⋯ menu on the card also has one-click *Record offer* and
 *Record rejection* without feedback.
 
+<!-- screen: debrief | Sealed until every panelist has filed; the competency matrix with a consensus column, divergence called out, and the feedback packet composed on the right. -->
+
 ### 5.8 The agency sees the outcome
 
 Back in Bridge Talent's portal, *My submissions* now shows the new status
@@ -377,6 +441,8 @@ and, if released, the feedback packet: the summary, the tags, the hint.
 Never a name, a number, a note or who disagreed. The portal's
 **Performance** page shows the agency its own funnel against the other
 agencies, anonymised.
+
+<!-- screen: vendor | *My submissions* shows a coarse status and, if released, the feedback packet. Never a name, a number or who disagreed. -->
 
 ### 5.9 Candidate history
 
@@ -386,6 +452,8 @@ history, merged identities and identity confidence, and any flags. Morgan
 sees only Engineering's; an interviewer sees the people they are
 interviewing until the decision; Pat sees Sales.
 
+<!-- screen: candidate | The timeline across every team and agency, merged identities and identity confidence, any flags. -->
+
 ### 5.10 Analytics
 
 **Analytics** (anyone who can view positions): time to offer, funnel,
@@ -393,17 +461,14 @@ channels. **Vendor performance** (admin, or the custom vendor-manager role):
 which agencies are worth the fee, side by side. **Explorer**: the org chart
 as a sunburst down to positions.
 
+<!-- screen: analytics | Time to offer, the funnel and the channels; vendor performance and the explorer sit beside it. -->
+
 ---
 
 ## 6. Things that have no screen yet
 
 Logging these as bugs would be fair but unhelpful; they are known gaps.
 
-- **No direct candidate entry.** Candidates arrive only through an agency's
-  portal. A *Direct only* position has no way to receive a candidate from
-  the web app; that path exists in the API only.
-- **Organization settings** (hidden-until-submitted versus open scorecards,
-  the ownership window, branding) have no admin screen. Defaults apply.
 - **Offer details** (amount, start date, decline reasons) exist in the API;
   the board has one-click *Record offer* only.
 - **Do-not-hire flags** are shown on the candidate page but cannot be set
