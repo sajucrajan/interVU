@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from "react";
+import { ScreenStrip } from "@/components/screen-strip";
 
 /**
  * A small Markdown renderer for the repository's own docs (the /guide page
@@ -6,7 +7,15 @@ import { Fragment, type ReactNode } from "react";
  * more: headings, paragraphs, bullet and numbered lists (one level of
  * nesting), pipe tables, fenced code, block quotes, rules, and inline bold,
  * italic, code and links. Anything else renders as text, never as HTML.
+ *
+ * One directive, written as an HTML comment so GitHub shows nothing:
+ *   <!-- screen: pipeline | What you should see. -->
+ *   <!-- screens: teams, people, vendors | Browse with the arrows. -->
+ * renders the named mock screen(s) (components/mock-screens) at that point,
+ * one as a captioned figure, several as a strip browsed like pictures. Any
+ * other single-line comment is dropped.
  */
+const SCREEN_DIRECTIVE = /^<!--\s*screens?:\s*([a-z0-9-]+(?:\s*,\s*[a-z0-9-]+)*)\s*(?:\|\s*(.*?))?\s*-->$/;
 
 function inline(text: string, key = 0): ReactNode {
   const out: ReactNode[] = [];
@@ -167,6 +176,18 @@ export function renderMarkdown(src: string): ReactNode[] {
     if (/^-{3,}\s*$/.test(line)) {
       flush();
       out.push(<hr key={`hr${out.length}`} />);
+      i++;
+      continue;
+    }
+    const sc = SCREEN_DIRECTIVE.exec(line.trim());
+    if (sc) {
+      flush();
+      const keys = sc[1]!.split(/\s*,\s*/);
+      out.push(<ScreenStrip key={`s${out.length}`} keys={keys} caption={sc[2] ? inline(sc[2], out.length) : undefined} />);
+      i++;
+      continue;
+    }
+    if (/^<!--.*-->$/.test(line.trim())) {
       i++;
       continue;
     }

@@ -5740,7 +5740,14 @@ main.home {
 .tp-dots button.on { background: var(--accent); }
 .tp-dots button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* A single screen in a page of prose (the /guide page), with its caption. */
+.tp-fig { margin: 18px 0 24px; }
+.tp-caption { padding: 9px 12px; font-size: 13px; line-height: 1.45; color: var(--muted); border-top: 1px solid var(--border); margin: 0; }
+.tp-caption strong { color: var(--fg); }
+.guide-body .tp { margin: 18px 0 24px; }
+
 /* Inside a screen: a miniature of the shell, with the real content classes. */
+.tp-shell { position: relative; }
 .tp-shell { display: flex; height: 100%; }
 .tp-rail {
   width: 210px;
@@ -5809,6 +5816,25 @@ main.home {
 .tp-auth-main { display: grid; place-items: center; padding: 48px; }
 .tp-form { width: 360px; display: grid; gap: 8px; }
 .tp-input { border: 1px solid var(--border); border-radius: var(--radius); background: var(--page); padding: 9px 12px; font-size: 14px; margin-bottom: 4px; }
+.tp-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 14px; }
+.tp-fields .tp-input { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-fields .mono-label { display: block; margin-top: 4px; }
+.tp-right { margin-left: auto; }
+.tp-tree-row { display: flex; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.tp-radio { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.tp-radio-dot { flex: none; width: 14px; height: 14px; margin-top: 3px; border-radius: 50%; border: 1.5px solid var(--muted); }
+.tp-radio-dot.on { border-color: var(--accent); box-shadow: inset 0 0 0 3px var(--page); background: var(--accent); }
+.tp-check { flex: none; width: 14px; height: 14px; margin-top: 3px; border-radius: 3px; border: 1.5px solid var(--muted); }
+.tp-check.on { background: var(--accent); border-color: var(--accent); }
+.tp-modal { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.35); display: grid; place-items: center; }
+.tp-swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.tp-swatch { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius); }
+.tp-swatch.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-wash); }
+.tp-swatch-chip { flex: none; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border); display: grid; place-items: center; }
+.tp-swatch-chip > span { width: 10px; height: 10px; border-radius: 50%; }
+.tp-funnel-row { display: grid; grid-template-columns: 90px 1fr 40px; gap: 10px; align-items: center; padding: 5px 0; }
+.tp-funnel-bar { height: 14px; background: var(--sunk); border-radius: 3px; overflow: hidden; }
+.tp-funnel-bar > span { display: block; height: 100%; background: var(--accent); }
 
 /* ---- /guide: docs/14 rendered in the product ---- */
 .guide { max-width: 1100px; }
