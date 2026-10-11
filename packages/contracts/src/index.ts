@@ -353,6 +353,20 @@ export const ScorecardCreate = z.object({
       }),
     )
     .default([]),
+  /**
+   * Ratings of the organization's ways of working (docs/01 §4, Ways of working): the same
+   * rows on every scorecard whatever the role. Blank means not assessed. A 1
+   * or a 5 must carry a note — the server refuses one without.
+   */
+  attributes: z
+    .array(
+      z.object({
+        attribute_id: z.string().uuid(),
+        rating: z.number().int().min(1).max(5).nullable(),
+        note: z.string().max(4000).optional(),
+      }),
+    )
+    .default([]),
 });
 
 export const FlagCreate = z.object({
@@ -474,6 +488,30 @@ export const QuestionUpdate = QuestionCreate.partial().extend({
 export const QuestionVote = z.object({
   value: z.number().int().min(-1).max(1),
 });
+
+// --- Ways of working (docs/01 §4, Ways of working)
+
+export const AttributeCreate = z.object({
+  name: z.string().trim().min(2).max(60),
+  /** One line on what it means in this organization. */
+  description: z.string().trim().max(300).default(""),
+  /** What STRONG looks like — observable, so two interviewers mean the same
+   *  thing by a 5. Guidance, not a mark scheme. */
+  behaviours: z.array(z.string().trim().min(1).max(200)).max(6).default([]),
+});
+
+export const AttributeUpdate = AttributeCreate.partial().extend({
+  archived: z.boolean().optional(),
+});
+
+/** The full order, by id. Every active attribute must appear exactly once. */
+export const AttributesReorder = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(50),
+});
+
+export type AttributeCreate = z.infer<typeof AttributeCreate>;
+export type AttributeUpdate = z.infer<typeof AttributeUpdate>;
+export type AttributesReorder = z.infer<typeof AttributesReorder>;
 
 export type QuestionVote = z.infer<typeof QuestionVote>;
 export type QuestionCreate = z.infer<typeof QuestionCreate>;

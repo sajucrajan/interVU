@@ -13,12 +13,23 @@ import { formatDate } from "@/lib/format";
 interface Cell {
   panelist_id: string;
   rating: number | null;
+  note?: string | null;
 }
 
 interface Row {
   skill_id: string;
   name: string;
   must_have: boolean;
+  cells: Cell[];
+  spread: number;
+  diverged: boolean;
+  consensus: string;
+}
+
+interface AttrRow {
+  attribute_id: string;
+  name: string;
+  archived: boolean;
   cells: Cell[];
   spread: number;
   diverged: boolean;
@@ -37,6 +48,8 @@ interface Debrief {
   divergence: "high" | "low";
   recommendations: { key: string; count: number }[];
   competencies: Row[];
+  attributes: AttrRow[];
+  attribute_divergence_row: AttrRow | null;
   panelists: { id: string; name: string; initials: string }[];
   divergence_row: Row | null;
   scorecards: {
@@ -366,6 +379,94 @@ export default function DebriefPage() {
                   round or a written rebuttal is cheaper than a wrong offer.
                 </p>
               </div>
+            )}
+
+            {d.attributes.length > 0 && (
+              <>
+                <SectionHead
+                  label="How they'd work here"
+                  action={<span className="mono-label">the same rows on every role · never sent to the agency</span>}
+                />
+                <table className="data matrix">
+                  <thead>
+                    <tr>
+                      <th>Way of working</th>
+                      {d.panelists.map((p) => (
+                        <th key={p.id} className="num" title={p.name}>
+                          {columnName(p, d.panelists)}
+                        </th>
+                      ))}
+                      <th className="num">Consensus</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {d.attributes.map((r) => (
+                      <tr key={r.attribute_id} className={r.diverged ? "diverged" : ""}>
+                        <td>
+                          <strong>{r.name}</strong>
+                          {r.archived && <span className="mono-label"> · retired</span>}
+                        </td>
+                        {d.panelists.map((p) => {
+                          const cell = r.cells.find((c) => c.panelist_id === p.id);
+                          const tone = cellTone(cell?.rating ?? null);
+                          return (
+                            <td key={p.id} className="num">
+                              <span
+                                className="matrix-cell"
+                                style={{ background: tone.bg, color: tone.fg }}
+                                title={cell?.note ?? undefined}
+                              >
+                                {cell?.rating ?? "—"}
+                              </span>
+                            </td>
+                          );
+                        })}
+                        <td className="num">
+                          <span
+                            className="mono-label"
+                            style={{
+                              color: r.diverged
+                                ? "var(--warn)"
+                                : r.consensus === "strong"
+                                  ? "var(--ok)"
+                                  : r.consensus === "below bar"
+                                    ? "var(--warn)"
+                                    : "var(--muted)",
+                            }}
+                          >
+                            {r.consensus}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {d.attribute_divergence_row && (
+                  <div className="leak" style={{ borderLeftColor: "var(--warn)" }}>
+                    <div className="mono-label">Split on how they work · read both notes</div>
+                    <p>
+                      <strong>{d.attribute_divergence_row.name}</strong> splits the panel by{" "}
+                      {d.attribute_divergence_row.spread} points. Each side had to say what
+                      it saw: hover a cell for the note, then decide which evidence you
+                      believe.
+                    </p>
+                    <ul className="attr-evidence">
+                      {d.attribute_divergence_row.cells
+                        .filter((c) => c.note)
+                        .map((c) => {
+                          const who = d.panelists.find((p) => p.id === c.panelist_id);
+                          return (
+                            <li key={c.panelist_id}>
+                              <strong>{who?.name ?? "Panelist"}</strong> gave {c.rating}:{" "}
+                              <span className="muted">{c.note}</span>
+                            </li>
+                          );
+                        })}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
 
             <SectionHead

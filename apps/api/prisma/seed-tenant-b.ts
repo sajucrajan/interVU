@@ -6,6 +6,7 @@
 // Run after the main seed: pnpm --filter @intervu/api db:seed:tenant-b
 // Idempotent, like the main seed.
 
+import { DEFAULT_ATTRIBUTES } from "../src/attributes/defaults";
 import { PrismaClient } from "@prisma/client";
 import { SYSTEM_ROLES } from "../src/entitlements/permissions";
 import { hashPassword } from "../src/auth/password";
@@ -125,6 +126,15 @@ async function main() {
         createdById: admin.id,
         panelists: { create: [{ orgUserId: admin.id }] },
       },
+    });
+  }
+  // Globex's own ways of working, so the cross-tenant checks have an
+  // attribute of another organization to try to read and edit.
+  for (const [i, a] of DEFAULT_ATTRIBUTES.entries()) {
+    await prisma.attribute.upsert({
+      where: { organizationId_name: { organizationId: org.id, name: a.name } },
+      update: {},
+      create: { organizationId: org.id, name: a.name, description: a.description, behaviours: a.behaviours, sortOrder: i },
     });
   }
   await prisma.scorecard.upsert({

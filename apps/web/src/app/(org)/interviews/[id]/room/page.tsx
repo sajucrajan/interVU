@@ -7,6 +7,12 @@ import { api, apiErrorMessage, isForbidden, personaMismatch } from "@/lib/api";
 import { PersonaMismatch } from "@/components/persona-switch";
 import { AccessDenied } from "@/components/access-denied";
 import { SectionHead } from "@/components/section-head";
+import {
+  AttributeRatings,
+  attributesPayload,
+  missingEvidence,
+  type Attribute,
+} from "@/components/attribute-ratings";
 import { VoteButtons } from "@/components/vote";
 import { usePageIdentity } from "@/components/sticky-identity";
 import { formatDate, formatTime } from "@/lib/format";
@@ -88,6 +94,7 @@ interface Packet {
     word_count: number;
   } | null;
   competencies: Competency[];
+  attributes: Attribute[];
   question_groups: QuestionGroup[];
   gaps: Competency[];
   extra_technologies: { skill_id: string; name: string }[];
@@ -97,6 +104,8 @@ interface Packet {
 interface DraftPayload {
   ratings?: Record<string, number>;
   notes?: Record<string, string>;
+  attr_ratings?: Record<string, number>;
+  attr_notes?: Record<string, string>;
   overall?: number;
   recommendation?: string;
   asked?: string[];
@@ -199,6 +208,8 @@ export default function InterviewRoomPage() {
   const [packet, setPacket] = useState<Packet | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [attrRatings, setAttrRatings] = useState<Record<string, number>>({});
+  const [attrNotes, setAttrNotes] = useState<Record<string, string>>({});
   const [overall, setOverall] = useState(3);
   const [recommendation, setRecommendation] = useState("");
   const [asked, setAsked] = useState<string[]>([]);
@@ -227,6 +238,8 @@ export default function InterviewRoomPage() {
       .then((d) => {
         setRatings(d.payload?.ratings ?? {});
         setNotes(d.payload?.notes ?? {});
+        setAttrRatings(d.payload?.attr_ratings ?? {});
+        setAttrNotes(d.payload?.attr_notes ?? {});
         if (d.payload?.overall) setOverall(d.payload.overall);
         if (d.payload?.recommendation) setRecommendation(d.payload.recommendation);
         setAsked(d.payload?.asked ?? []);
@@ -244,13 +257,21 @@ export default function InterviewRoomPage() {
     const t = setTimeout(() => {
       api<{ saved_at: string }>(`/interviews/${id}/draft`, {
         method: "PUT",
-        body: { ratings, notes, overall, recommendation, asked },
+        body: {
+          ratings,
+          notes,
+          attr_ratings: attrRatings,
+          attr_notes: attrNotes,
+          overall,
+          recommendation,
+          asked,
+        },
       })
         .then((r) => setSavedAt(r.saved_at))
         .catch(() => undefined);
     }, 1200);
     return () => clearTimeout(t);
-  }, [id, ratings, notes, overall, recommendation, asked]);
+  }, [id, ratings, notes, attrRatings, attrNotes, overall, recommendation, asked]);
 
   const setNote = useCallback(
     (skillId: string, value: string) =>
@@ -261,6 +282,11 @@ export default function InterviewRoomPage() {
   async function file() {
     if (!recommendation) {
       setError("Pick a recommendation before filing.");
+      return;
+    }
+    const bare = packet ? missingEvidence(packet.attributes, attrRatings, attrNotes) : null;
+    if (bare) {
+      setError(`A ${attrRatings[bare.attribute_id]} on ${bare.name} needs a note on what you saw.`);
       return;
     }
     setBusy(true);
@@ -278,6 +304,7 @@ export default function InterviewRoomPage() {
             rating,
             note: notes[skill_id] || undefined,
           })),
+          attributes: attributesPayload(attrRatings, attrNotes),
         },
       });
       router.push("/interviews");
@@ -566,6 +593,32 @@ export default function InterviewRoomPage() {
               />
             </div>
           ))}
+
+          {packet.attributes.length > 0 && (
+            <>
+              <SectionHead
+                label={`How they'd work here · ${Object.keys(attrRatings).length}/${packet.attributes.length}`}
+              />
+              <p className="muted room-hint">
+                The same for every role. Open a name for what strong looks
+                like. A 1 or a 5 is filed only with what you saw.
+              </p>
+              <AttributeRatings
+                attributes={packet.attributes}
+                ratings={attrRatings}
+                notes={attrNotes}
+                onRate={(aid, r) =>
+                  setAttrRatings((prev) => {
+                    const next = { ...prev };
+                    if (r === null) delete next[aid];
+                    else next[aid] = r;
+                    return next;
+                  })
+                }
+                onNote={(aid, v) => setAttrNotes((prev) => ({ ...prev, [aid]: v }))}
+              />
+            </>
+          )}
 
           <SectionHead label="Your call" />
           <div className="row room-rec">

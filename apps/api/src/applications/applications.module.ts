@@ -8,11 +8,12 @@ import { DebriefController } from "./debrief.controller";
 import { DebriefService } from "./debrief.service";
 import { ScreeningService } from "./screening.service";
 import { QuestionsModule } from "../questions/questions.module";
+import { AttributesModule } from "../attributes/attributes.module";
 
 @Module({
   // InterviewsService is provided here as well as in InterviewsModule, so its
   // dependencies have to be reachable from both.
-  imports: [QuestionsModule],
+  imports: [QuestionsModule, AttributesModule],
   controllers: [ApplicationsController, BoardController, DebriefController],
   providers: [ApplicationsService, InterviewsService, OffersService, DebriefService, ScreeningService],
   exports: [ApplicationsService],

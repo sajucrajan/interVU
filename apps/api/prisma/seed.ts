@@ -3,6 +3,7 @@
 // and positions demonstrating all three release policies.
 // Run: pnpm db:seed  (idempotent — safe to re-run)
 
+import { DEFAULT_ATTRIBUTES } from "../src/attributes/defaults";
 import { PrismaClient } from "@prisma/client";
 import { scorePair, T_AUTO, T_REVIEW } from "@intervu/matching-core";
 import { SYSTEM_ROLES } from "../src/entitlements/permissions";
@@ -1251,6 +1252,23 @@ BSc Computer Science, University of Edinburgh
   }
   console.log(`Seeded ${rejected} rejections across screening and post-interview`);
 
+  // --- Ways of working (docs/01 §4, Ways of working): the org-wide attributes every
+  // scorecard rates. The defaults a new organization gets, so the demo and a
+  // fresh install show the same set.
+  for (const [i, a] of DEFAULT_ATTRIBUTES.entries()) {
+    await prisma.attribute.upsert({
+      where: { organizationId_name: { organizationId: org.id, name: a.name } },
+      update: { description: a.description, behaviours: a.behaviours, sortOrder: i, archivedAt: null },
+      create: { organizationId: org.id, name: a.name, description: a.description, behaviours: a.behaviours, sortOrder: i },
+    });
+  }
+  const attributes = await prisma.attribute.findMany({
+    where: { organizationId: org.id, archivedAt: null },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true },
+  });
+  console.log(`Seeded ${attributes.length} ways of working`);
+
   // --- Per-competency ratings on the seeded scorecards, so the debrief has a
   // matrix to show and one row where the panel genuinely disagrees.
   const seededCards = await prisma.scorecard.findMany({
@@ -1265,6 +1283,28 @@ BSc Computer Science, University of Edinburgh
     const appId = card.interview.applicationId;
     const seat = seatByApplication.get(appId) ?? 0;
     seatByApplication.set(appId, seat + 1);
+    // Ways of working on the same card: strong across the board except
+    // Collaboration, where the panel splits 5 to 2 — and, unlike the skill
+    // split, each side says what it saw. That pair of notes is what the
+    // evidence rule for a 1 or a 5 is for.
+    const ratedAttrs = await prisma.scorecardAttribute.count({ where: { scorecardId: card.id } });
+    if (ratedAttrs === 0 && attributes.length > 0) {
+      await prisma.scorecardAttribute.createMany({
+        data: attributes.map((attr) => {
+          const split = attr.name === "Collaboration";
+          return {
+            scorecardId: card.id,
+            attributeId: attr.id,
+            rating: split ? (seat === 0 ? 5 : 2) : 4,
+            note: split
+              ? seat === 0
+                ? "Walked me through handing the pipeline over to a teammate and credited them before I asked."
+                : "Interrupted twice when I pushed back on the design, and never asked what the team had already tried."
+              : null,
+          };
+        }),
+      });
+    }
     const existing = await prisma.scorecardCompetency.count({
       where: { scorecardId: card.id },
     });

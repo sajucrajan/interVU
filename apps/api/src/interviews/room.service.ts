@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { type Persona, requireInterviewer } from "../entitlements/persona";
 import { PrismaService } from "../prisma/prisma.service";
 import { QuestionsService } from "../questions/questions.service";
+import { AttributesService } from "../attributes/attributes.service";
 import { requirementFit, sections } from "../applications/requirement-fit";
 
 /**
@@ -29,6 +30,7 @@ export class RoomService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly questions: QuestionsService,
+    private readonly attributes: AttributesService,
   ) {}
 
   async packet(
@@ -170,6 +172,14 @@ export class RoomService {
           }
         : null,
       competencies: required,
+      /** The organization's ways of working (docs/01 §4, Ways of working): rated on every
+       *  scorecard, whatever the role, with the behaviours to look for. */
+      attributes: (await this.attributes.active(organizationId)).map((a) => ({
+        attribute_id: a.id,
+        name: a.name,
+        description: a.description,
+        behaviours: a.behaviours,
+      })),
       /** Bank questions covering exactly the competencies this round grades. */
       question_groups: await this.questions.forInterview(
         organizationId,

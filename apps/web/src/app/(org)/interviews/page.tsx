@@ -9,6 +9,12 @@ import { PageHead } from "@/components/page-head";
 import { PanelScorecards } from "@/components/panel-scorecards";
 import { useMe } from "@/lib/me";
 import { SwitchPersonaButton } from "@/components/persona-switch";
+import {
+  AttributeRatings,
+  attributesPayload,
+  missingEvidence,
+  type Attribute,
+} from "@/components/attribute-ratings";
 
 interface Competency {
   skill_id: string;
@@ -33,6 +39,7 @@ interface MyInterview {
   decided: boolean;
   my_scorecard_submitted: boolean;
   competencies: Competency[];
+  attributes: Attribute[];
   panel_size: number;
   panel_filed: number;
   hours_since_end: number | null;
@@ -289,6 +296,7 @@ function InterviewRow({
         <ScorecardForm
           interviewId={i.id}
           competencies={i.competencies}
+          attributes={i.attributes}
           onDone={onDone}
         />
       )}
@@ -299,10 +307,12 @@ function InterviewRow({
 function ScorecardForm({
   interviewId,
   competencies,
+  attributes,
   onDone,
 }: {
   interviewId: string;
   competencies: Competency[];
+  attributes: Attribute[];
   onDone: () => void;
 }) {
   const [rating, setRating] = useState(3);
@@ -312,11 +322,18 @@ function ScorecardForm({
   // which the debrief renders differently from a low score — defaulting these
   // to 3 would manufacture agreement nobody expressed.
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [attrRatings, setAttrRatings] = useState<Record<string, number>>({});
+  const [attrNotes, setAttrNotes] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    const bare = missingEvidence(attributes, attrRatings, attrNotes);
+    if (bare) {
+      setError(`A ${attrRatings[bare.attribute_id]} on ${bare.name} needs a note on what you saw.`);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -330,6 +347,7 @@ function ScorecardForm({
             skill_id,
             rating: r,
           })),
+          attributes: attributesPayload(attrRatings, attrNotes),
         },
       });
       onDone();
@@ -384,6 +402,32 @@ function ScorecardForm({
               </div>
             ))}
           </div>
+        </>
+      )}
+
+      {attributes.length > 0 && (
+        <>
+          <SectionHead label="How they'd work here" />
+          <p className="muted iv-hint">
+            The same rows on every scorecard, whatever the role. Open a name
+            for what strong looks like. A 1 or a 5 is filed only with a note on
+            what you saw.
+          </p>
+          <AttributeRatings
+            compact
+            attributes={attributes}
+            ratings={attrRatings}
+            notes={attrNotes}
+            onRate={(aid, r) =>
+              setAttrRatings((prev) => {
+                const next = { ...prev };
+                if (r === null) delete next[aid];
+                else next[aid] = r;
+                return next;
+              })
+            }
+            onNote={(aid, v) => setAttrNotes((prev) => ({ ...prev, [aid]: v }))}
+          />
         </>
       )}
 

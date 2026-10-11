@@ -11,6 +11,7 @@ import { canReadScorecards, visibleScorecards } from "../candidates/candidate-ac
 import { type Persona, isInterviewer, requireInterviewer } from "../entitlements/persona";
 import { PrismaService } from "../prisma/prisma.service";
 import { QuestionsService } from "../questions/questions.service";
+import { AttributesService } from "../attributes/attributes.service";
 
 @Injectable()
 export class InterviewsService {
@@ -18,6 +19,7 @@ export class InterviewsService {
     private readonly prisma: PrismaService,
     private readonly applications: ApplicationsService,
     private readonly questions: QuestionsService,
+    private readonly attributes: AttributesService,
   ) {}
 
   async schedule(
@@ -113,6 +115,14 @@ export class InterviewsService {
       },
       orderBy: { scheduledAt: "desc" },
     });
+    // The organization's ways of working (docs/01 §4, Ways of working): the same rows on
+    // every scorecard, so fetched once and repeated per row for the form.
+    const attributes = (await this.attributes.active(organizationId)).map((a) => ({
+      attribute_id: a.id,
+      name: a.name,
+      description: a.description,
+      behaviours: a.behaviours,
+    }));
     const now = Date.now();
     return interviews.map((i) => {
       const endsAt = new Date(i.scheduledAt.getTime() + i.durationMin * 60_000);
@@ -148,6 +158,7 @@ export class InterviewsService {
           name: ps.skill.name,
           must_have: ps.level === "must_have",
         })),
+        attributes,
         panel_size: i.panelists.length,
         panel_filed: i.scorecards.length,
         /** Interview end → now. The turnaround the debrief later reports.
@@ -183,6 +194,9 @@ export class InterviewsService {
         detail: "Only panel members can submit a scorecard for this interview",
       });
     }
+    // Before the transaction: a foreign attribute id or a bare 1 or 5 is a
+    // 400 with a reason, not a half-filed scorecard.
+    await this.attributes.validateRatings(organizationId, input.attributes);
     const filed = await this.prisma.$transaction(async (tx) => {
       const scorecard = await tx.scorecard.upsert({
         where: { interviewId_orgUserId: { interviewId, orgUserId } },
@@ -212,6 +226,20 @@ export class InterviewsService {
             skillId: c.skill_id,
             rating: c.rating,
             note: c.note ?? null,
+          })),
+        });
+      }
+      // Same wholesale replacement for the ways-of-working ratings.
+      if (input.attributes.length > 0) {
+        await tx.scorecardAttribute.deleteMany({
+          where: { scorecardId: scorecard.id },
+        });
+        await tx.scorecardAttribute.createMany({
+          data: input.attributes.map((a) => ({
+            scorecardId: scorecard.id,
+            attributeId: a.attribute_id,
+            rating: a.rating,
+            note: a.note ?? null,
           })),
         });
       }
@@ -299,6 +327,10 @@ export class InterviewsService {
         interview: { select: { id: true, roundName: true } },
         competencies: {
           select: { rating: true, note: true, skill: { select: { id: true, name: true } } },
+        },
+        attributes: {
+          select: { rating: true, note: true, attribute: { select: { id: true, name: true } } },
+          orderBy: { attribute: { sortOrder: "asc" } },
         },
       },
       orderBy: { submittedAt: "asc" },

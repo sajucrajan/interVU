@@ -188,6 +188,43 @@ rows.
   is what hide-until-submitted exists to prevent.
 - As a **recruiter**, I move candidates through pipeline stages and record decisions; vendors see only the coarse status mapping.
 
+### Ways of working (`/admin/attributes`)
+
+The skill matrix says whether someone can do the job. It says nothing about
+whether anyone would want to work with them — and that is where most hiring
+regret lives. Interviewers were assessing it anyway, in the free-text box,
+where it never reached the debrief and could not be compared across a panel.
+
+So every scorecard carries a second block, **How they'd work here**, with the
+same rows for every role in the organization: by default *Communication*,
+*Collaboration*, *Ownership*, *Curiosity* and *Values alignment*. Each is rated
+1–5 or left as *not assessed*, like a competency, and the debrief shows them
+as a second matrix with the same consensus and divergence rules.
+
+- **Org-wide, not per role.** A role that needs its own is describing a
+  skill, and belongs in the skill matrix. Keeping one list is what lets
+  "collaboration" mean the same thing in Engineering as in Sales, and what
+  makes a candidate's attitude notes comparable when they re-apply to a
+  different team.
+- **Written as behaviours, not traits.** Each attribute carries a one-line
+  meaning and up to six things an interviewer can *see in an hour*
+  ("credits others unprompted", "asks what the team has already tried").
+  "Team fit" with no agreed meaning is how a panel ends up rating *people
+  like me*; this is the guard against it.
+- **A 1 or a 5 needs evidence.** The ends of the scale are the ratings that
+  swing a debrief, so the room refuses to file one without a note on what was
+  seen, and the server refuses the same. The debrief then puts both notes
+  side by side under the split row, which turns "I just didn't like them"
+  into something the panel can argue with.
+- **Never sent to the agency.** The feedback packet is composed from the
+  competency rows only. Attitude notes are the most sensitive thing in the
+  system, and nothing about a vendor's candidate's character leaves the
+  building.
+- **Changed by the admin, retired rather than deleted.** Editing the list is
+  organization policy (`org.settings`, docs/09 §2). A retired attribute stops
+  appearing on new scorecards; ratings already filed against it still show
+  in their debriefs, marked *retired*.
+
 ### Vendor experience
 - As a **vendor admin**, I invite my recruiters; only my vendor's data is ever visible to us.
 - As a **vendor recruiter**, I'm told at submission time if my candidate is a duplicate *for this position* ("already in process via another source" — without revealing which source).

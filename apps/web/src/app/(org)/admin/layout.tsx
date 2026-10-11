@@ -11,6 +11,7 @@ const TABS = [
   { href: "/admin/roles", label: "Roles", needs: "org.manage_users" },
   { href: "/admin/teams", label: "Teams", needs: "org.manage_structure" },
   { href: "/admin/vendors", label: "Vendors", needs: "vendors.manage" },
+  { href: "/admin/attributes", label: "Ways of working", needs: "org.settings" },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
