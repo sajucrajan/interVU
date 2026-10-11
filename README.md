@@ -128,7 +128,7 @@ The full design lives in [`docs/`](docs/):
 - **Database:** PostgreSQL (`pg_trgm` powers fuzzy matching) — bring any provider: Azure Database for PostgreSQL / Cosmos DB for PostgreSQL, AWS RDS/Aurora, GCP Cloud SQL, self-hosted/on-prem, or the bundled container ([why Postgres-only](docs/08-database-strategy.md))
 - **Jobs/queues (planned, M4):** BullMQ + Redis — behind `--profile full` in compose until wired
 - **Files (planned, M4):** S3-compatible storage (MinIO for self-hosting) — behind `--profile full`
-- **Deploy:** published container images on GHCR with a one-file compose stack ([docs/13](docs/13-self-hosting.md)); dev infra via Docker Compose (`pnpm db:embedded` runs Postgres from npm binaries if you have no Docker); Helm is M4
+- **Deploy:** published container images (Docker Hub, built locally with `deploy/build-images.sh`) with a one-file compose stack ([docs/13](docs/13-self-hosting.md)); dev infra via Docker Compose (`pnpm db:embedded` runs Postgres from npm binaries if you have no Docker); Helm is M4
 
 ## Contributing
 

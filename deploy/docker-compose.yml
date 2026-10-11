@@ -57,7 +57,7 @@ services:
       retries: 20
 
   api:
-    image: ghcr.io/sajucrajan/intervu-api:${INTERVU_TAG:-latest}
+    image: ${IMAGE_PREFIX:-sajucrajan}/intervu-api:${INTERVU_TAG:-latest}
     restart: unless-stopped
     environment:
       <<: *api-env
@@ -76,7 +76,7 @@ services:
   web:
     # :latest has no demo page; :demo publishes /demo with one-click sign-in
     # for the seeded accounts — only ever with the demo seed, never with real data.
-    image: ghcr.io/sajucrajan/intervu-web:${WEB_TAG:-latest}
+    image: ${IMAGE_PREFIX:-sajucrajan}/intervu-web:${WEB_TAG:-latest}
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-3000}:3000"
@@ -88,7 +88,7 @@ services:
 
   # Your own organization and its first admin (docs/13 §3).
   bootstrap:
-    image: ghcr.io/sajucrajan/intervu-api:${INTERVU_TAG:-latest}
+    image: ${IMAGE_PREFIX:-sajucrajan}/intervu-api:${INTERVU_TAG:-latest}
     profiles: ["setup"]
     environment:
       <<: *api-env
@@ -104,7 +104,7 @@ services:
 
   # The Acme demo: every account in docs/10, password intervu-demo.
   seed:
-    image: ghcr.io/sajucrajan/intervu-api:${INTERVU_TAG:-latest}
+    image: ${IMAGE_PREFIX:-sajucrajan}/intervu-api:${INTERVU_TAG:-latest}
     profiles: ["demo"]
     environment:
       <<: *api-env

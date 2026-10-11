@@ -26,12 +26,13 @@ the session cookie first-party and the API off the network entirely.
 
 | Image | What it is |
 |---|---|
-| `ghcr.io/sajucrajan/intervu-api` | The API. Runs the database migrations on start. |
-| `ghcr.io/sajucrajan/intervu-web` | The web app. `:latest` has no demo page. `:demo` adds `/demo` with one-click sign-in for the seeded accounts. |
+| `sajucrajan/intervu-api` | The API. Runs the database migrations on start. |
+| `sajucrajan/intervu-web` | The web app. `:latest` has no demo page. `:demo` adds `/demo` with one-click sign-in for the seeded accounts. |
 
-Both are built for `linux/amd64` and `linux/arm64` (Apple Silicon works), on
-every push to `main`, by `.github/workflows/images.yml`. Tags: `latest`,
-`demo`, the commit sha, and the version on releases.
+Both are on Docker Hub, built for `linux/amd64` and `linux/arm64` (Apple
+Silicon works) with `deploy/build-images.sh` (§7). Tags: `latest`, `demo`,
+the commit sha, and the version on releases. `IMAGE_PREFIX` in `.env`
+points at a different registry or account if you publish your own.
 
 ## 2. Start it
 
@@ -161,24 +162,42 @@ and to restore into a fresh stack:
 docker compose exec -T postgres psql -U intervu intervu < intervu-2026-10-11.sql
 ```
 
-## 7. Building the images yourself
+## 7. Building and publishing the images yourself
 
-If you would rather not pull from GHCR, or you need the web app to reach the
-API somewhere other than `http://api:4000`:
+The images are built on a maintainer's machine, not in CI, so no Actions
+minutes are spent on them. The same script works for anyone who would
+rather run their own build, or needs the web app to reach the API somewhere
+other than `http://api:4000`:
 
 ```bash
 git clone https://github.com/sajucrajan/interVU && cd interVU
-docker build -f apps/api/Dockerfile -t intervu-api .
-docker build -f apps/web/Dockerfile -t intervu-web \
-  --build-arg NEXT_PUBLIC_API_URL=/api/v1 \
-  --build-arg API_PROXY_TARGET=http://api:4000 .
+docker login                                   # Docker Hub; or docker login ghcr.io
+IMAGE_PREFIX=<your docker hub username> deploy/build-images.sh v0.1.0
 ```
 
-Then point `deploy/docker-compose.yml` at them with
-`INTERVU_TAG`/`WEB_TAG` replaced by your own image names, or edit the
-`image:` lines. The proxy target is baked in at build time (docs/11 explains
-why), so it is the one thing you cannot change afterwards with an
-environment variable.
+That builds the API image, the web image and the web `:demo` variant for
+both architectures and pushes them tagged `latest`, the commit sha and, when
+given, the version. Multi-arch builds need buildx with QEMU: Docker Desktop
+has it; on a plain Linux engine run
+`docker run --privileged --rm tonistiigi/binfmt --install all` once.
+
+Variants:
+
+- `PUSH=false deploy/build-images.sh` builds for this machine only, without
+  pushing, to try the stack locally: then set `IMAGE_PREFIX` in `.env` to
+  what you used and `docker compose up -d`.
+- `DEMO=false` skips the demo variant.
+- `API_PROXY_TARGET=http://my-api:4000` bakes a different API address into
+  the web image. It is fixed at build time (docs/11 explains why), so it is
+  the one thing an environment variable cannot change afterwards.
+
+Publishing a new version, as the maintainer:
+
+```bash
+git checkout main && git pull
+deploy/build-images.sh v0.2.0        # ~10 minutes on a laptop, mostly the arm64 half
+git tag v0.2.0 && git push --tags
+```
 
 The repository's own `infra/docker-compose.yml --profile app` builds both
 images from source and runs the same three containers; it is the
