@@ -151,6 +151,9 @@ Edit those two `value:` lines on `main` and let the Blueprint sync, or set them
 in the dashboard under each service's **Environment**:
 
 - **intervu-web** → `API_PROXY_TARGET` = the **API** URL, no trailing slash
+- **intervu-web** → `NEXT_PUBLIC_API_WAKE_URL` = the same **API** URL. The
+  browser pokes `/healthz` there to wake a sleeping API; a request through
+  the proxy does not wake it (docs/11, *Cold starts*)
 - **intervu-api** → `WEB_ORIGIN` = the **web** URL
 
 Changing `API_PROXY_TARGET` triggers a rebuild of the web service. That is

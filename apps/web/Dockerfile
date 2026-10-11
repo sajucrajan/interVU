@@ -16,6 +16,8 @@ FROM deps AS build
 COPY tsconfig.base.json turbo.json ./
 COPY packages packages
 COPY apps/web apps/web
+# /guide renders docs/14 at build time (apps/web/src/app/guide/page.tsx).
+COPY docs docs
 # Baked at build time — point it at your API's public URL.
 # Every NEXT_PUBLIC_* value is inlined into the client bundle at BUILD time,
 # so each one has to be declared here — passing it as a runtime variable does
@@ -37,6 +39,10 @@ ENV NEXT_PUBLIC_DEMO_PASSWORD=$NEXT_PUBLIC_DEMO_PASSWORD
 # rather than a missing route.
 ARG API_PROXY_TARGET=
 ENV API_PROXY_TARGET=$API_PROXY_TARGET
+# The API's PUBLIC address, for waking a sleeping free-tier service from the
+# browser (lib/wake.ts). Empty on a self-hosted install: nothing sleeps.
+ARG NEXT_PUBLIC_API_WAKE_URL=
+ENV NEXT_PUBLIC_API_WAKE_URL=$NEXT_PUBLIC_API_WAKE_URL
 RUN pnpm --filter @intervu/web build
 
 FROM base AS runtime

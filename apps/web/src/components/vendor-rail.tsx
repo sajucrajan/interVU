@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { applyBranding, type Branding } from "@/lib/theme";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 /**
@@ -38,7 +39,7 @@ interface VendorMe {
   name?: string;
   /** A plain string on this payload, not an object — see /auth/me. */
   vendor?: string;
-  organization?: { name: string };
+  organization?: { name: string; branding?: Branding };
 }
 
 export function VendorRail() {
@@ -51,7 +52,13 @@ export function VendorRail() {
 
   useEffect(() => {
     api<VendorMe>("/auth/me")
-      .then((m) => (m.kind === "vendor" ? setMe(m) : undefined))
+      .then((m) => {
+        if (m.kind !== "vendor") return;
+        setMe(m);
+        // The portal wears the organization's colours (docs/01 §4): an
+        // agency recruiter should see whose door this is.
+        applyBranding(m.organization?.branding);
+      })
       .catch(() => undefined);
   }, []);
 

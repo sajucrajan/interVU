@@ -8,6 +8,10 @@ permanent free tier; Render runs the two containers the repo already builds.
 > cookie problem below is identical on both, because `onrender.com` and
 > `koyeb.app` are both on the Public Suffix List.
 
+> **Running it on your own machine or server instead?** That is
+> [13 — Running InterVU yourself](13-self-hosting.md): published images, one
+> compose file, your own organization. This page is the public demo.
+
 > **Following this for the first time?** Read
 > [12 — Deployment walkthrough](12-deployment-walkthrough.md) instead: the
 > same deployment as an ordered click-by-click, with the failure modes and
@@ -79,6 +83,7 @@ build args: NEXT_PUBLIC_API_URL      = /api/v1
             NEXT_PUBLIC_DEMO_ORG     = acme
             NEXT_PUBLIC_DEMO_PASSWORD = intervu-demo
 env:        API_PROXY_TARGET         = https://<api-service>.onrender.com
+            NEXT_PUBLIC_API_WAKE_URL = https://<api-service>.onrender.com
 ```
 
 Every `NEXT_PUBLIC_*` value is inlined into the client bundle at **build**
@@ -197,8 +202,15 @@ pointing at them, so add a bucket purge to the workflow if you go that way.
 ## Known limits of the free tier
 
 - **Cold starts.** A scaled-to-zero service takes tens of seconds on the first
-  request. The dashboard issues several API calls at once, so a cold visit can
-  look broken before it looks slow.
+  request, and the API does **not** wake from a request that arrives through
+  the web service's proxy: Render answers those with `429` and
+  `x-render-routing: hibernate-rate-limited` for as long as the API sleeps.
+  Only a request to the API's own address wakes it. So the web app does that
+  from the browser: with `NEXT_PUBLIC_API_WAKE_URL` set to the API's public
+  URL (render.yaml), every page pokes `/healthz` there on load, shows
+  "Waking the server" until it answers, and any call that meets a 429 wakes
+  and retries instead of failing. Leave the variable unset on a self-hosted
+  install, where nothing sleeps.
 - **Resume upload runs without any storage.** Set `RESUME_STORAGE=extract_only`
   on the API service — see below.
 - **Seed dates drift.** The demo backdates rows relative to seed time; a

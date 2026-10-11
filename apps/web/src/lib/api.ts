@@ -1,5 +1,15 @@
+import { WAKE_URL, wakeApi } from "./wake";
+
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+
+/**
+ * What a sleeping host answers instead of the API (lib/wake.ts): the proxy
+ * relays its 429, or a gateway error while the container starts. Our own API
+ * never returns these, so they are safe to treat as "not awake yet" and the
+ * request is known not to have reached it.
+ */
+const ASLEEP = new Set([429, 502, 503, 504]);
 
 export class ApiError extends Error {
   constructor(
@@ -79,12 +89,20 @@ export async function api<T = unknown>(
   path: string,
   init?: { method?: string; body?: unknown },
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: init?.method ?? "GET",
-    credentials: "include",
-    headers: init?.body ? { "content-type": "application/json" } : undefined,
-    body: init?.body ? JSON.stringify(init.body) : undefined,
-  });
+  const send = () =>
+    fetch(`${API_BASE}${path}`, {
+      method: init?.method ?? "GET",
+      credentials: "include",
+      headers: init?.body ? { "content-type": "application/json" } : undefined,
+      body: init?.body ? JSON.stringify(init.body) : undefined,
+    });
+  let res = await send();
+  // A sleeping host: wake the API at its own address, then send again. Two
+  // rounds, because the first answer after a wake can still be the old one.
+  for (let round = 0; WAKE_URL && ASLEEP.has(res.status) && round < 2; round++) {
+    if (!(await wakeApi(true))) break;
+    res = await send();
+  }
   const body = res.status === 204 ? null : await res.json().catch(() => null);
 
   // Handled here rather than in each page: of 24 screens that call the API,
@@ -126,6 +144,8 @@ export function apiErrorMessage(e: unknown): string {
       return "Your role doesn't include this. Ask an admin if you need it.";
     if (b?.code === "invalid_credentials") return "Invalid email or password.";
     if (b?.code) return b.code.replaceAll("_", " ");
+    if (ASLEEP.has(e.status))
+      return "The server is still waking up (free-tier hosting sleeps when idle). Give it a moment and try again.";
     return `Request failed (${e.status})`;
   }
   return "Network error — is the API running?";

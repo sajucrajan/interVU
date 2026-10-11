@@ -78,8 +78,37 @@ Roles attach at a **scope** — the whole org or any node of the unit hierarchy 
 - As a **team/vertical/org admin**, I define **interview panels** — named pools of panelists tagged with the technologies they can assess. Panels attach at any level of the unit hierarchy (org-wide, vertical, or team) and cover that scope's positions, following the same inheritance as entitlements.
 - As a **recruiter scheduling an interview**, I get **ranked panelist suggestions**: members of in-scope panels whose skills overlap the position's (must-haves weigh double).
 
-### White-labeling
-- The product is always *InterVU*, but each organization's workspace wears the **organization's name** and optional branding (accent color, display label) configured by org admins.
+### White-labeling (`/admin/appearance`)
+
+Each organization chooses how the product looks, for its workspace, its
+vendor portal and its sign-in page. An admin starts from one of the built-in
+palettes, changes anything in it, picks a type family and names the product.
+
+- **Palettes, not just an accent.** Nineteen built-in looks, each a complete
+  choice of paper, rail and accent: warm paper with signal blue (the
+  default), white pages with a navy rail, cool slate, forest, teal, oxblood,
+  amber, lavender, monochrome graphite, and six that are dark by default
+  (midnight, carbon, pine, plum, OLED black, ember). Every palette carries a
+  light **and** a dark set, because each person keeps their own light/dark
+  switch; a "dark palette" only changes which one they get first.
+- **Override anything.** Ten tokens per mode: accent, page, cards, wells,
+  text, secondary text, labels, rules, and the rail's own background and
+  text. Overrides sit on top of the palette, so switching palette starts
+  clean. Status colours (ok, warn, bad) are never themed: a red brand must
+  not read as an error.
+- **Type.** The bundled trio, or system stacks (System, Classic serif
+  headings, Grotesk, Humanist) that cost no download.
+- **Preview before saving.** The Appearance screen shows eight of the main
+  screens (Today, Pipeline, a position, the interview room, the debrief, a
+  candidate, the vendor portal, sign-in) rendered with the unsaved draft, in
+  light and dark, browsed like pictures. Nobody has to open eight pages to
+  judge a colour.
+- **Where it applies.** The whole organization on their next page load, the
+  vendor portal (an agency should see whose door it is), and, on a
+  single-organization deployment, the sign-in page before anyone types.
+- Stored on `organization.settings.branding`; the API validates shape and
+  hex values, and the web owns the palette list, so adding a palette is a
+  web change only.
 
 ### Interviews & history
 - As a **hiring manager**, before any interview I open the candidate's timeline: every past submission (which vendor, which position, when), every interview round, scorecards, outcomes, and flags.

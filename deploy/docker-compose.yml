@@ -1,0 +1,117 @@
+# InterVU, self-hosted, from the published images (docs/13).
+#
+#   cp .env.example .env        # set POSTGRES_PASSWORD and ERASURE_SALT
+#   docker compose up -d        # Postgres + API (migrates on boot) + web
+#   docker compose --profile setup run --rm bootstrap   # your organization
+#   open http://localhost:3000
+#
+# Try the demo data instead:   docker compose --profile demo run --rm seed
+# (and set WEB_TAG=demo in .env for the one-click guide page at /demo).
+#
+# Only the web app is published on the host. The browser talks to it alone;
+# it proxies /api/v1 to the API container, so the session cookie stays
+# first-party and the API is never exposed (docs/11, "The one thing that
+# will silently break").
+name: intervu
+
+x-api-env: &api-env
+  DATABASE_URL: postgresql://intervu:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/intervu
+  DIRECT_DATABASE_URL: postgresql://intervu:${POSTGRES_PASSWORD}@postgres:5432/intervu
+  NODE_ENV: production
+  PORT: "4000"
+  # The address people type into the browser. Decides CORS and whether the
+  # session cookie is marked Secure (https → yes, http → no).
+  WEB_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
+  LOGIN_ORG_MODE: ${LOGIN_ORG_MODE:-auto}
+  ERASURE_SALT: ${ERASURE_SALT:?set ERASURE_SALT in .env}
+  # Resumes: keep the extracted text only (no bucket needed), or set the
+  # S3_* variables below and remove this line to keep the files.
+  RESUME_STORAGE: ${RESUME_STORAGE:-extract_only}
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+  S3_BUCKET: ${S3_BUCKET:-}
+  AWS_REGION: ${AWS_REGION:-}
+  # Outbound mail. Unset SMTP_HOST = log only; nothing is hidden, just not emailed.
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASS: ${SMTP_PASS:-}
+  SMTP_SECURE: ${SMTP_SECURE:-false}
+  SMTP_FROM: ${SMTP_FROM:-InterVU <no-reply@example.com>}
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: intervu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: intervu
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U intervu -d intervu"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    image: ${IMAGE_PREFIX:-sajucrajan}/intervu-api:${INTERVU_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+      # No CI migrates this database, so the container does, once, on start.
+      RUN_MIGRATIONS_ON_START: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  web:
+    # :latest has no demo page; :demo publishes /demo with one-click sign-in
+    # for the seeded accounts — only ever with the demo seed, never with real data.
+    image: ${IMAGE_PREFIX:-sajucrajan}/intervu-web:${WEB_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ---- one-shot jobs, run on demand ----
+
+  # Your own organization and its first admin (docs/13 §3).
+  bootstrap:
+    image: ${IMAGE_PREFIX:-sajucrajan}/intervu-api:${INTERVU_TAG:-latest}
+    profiles: ["setup"]
+    environment:
+      <<: *api-env
+      ORG_NAME: ${ORG_NAME:-}
+      ORG_SLUG: ${ORG_SLUG:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_NAME: ${ADMIN_NAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    command: ["./node_modules/.bin/tsx", "prisma/bootstrap.ts"]
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # The Acme demo: every account in docs/10, password intervu-demo.
+  seed:
+    image: ${IMAGE_PREFIX:-sajucrajan}/intervu-api:${INTERVU_TAG:-latest}
+    profiles: ["demo"]
+    environment:
+      <<: *api-env
+    command: ["./node_modules/.bin/tsx", "prisma/seed.ts"]
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:

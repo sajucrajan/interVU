@@ -969,6 +969,7 @@ export default function DemoPage() {
 
       <p className="dg-foot">
         <Link href="/how-it-works">How it works</Link>
+        <Link href="/guide">The guide</Link>
         <a href="https://github.com/sajucrajan/interVU">Source on GitHub</a>
         <Link href="/login">Sign in normally</Link>
         <Link href="/vendor/login">Vendor portal</Link>
