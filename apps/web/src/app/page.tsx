@@ -47,6 +47,13 @@ export default function Home() {
       body: "The whole path from an open role to a signed offer, step by step, and who may do what.",
       tone: "",
     },
+    {
+      href: "/guide",
+      kicker: "The manual",
+      title: "Guide",
+      body: "Every role and persona, the order to set an organization up in, and one complete hire person by person. For anyone using or testing it.",
+      tone: "",
+    },
   ];
 
   return (

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { applyBranding, type Branding } from "@/lib/theme";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette } from "@/components/command-palette";
 import type { Worklist } from "@/lib/worklist";
@@ -120,36 +121,23 @@ const LINKS: RailLink[] = [
     icon: "☌",
     needs: "org.settings",
   },
+  {
+    group: "Admin",
+    href: "/admin/appearance",
+    label: "Appearance",
+    icon: "◐",
+    needs: "org.settings",
+  },
 ];
 
 interface OrgMe {
   kind: string;
   name?: string;
   capabilities?: string[];
-  organization?: { name: string; branding?: { accent?: string; product_label?: string } };
+  organization?: { name: string; branding?: Branding };
   persona?: { key: string; label: string } | null;
   personas?: { key: string; label: string; scope: string; pending: number }[];
   persona_preference?: { default_persona: string | null; ask_at_login: boolean };
-}
-
-/** Relative luminance → readable text colour on an arbitrary brand accent. */
-function inkFor(hex: string): string | null {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return null;
-  const n = parseInt(m[1]!, 16);
-  const srgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
-    const c = v / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  const L = 0.2126 * srgb[0]! + 0.7152 * srgb[1]! + 0.0722 * srgb[2]!;
-  return L > 0.45 ? "#14130f" : "#ffffff";
-}
-
-function washFor(hex: string): string | null {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return null;
-  const n = parseInt(m[1]!, 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, 0.1)`;
 }
 
 const initials = (name: string) =>
@@ -183,17 +171,9 @@ export function OrgRail() {
         }
         setMe(m);
         setCaps(m.capabilities ?? []);
-        // White-labelling: the org may override the accent, so both derived
-        // values are recomputed rather than left at the light-theme defaults.
-        const accent = m.organization?.branding?.accent;
-        if (accent) {
-          const root = document.documentElement.style;
-          root.setProperty("--accent", accent);
-          const ink = inkFor(accent);
-          const wash = washFor(accent);
-          if (ink) root.setProperty("--accent-ink", ink);
-          if (wash) root.setProperty("--accent-wash", wash);
-        }
+        // White-labelling (lib/theme.ts): palette, overrides and type family
+        // for the whole workspace, applied as one stylesheet.
+        applyBranding(m.organization?.branding);
       })
       .catch(() => undefined);
   }, []);

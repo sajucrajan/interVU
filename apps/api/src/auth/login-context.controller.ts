@@ -25,17 +25,22 @@ export class LoginContextController {
     if (mode === "manual") return { mode: "manual", organizations: [] };
 
     const organizations = await this.prisma.organization.findMany({
-      select: { slug: true, name: true },
+      select: { slug: true, name: true, settings: true },
       orderBy: { name: "asc" },
       take: 100,
     });
 
+    const bare = organizations.map(({ slug, name }) => ({ slug, name }));
     if (mode === "picker") {
-      return { mode: "picker", organizations };
+      return { mode: "picker", organizations: bare };
     }
-    // auto
+    // auto. One organization: the sign-in page wears its colours (docs/01
+    // §4). With several, nothing is branded until someone has signed in,
+    // because the page does not yet know whose door it is.
     if (organizations.length === 1) {
-      return { mode: "single", organizations };
+      const branding =
+        ((organizations[0]!.settings as { branding?: Record<string, unknown> } | null)?.branding) ?? null;
+      return { mode: "single", organizations: bare, branding };
     }
     void kind; // reserved: per-audience policy if operators ask for it
     return { mode: "manual", organizations: [] };

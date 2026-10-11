@@ -6,6 +6,9 @@ the people in the system are, what each of them can do, what to set up in
 which order, and what to expect at every step. Written for a QA lead; nothing
 here needs the code.
 
+> **In the product**, this same text from section 3 onward is at `/guide`.
+> Section 1 and 2 are about running the stack, so they live here only.
+
 > **The short version.** Start the stack (§1), create your organization (§2),
 > build the org in the admin screens in the order given (§3), then run the
 > hiring loop with one browser window per person (§4). §5 lists what has no
@@ -256,6 +259,17 @@ the behaviours that show it. Edit one, reorder with the arrows, retire one,
 bring it back, add a sixth. These are rated on every scorecard whatever the
 role.
 
+### Step 9 · Appearance
+
+Admin → **Appearance**. Pick one of the 19 palettes (light ones first, then
+the six dark-by-default ones), change any colour in it for the light or the
+dark set, choose a type family, give the product your name. The strip on
+the right shows eight of the main screens in the draft, light or dark,
+browsed with the arrows. *Save for everyone* applies it to the workspace,
+the vendor portal and (on a single-organization server) the sign-in page.
+Status colours stay fixed: check that a red accent never makes a healthy row
+look broken.
+
 That is the organization. Everything from here is the hiring loop.
 
 ---
@@ -415,6 +429,7 @@ Each is an afternoon. The expected behaviour is the rule to break.
 | **Personas** | A person on a panel and holding a role is asked at sign-in; "ask every time" is honoured; the switch is one click; a deep link into the wrong persona offers the switch and never a 403; nothing from the inactive persona is reachable; Today counts the other persona's work correctly. |
 | **Pipeline** | Moving one card or several keeps them visible under any filter; SLA ages advance; the board, Today and the position's *View candidates* agree on counts. |
 | **Admin guards** | The last admin cannot be disabled or demoted; the admin permission cannot be removed from the last role that has it; an invitation link works once and expires; a disabled person cannot sign in. |
+| **Appearance** | Every palette, light and dark, on every screen in the preview and then for real: text stays readable, status colours stay green/amber/red whatever the accent, the rail's own text is legible on its own background, the vendor portal and sign-in follow, and a person's own light/dark switch still wins. |
 | **Small screens** | Every page at phone width: no sideways scroll, every action reachable. |
 | **Resilience** | Refresh mid-form (room notes survive; others reset cleanly). Browser back after every action. Two recruiters moving the same card at once. |
 

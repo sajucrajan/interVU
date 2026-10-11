@@ -52,7 +52,7 @@ const REFUSED =
   /not available to your role|insufficient scope|don.t have access|forbidden|something went wrong|unauthori[sz]ed|cannot GET|failed to load|application error|client-side exception|request failed/i;
 
 /** Where a link leaves the signed-in app, or would sign the crawler out. */
-const SKIP = [/^\/api\//, /^\/demo/, /^\/login/, /^\/vendor\/login/, /^\/activate/, /^\/how-it-works/, /^\/design/, /^\/choose-persona/];
+const SKIP = [/^\/api\//, /^\/demo/, /^\/login/, /^\/vendor\/login/, /^\/activate/, /^\/how-it-works/, /^\/guide/, /^\/design/, /^\/choose-persona/];
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
 const pattern = (u) => u.replace(UUID, ":id").replace(/\?.*/, "");

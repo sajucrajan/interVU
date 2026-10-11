@@ -6,16 +6,43 @@ import { PrismaService } from "../prisma/prisma.service";
 import { OrgScope, Tenant } from "../tenancy/scope.decorator";
 import type { TenantContext } from "../tenancy/tenant-context";
 
+const Hex = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+const TokenOverrides = z
+  .object({
+    page: Hex,
+    bg: Hex,
+    sunk: Hex,
+    fg: Hex,
+    muted: Hex,
+    faint: Hex,
+    border: Hex,
+    accent: Hex,
+    rail_bg: Hex,
+    rail_fg: Hex,
+  })
+  .partial();
+
 const SettingsPatch = z
   .object({
     ownership_scope: z.enum(["position", "organization"]).optional(),
     ownership_window_days: z.number().int().min(1).max(3650).optional(),
     feedback_visibility: z.enum(["open", "hidden_until_submitted"]).optional(),
     default_phone_region: z.string().length(2).optional(),
+    /** White-labelling (docs/01 §4): a palette, overrides on top, a type
+     *  family and the default mode. Keys are the web's lib/theme.ts; the
+     *  API only checks shape, so a palette added to the web needs no
+     *  release here. */
     branding: z
       .object({
-        accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+        accent: Hex.optional(),
         product_label: z.string().max(60).optional(),
+        palette: z.string().max(40).nullable().optional(),
+        mode: z.enum(["light", "dark"]).nullable().optional(),
+        font: z.string().max(40).nullable().optional(),
+        overrides: z
+          .object({ light: TokenOverrides.optional(), dark: TokenOverrides.optional() })
+          .nullable()
+          .optional(),
       })
       .optional(),
     /** Pluggable notification channels — per org, no provider assumed. */

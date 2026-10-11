@@ -3,10 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, apiErrorMessage } from "@/lib/api";
+import { applyBranding, type Branding } from "@/lib/theme";
 
 export interface LoginContext {
   mode: "single" | "picker" | "manual";
   organizations: { slug: string; name: string }[];
+  /** On a single-organization deployment: its look, so the sign-in page
+   *  is already branded before anyone types. */
+  branding?: Branding | null;
 }
 
 /**
@@ -33,6 +37,7 @@ export function LoginForm({ kind }: { kind: "org" | "vendor" }) {
     api<LoginContext>("/auth/login-context")
       .then((c) => {
         setCtx(c);
+        if (c.branding) applyBranding(c.branding);
         const fromUrl = params.get("org");
         if (fromUrl) setOrgSlug(fromUrl);
         else if (c.organizations.length === 1) setOrgSlug(c.organizations[0]!.slug);

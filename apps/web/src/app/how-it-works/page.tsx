@@ -217,6 +217,8 @@ export default function HowItWorksPage() {
         </p>
         <p className="muted hiw-sub">
           <Link href="/demo">Try it with a real account →</Link>
+          {" · "}
+          <Link href="/guide">The full guide: roles, set-up, a hire step by step →</Link>
         </p>
       </header>
 
