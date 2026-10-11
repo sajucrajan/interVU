@@ -32,6 +32,24 @@ const VendorLogin = z.object({
   password: z.string().min(1),
 });
 
+/**
+ * Whether the session cookie carries the Secure flag.
+ *
+ * It used to follow NODE_ENV, which is right for a hosted deployment and
+ * wrong for a self-host reached over plain HTTP on a LAN or an internal
+ * hostname: the production image set Secure, the browser dropped the cookie,
+ * and sign-in looked successful while every later request came back 401.
+ * So it follows the scheme of the address people actually use (WEB_ORIGIN,
+ * docs/13), with COOKIE_SECURE=true|false as the explicit override.
+ */
+export function cookieSecure(): boolean {
+  const override = process.env.COOKIE_SECURE?.toLowerCase();
+  if (override === "true" || override === "false") return override === "true";
+  const origin = process.env.WEB_ORIGIN;
+  if (origin) return origin.trim().toLowerCase().startsWith("https://");
+  return process.env.NODE_ENV === "production";
+}
+
 @Controller("auth")
 export class AuthController {
   constructor(
@@ -216,7 +234,7 @@ export class AuthController {
     res.cookie(SESSION_COOKIE, session.token, {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: cookieSecure(),
       expires: session.expiresAt,
       path: "/",
     });

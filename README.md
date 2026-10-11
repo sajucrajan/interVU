@@ -37,19 +37,30 @@ InterVU is built for organizations that run high volumes of interviews across ma
 - Resume upload to any S3-compatible store, GDPR erasure with matching-safe tombstones, daily re-match sweep, containerized deployment
 - Access checked end to end in CI: every endpoint against the entitlement rules for every role and across organizations, and every in-app link for every role
 
-**Not yet built:** OIDC SSO, in-app notification centre, Postgres RLS backstop, published container images, Helm chart. See the [roadmap](docs/07-roadmap.md).
+**Not yet built:** OIDC SSO, in-app notification centre, Postgres RLS backstop, Helm chart. See the [roadmap](docs/07-roadmap.md).
 
 ## Quickstart
 
-**Just want to try it?** Everything in containers, no Node toolchain needed:
+**Want to run it yourself?** Published images, three containers, no clone needed:
+
+```bash
+mkdir intervu && cd intervu
+curl -fsSLO https://raw.githubusercontent.com/sajucrajan/interVU/main/deploy/docker-compose.yml
+curl -fsSL  https://raw.githubusercontent.com/sajucrajan/interVU/main/deploy/.env.example -o .env
+# set POSTGRES_PASSWORD and ERASURE_SALT in .env, then:
+docker compose up -d
+docker compose --profile setup run --rm bootstrap   # your organization + admin
+```
+
+Open http://localhost:3000. The full guide, including the demo data, TLS,
+mail, resumes, updates and backups, is [docs/13 — Running InterVU yourself](docs/13-self-hosting.md).
+
+**Building from source instead?** The same three containers, built here:
 
 ```bash
 docker compose -f infra/docker-compose.yml --profile app up -d --build
+docker compose -f infra/docker-compose.yml exec api ./node_modules/.bin/tsx prisma/seed.ts   # demo data
 ```
-
-The API migrates the database on boot. Seed the demo data once with
-`docker compose -f infra/docker-compose.yml exec api ./node_modules/.bin/tsx prisma/seed.ts`,
-then open http://localhost:3000.
 
 **Developing?** Run infra in Docker and the apps on the host for hot reload:
 
@@ -117,7 +128,7 @@ The full design lives in [`docs/`](docs/):
 - **Database:** PostgreSQL (`pg_trgm` powers fuzzy matching) — bring any provider: Azure Database for PostgreSQL / Cosmos DB for PostgreSQL, AWS RDS/Aurora, GCP Cloud SQL, self-hosted/on-prem, or the bundled container ([why Postgres-only](docs/08-database-strategy.md))
 - **Jobs/queues (planned, M4):** BullMQ + Redis — behind `--profile full` in compose until wired
 - **Files (planned, M4):** S3-compatible storage (MinIO for self-hosting) — behind `--profile full`
-- **Deploy:** dev infra via Docker Compose (`pnpm db:embedded` runs Postgres from npm binaries if you have no Docker); containerized app images + Helm are M4
+- **Deploy:** published container images on GHCR with a one-file compose stack ([docs/13](docs/13-self-hosting.md)); dev infra via Docker Compose (`pnpm db:embedded` runs Postgres from npm binaries if you have no Docker); Helm is M4
 
 ## Contributing
 

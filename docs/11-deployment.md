@@ -8,6 +8,10 @@ permanent free tier; Render runs the two containers the repo already builds.
 > cookie problem below is identical on both, because `onrender.com` and
 > `koyeb.app` are both on the Public Suffix List.
 
+> **Running it on your own machine or server instead?** That is
+> [13 — Running InterVU yourself](13-self-hosting.md): published images, one
+> compose file, your own organization. This page is the public demo.
+
 > **Following this for the first time?** Read
 > [12 — Deployment walkthrough](12-deployment-walkthrough.md) instead: the
 > same deployment as an ordered click-by-click, with the failure modes and

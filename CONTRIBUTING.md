@@ -27,7 +27,7 @@ Optional services, started per profile:
 |---|---|---|
 | `--profile mail` | Mailpit (SMTP :1025, inbox http://localhost:8025) | notifications |
 | `--profile files` | MinIO (:9000, console :9001) | resume upload/download |
-| `--profile app` | api + web as containers | deployment / Dockerfiles |
+| `--profile app` | api + web as containers | deployment / Dockerfiles (users run the published images instead: docs/13) |
 
 **No Docker?** Run a real Postgres from npm-downloaded binaries instead:
 
