@@ -13,7 +13,8 @@
 #   - 750 instance-hours per month across the WORKSPACE, not per service.
 #     Both services sleep after 15 minutes idle, so a demo uses a fraction of
 #     that — but two services awake 24/7 would exhaust it in about a fortnight.
-#   - First request after a sleep takes ~50s to wake.
+#   - First request after a sleep takes ~50s to wake. The web app wakes the
+#     API itself and shows a banner meanwhile (NEXT_PUBLIC_API_WAKE_URL).
 
 services:
   # ---------------------------------------------------------------- API ----
@@ -75,6 +76,12 @@ services:
         value: /api/v1
       # The other half of that: Next rewrites /api/v1/* to the API service.
       - key: API_PROXY_TARGET
+        value: https://intervu-api-2sli.onrender.com
+      # The same address, for the BROWSER: a request through the proxy does
+      # not wake a sleeping API (the host answers 429 and keeps doing so), a
+      # request to the API's own address does. Every page pokes /healthz
+      # there on load and before retrying (apps/web/src/lib/wake.ts).
+      - key: NEXT_PUBLIC_API_WAKE_URL
         value: https://intervu-api-2sli.onrender.com
       # Publishes /demo with its one-click personas. Without this the route
       # 404s — which is what you want on a real install.

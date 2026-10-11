@@ -5847,3 +5847,40 @@ main.home {
 }
 /* A long URL or command in running text breaks rather than widening the page. */
 .guide-body p, .guide-body li, .guide-body td, .guide-body code { overflow-wrap: anywhere; }
+
+/* ---- Waking a sleeping API (lib/wake.ts) ---- */
+.wake-banner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(560px, calc(100vw - 32px));
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--fg);
+  color: var(--page);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  font: 500 13px/1.45 var(--font-ui);
+}
+.wake-banner.failed { background: var(--bad); color: #fff; }
+.wake-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: wake-pulse 1.2s ease-in-out infinite;
+}
+@keyframes wake-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .wake-dot { animation: none; } }
+.wake-retry {
+  all: unset;
+  cursor: pointer;
+  text-decoration: underline;
+  margin-left: 4px;
+}

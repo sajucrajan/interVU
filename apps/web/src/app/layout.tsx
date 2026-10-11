@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { WakeBanner } from "@/components/wake-banner";
 
 /**
  * Comparable numbers — counts, scores, hero figures.
@@ -53,7 +54,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Free-tier hosting: wake the API on load and say so (lib/wake.ts). */}
+        <WakeBanner />
+      </body>
     </html>
   );
 }
