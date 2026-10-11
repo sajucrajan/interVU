@@ -54,6 +54,7 @@ docker compose --profile setup run --rm bootstrap   # your organization + admin
 
 Open http://localhost:3000. The full guide, including the demo data, TLS,
 mail, resumes, updates and backups, is [docs/13 — Running InterVU yourself](docs/13-self-hosting.md).
+Testing it from a blank organization? [docs/14 — Tester's guide](docs/14-tester-guide.md).
 
 **Building from source instead?** The same three containers, built here:
 

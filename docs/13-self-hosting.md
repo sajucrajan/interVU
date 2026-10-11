@@ -214,3 +214,6 @@ contributor's version of this page.
 
 If something on this page does not work as written, open an issue: the
 *Bug* template asks for exactly what is needed.
+
+Testing it rather than running it? [docs/14](14-tester-guide.md) walks a
+tester through a new organization end to end.
