@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
 import { Modal } from "@/components/actions-menu";
 import {
   MustHavesEditor,
@@ -47,15 +48,20 @@ export default function TemplateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [t, setT] = useState<TemplateDetail | null>(null);
+  const [denied, setDenied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     api<TemplateDetail>(`/position-templates/${id}`)
       .then(setT)
-      .catch(() => router.push("/templates"));
+      .catch((e) => {
+        if (isForbidden(e)) setDenied(true);
+        else router.push("/templates");
+      });
   }, [id, router]);
 
+  if (denied) return <AccessDenied what="This template" why="For anyone who can see positions." />;
   if (!t) return <main className="wide muted">Loading…</main>;
 
   const meta = [

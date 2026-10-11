@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
 import { ActionsMenu, Modal, type MenuItem } from "@/components/actions-menu";
 import {
   MustHavesEditor,
@@ -126,6 +127,7 @@ export default function PositionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [p, setP] = useState<Detail | null>(null);
+  const [denied, setDenied] = useState(false);
   const me = useMe();
   const [vendors, setVendors] = useState<VendorOrg[]>([]);
   const [apps, setApps] = useState<RoleApplication[] | null>(null);
@@ -139,7 +141,9 @@ export default function PositionDetailPage() {
       Promise.all([
         api<Detail>(`/positions/${id}`)
           .then(setP)
-          .catch(() => undefined),
+          .catch((e) => {
+            if (isForbidden(e)) setDenied(true);
+          }),
         // Readable by anyone who can see submissions; anyone who cannot just
         // gets the page without the summary.
         api<RoleApplication[]>(`/applications?position_id=${id}`)
@@ -178,6 +182,7 @@ export default function PositionDetailPage() {
 
   usePageIdentity(p ? { label: p.title, meta: p.reference } : null);
 
+  if (denied) return <AccessDenied what="This position" why="Visible to anyone with positions in this team's scope, and to its interviewers while they sit on a panel." />;
   if (!p) return <main className="wide muted">Loading…</main>;
 
   // A panelist without positions.view gets the brief at this same URL, so

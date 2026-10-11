@@ -3,7 +3,8 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
 import { PipelineBoard as BoardView } from "./board";
 import { ActionsMenu, Modal, type MenuItem } from "@/components/actions-menu";
 
@@ -47,6 +48,7 @@ function PipelineBoard() {
   const positionParam = params.get("position");
 
   const [apps, setApps] = useState<Application[] | null>(null);
+  const [denied, setDenied] = useState(false);
   const [subs, setSubs] = useState<Submission[]>([]);
   const [users, setUsers] = useState<OrgUserRow[]>([]);
   const [scheduleFor, setScheduleFor] = useState<Application | null>(null);
@@ -67,7 +69,9 @@ function PipelineBoard() {
   }, []);
 
   useEffect(() => {
-    refresh().catch(() => undefined);
+    refresh().catch((e) => {
+      if (isForbidden(e)) setDenied(true);
+    });
   }, [refresh, router]);
 
   // The menu used to offer every action to everyone and let the API refuse.
@@ -211,6 +215,7 @@ function PipelineBoard() {
     }
   };
 
+  if (denied) return <AccessDenied what="The pipeline" why="For the people running hiring: recruiters, hiring managers and project managers in their scope. Interviewers find their work under My interviews." />;
   if (!apps) return <main className="wide muted">Loading…</main>;
 
   let visible = apps.filter((a) => a.status === "active");

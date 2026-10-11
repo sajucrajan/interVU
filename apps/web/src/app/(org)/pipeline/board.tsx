@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
 import { formatAge } from "@/components/age-pill";
 import { ActionsMenu, type MenuItem } from "@/components/actions-menu";
 import { formatDate } from "@/lib/format";
@@ -125,6 +126,7 @@ export function PipelineBoard({
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [denied, setDenied] = useState(false);
   const [busy, setBusy] = useState(false);
   /**
    * Cards moved while a view was open. A view like "New to screen" shows
@@ -153,7 +155,10 @@ export function PipelineBoard({
         if (moved.length) setKept((k) => new Set([...k, ...moved]));
         setData(next);
       })
-      .catch((e) => setError(apiErrorMessage(e)));
+      .catch((e) => {
+        if (isForbidden(e)) setDenied(true);
+        else setError(apiErrorMessage(e));
+      });
   }, []);
 
   useEffect(load, [load, reloadKey]);
@@ -161,6 +166,17 @@ export function PipelineBoard({
   // A new view is a new question; what was moved under the old one is done.
   useEffect(() => setKept(new Set()), [view, stage, positionId]);
 
+  // A refusal is a page, not a spinner: an interviewer who switched persona
+  // on the pipeline used to sit on "Loading…" with nothing happening.
+  if (denied) {
+    return (
+      <AccessDenied
+        what="The pipeline"
+        why="For the people running hiring: recruiters, hiring managers and project managers in their scope. Interviewers find their work under My interviews."
+      />
+    );
+  }
+  if (!data && error) return <p className="error">{error}</p>;
   if (!data) return <p className="muted">Loading…</p>;
 
   const inView = (c: BoardCard) => {

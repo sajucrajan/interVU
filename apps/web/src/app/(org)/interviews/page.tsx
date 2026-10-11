@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, apiErrorMessage } from "@/lib/api";
+import { api, apiErrorMessage, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
 import { SectionHead } from "@/components/section-head";
 import { PageHead } from "@/components/page-head";
 import { PanelScorecards } from "@/components/panel-scorecards";
@@ -80,6 +81,7 @@ export default function MyInterviewsPage() {
   const router = useRouter();
   const me = useMe();
   const [interviews, setInterviews] = useState<MyInterview[] | null>(null);
+  const [denied, setDenied] = useState(false);
   const [scoring, setScoring] = useState<string | null>(null);
   const [reading, setReading] = useState<string | null>(null);
 
@@ -87,7 +89,9 @@ export default function MyInterviewsPage() {
     () =>
       api<MyInterview[]>("/interviews/mine")
         .then(setInterviews)
-        .catch(() => undefined),
+        .catch((e) => {
+          if (isForbidden(e)) setDenied(true);
+        }),
     [router],
   );
 
@@ -95,6 +99,7 @@ export default function MyInterviewsPage() {
     void refresh();
   }, [refresh]);
 
+  if (denied) return <AccessDenied what="My interviews" why="For anyone on an interview panel, in their Interviewer persona." />;
   if (!interviews) return <main className="wide muted">Loading…</main>;
 
   // The three groups must partition the list, not overlap: filing early for

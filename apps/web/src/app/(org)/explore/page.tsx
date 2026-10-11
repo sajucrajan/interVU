@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, isForbidden } from "@/lib/api";
+import { AccessDenied } from "@/components/access-denied";
 import { ZoomableSunburst, type SunburstNode } from "@/components/zoomable-sunburst";
 import { PageHead } from "@/components/page-head";
 
@@ -41,6 +42,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 export default function ExplorePage() {
   const router = useRouter();
   const [data, setData] = useState<Overview | null>(null);
+  const [denied, setDenied] = useState(false);
   const [view, setView] = useState<View>("org");
   const [trail, setTrail] = useState<SunburstNode[]>([]);
   const [focus, setFocus] = useState<SunburstNode | null>(null);
@@ -52,9 +54,12 @@ export default function ExplorePage() {
         setFocus(d.hierarchy);
         setTrail([d.hierarchy]);
       })
-      .catch(() => undefined);
+      .catch((e) => {
+        if (isForbidden(e)) setDenied(true);
+      });
   }, [router]);
 
+  if (denied) return <AccessDenied what="The explorer" why="For anyone who can see positions." />;
   if (!data) return <main className="wide muted">Loading…</main>;
 
   const rootFor = (v: View) => (v === "org" ? data.hierarchy : data.skill_hierarchy);
